@@ -1,0 +1,234 @@
+ai1@aiserver1:~$ sudo journalctl -k --since "24 hours ago" | grep -iE 'enp10s0|enp11s0|link|NIC|reset|timeout|down|up'
+May 05 10:51:36 aiserver1 kernel: KERNEL supported cpus:
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x3510e018-0x35135a57] usable ==> usable
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x3510e018-0x35135a57] usable ==> usable
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x350fb018-0x3510d257] usable ==> usable
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x350fb018-0x3510d257] usable ==> usable
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x350f0018-0x350fae57] usable ==> usable
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x350f0018-0x350fae57] usable ==> usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000000000000-0x000000000009ffff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x00000000000a0000-0x00000000000fffff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000000100000-0x0000000009afefff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000009aff000-0x0000000009ffffff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000000a000000-0x000000000a1fffff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000000a200000-0x000000000a21dfff] ACPI NVS
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000000a21e000-0x000000000affffff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000000b000000-0x000000000b020fff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000000b021000-0x00000000350f0017] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x00000000350f0018-0x00000000350fae57] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x00000000350fae58-0x00000000350fb017] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x00000000350fb018-0x000000003510d257] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000003510d258-0x000000003510e017] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000003510e018-0x0000000035135a57] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000035135a58-0x0000000069e1cfff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000069e1d000-0x0000000070669fff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000007066a000-0x0000000070885fff] ACPI data
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000070886000-0x0000000072885fff] ACPI NVS
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000072886000-0x00000000781fefff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x00000000781ff000-0x0000000079ff6fff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000079ff7000-0x0000000079ffbfff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000079ffc000-0x0000000079ffffff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000007a000000-0x000000007bffffff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000007d7f3000-0x000000007fffffff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x00000000e0000000-0x00000000efffffff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x00000000f7000000-0x00000000ffffffff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000100000000-0x0000000ffdd7ffff] usable
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x0000000ffedc0000-0x00000010a01fffff] reserved
+May 05 10:51:36 aiserver1 kernel: reserve setup_data: [mem 0x000000fd00000000-0x000000ffffffffff] reserved
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x00000000-0x00000fff] usable ==> reserved
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x80000000-0xffffffff] usable ==> reserved
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x66791000-0x66791fff] usable ==> reserved
+May 05 10:51:36 aiserver1 kernel: Initmem setup node 0 [mem 0x0000000000001000-0x0000000ffdd7ffff]
+May 05 10:51:36 aiserver1 kernel: e820: update [mem 0x62e27000-0x62fd7fff] usable ==> reserved
+May 05 10:51:36 aiserver1 kernel: setup_percpu: NR_CPUS:8192 nr_cpumask_bits:32 nr_cpu_ids:32 nr_node_ids:1
+May 05 10:51:36 aiserver1 kernel: Built 1 zonelists, mobility grouping on.  Total pages: 15907079
+May 05 10:51:36 aiserver1 kernel: ftrace: allocated 199 pages with 5 groups
+May 05 10:51:36 aiserver1 kernel: APIC: Switch to symmetric I/O mode setup
+May 05 10:51:36 aiserver1 kernel: x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'
+May 05 10:51:36 aiserver1 kernel: x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'
+May 05 10:51:36 aiserver1 kernel: x86/fpu: Supporting XSAVE feature 0x004: 'AVX registers'
+May 05 10:51:36 aiserver1 kernel: x86/fpu: Supporting XSAVE feature 0x020: 'AVX-512 opmask'
+May 05 10:51:36 aiserver1 kernel: x86/fpu: Supporting XSAVE feature 0x040: 'AVX-512 Hi256'
+May 05 10:51:36 aiserver1 kernel: x86/fpu: Supporting XSAVE feature 0x080: 'AVX-512 ZMM_Hi256'
+May 05 10:51:36 aiserver1 kernel: x86/fpu: Supporting XSAVE feature 0x200: 'Protection Keys User registers'
+May 05 10:51:36 aiserver1 kernel: landlock: Up and running.
+May 05 10:51:36 aiserver1 kernel: smp: Bringing up secondary CPUs ...
+May 05 10:51:36 aiserver1 kernel: Spectre V2 : Update user space SMT mitigation: STIBP always-on
+May 05 10:51:36 aiserver1 kernel: smp: Brought up 1 node, 32 CPUs
+May 05 10:51:36 aiserver1 kernel: NET: Registered PF_NETLINK/PF_ROUTE protocol family
+May 05 10:51:36 aiserver1 kernel: audit: initializing netlink subsys (disabled)
+May 05 10:51:36 aiserver1 kernel: ACPI: EC: interrupt blocked
+May 05 10:51:36 aiserver1 kernel: ACPI: PM: (supports S0 S3 S4 S5)
+May 05 10:51:36 aiserver1 kernel: ACPI: Using IOAPIC for interrupt routing
+May 05 10:51:36 aiserver1 kernel: acpi PNP0A08:00: _OSC: OS supports [ExtendedConfig ASPM ClockPM Segments MSI EDR HPX-Type3]
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:01.1: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:01.2: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:02.1: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:02.2: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:08.1: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:08.3: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:01:00.0: PME# supported from D0 D3hot
+May 05 10:51:36 aiserver1 kernel: pci 0000:02:00.0: 63.014 Gb/s available PCIe bandwidth, limited by 32.0 GT/s PCIe x2 link at 0000:00:01.2 (capable of 126.028 Gb/s with 32.0 GT/s PCIe x4 link)
+May 05 10:51:36 aiserver1 kernel: pci 0000:03:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:08.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:0c.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:0d.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:06:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:04.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:05.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:06.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:08.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:0c.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:0d.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:09:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:0a:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:0b:00.0: supports D1 D2
+May 05 10:51:36 aiserver1 kernel: pci 0000:0b:00.0: PME# supported from D0 D1 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:0b:00.0: 15.752 Gb/s available PCIe bandwidth, limited by 8.0 GT/s PCIe x2 link at 0000:07:06.0 (capable of 63.012 Gb/s with 16.0 GT/s PCIe x4 link)
+May 05 10:51:36 aiserver1 kernel: pci 0000:0d:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:0e:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:0f:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:10:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:11:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:01.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:02.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:03.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:77:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:78:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.0: PME# supported from D1 D2 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.1: PME# supported from D1 D2 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.3: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.4: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.6: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: pci 0000:7a:00.0: PME# supported from D0 D3hot D3cold
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKA configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKB configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKC configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKD configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKE configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKF configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKG configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKH configured for IRQ 0
+May 05 10:51:36 aiserver1 kernel: ACPI: EC: interrupt unblocked
+May 05 10:51:36 aiserver1 kernel: PTP clock support registered
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:00.2: AMD-Vi: IOMMU performance counters supported
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:01.0: Adding to iommu group 0
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:01.1: Adding to iommu group 1
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:01.2: Adding to iommu group 2
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:02.0: Adding to iommu group 3
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:02.1: Adding to iommu group 4
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:02.2: Adding to iommu group 5
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:03.0: Adding to iommu group 6
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:04.0: Adding to iommu group 7
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:08.0: Adding to iommu group 8
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:08.1: Adding to iommu group 9
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:08.3: Adding to iommu group 10
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:14.0: Adding to iommu group 11
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:14.3: Adding to iommu group 11
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.0: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.1: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.2: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.3: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.4: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.5: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.6: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:18.7: Adding to iommu group 12
+May 05 10:51:36 aiserver1 kernel: pci 0000:01:00.0: Adding to iommu group 13
+May 05 10:51:36 aiserver1 kernel: pci 0000:01:00.1: Adding to iommu group 13
+May 05 10:51:36 aiserver1 kernel: pci 0000:02:00.0: Adding to iommu group 14
+May 05 10:51:36 aiserver1 kernel: pci 0000:03:00.0: Adding to iommu group 15
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:00.0: Adding to iommu group 16
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:08.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:0c.0: Adding to iommu group 18
+May 05 10:51:36 aiserver1 kernel: pci 0000:04:0d.0: Adding to iommu group 19
+May 05 10:51:36 aiserver1 kernel: pci 0000:06:00.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:00.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:04.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:05.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:06.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:08.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:0c.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:07:0d.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:09:00.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:0a:00.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:0b:00.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:0d:00.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:0e:00.0: Adding to iommu group 17
+May 05 10:51:36 aiserver1 kernel: pci 0000:0f:00.0: Adding to iommu group 18
+May 05 10:51:36 aiserver1 kernel: pci 0000:10:00.0: Adding to iommu group 19
+May 05 10:51:36 aiserver1 kernel: pci 0000:11:00.0: Adding to iommu group 20
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:00.0: Adding to iommu group 21
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:01.0: Adding to iommu group 22
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:02.0: Adding to iommu group 23
+May 05 10:51:36 aiserver1 kernel: pci 0000:12:03.0: Adding to iommu group 24
+May 05 10:51:36 aiserver1 kernel: pci 0000:77:00.0: Adding to iommu group 23
+May 05 10:51:36 aiserver1 kernel: pci 0000:78:00.0: Adding to iommu group 24
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.0: Adding to iommu group 25
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.1: Adding to iommu group 26
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.2: Adding to iommu group 27
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.3: Adding to iommu group 28
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.4: Adding to iommu group 29
+May 05 10:51:36 aiserver1 kernel: pci 0000:79:00.6: Adding to iommu group 30
+May 05 10:51:36 aiserver1 kernel: pci 0000:7a:00.0: Adding to iommu group 31
+May 05 10:51:36 aiserver1 kernel: AMD-Vi: Interrupt remapping enabled
+May 05 10:51:36 aiserver1 kernel: rtc_cmos 00:02: alarms up to one month, y3k, 114 bytes nvram, hpet irqs
+May 05 10:51:36 aiserver1 kernel: device-mapper: core: CONFIG_IMA_DISABLE_HTABLE is disabled. Duplicate IMA measurements will not be recorded in the IMA log.
+May 05 10:51:36 aiserver1 kernel: pci 0000:01:00.0: BAR has moved, updating efifb address
+May 05 10:51:36 aiserver1 kernel: microcode: Microcode Update Driver: v2.2.
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Live Patch Signing 2025 Kmod: d541cef61dc7e793b7eb7e899970a2eef0b5dc8c'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Live Patch Signing: 14df34d1a87cf37625abec039ef2bf521249b969'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Kernel Module Signing: 88f752e560a1e0737e31163a466ad7b70a850c19'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing: 61482aa2830d0ab2ad5af10b7250da9033ddcef0'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2017): 242ade75ac4a15e50d50c84b0d45ff3eae707a03'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (ESM 2018): 365188c1d374d6b07c3c8f240f8ef722433d6a8b'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2019): c0746fd6c5da3ae827864651ad66ae47fe24b3e8'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v1): a8d54bbb3825cfb94fa13c9f8a594a195c107b8d'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v2): 4cf046892d6fd3c9a5b03f98d845f90851dc6a8c'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v3): 100437bb6de6e469b581e61cd66bce3ef4ed53af'
+May 05 10:51:36 aiserver1 kernel: Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (Ubuntu Core 2019): c1d57b8f6b743f23ee41f4f7ee292f06eecadfb9'
+May 05 10:51:36 aiserver1 kernel: integrity: Loaded X.509 cert 'Canonical Ltd. Master Certificate Authority: ad91990bc22ab1f517048c23b6655a268e345a63'
+May 05 10:51:36 aiserver1 kernel: igc 0000:0a:00.0: PCIe PTM not supported by PCIe bus/controller
+May 05 10:51:36 aiserver1 kernel: nvme nvme0: Shutdown timeout set to 10 seconds
+May 05 10:51:36 aiserver1 kernel: xhci_hcd 0000:0d:00.0: Host supports USB 3.2 Enhanced SuperSpeed
+May 05 10:51:36 aiserver1 kernel: igc 0000:0a:00.0: 4.000 Gb/s available PCIe bandwidth (5.0 GT/s PCIe x1 link)
+May 05 10:51:36 aiserver1 kernel: xhci_hcd 0000:0f:00.0: Host supports USB 3.2 Enhanced SuperSpeed
+May 05 10:51:36 aiserver1 kernel: xhci_hcd 0000:79:00.3: Host supports USB 3.1 Enhanced SuperSpeed
+May 05 10:51:36 aiserver1 kernel: xhci_hcd 0000:79:00.4: Host supports USB 3.1 Enhanced SuperSpeed
+May 05 10:51:36 aiserver1 kernel: xhci_hcd 0000:7a:00.0: Host supports USB 3.0 SuperSpeed
+May 05 10:51:36 aiserver1 kernel: ata1: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: ata7: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: ata2: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: ata3: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: ata4: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: ata8: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: ata9: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: ata10: SATA link down (SStatus 0 SControl 300)
+May 05 10:51:36 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: renamed from eth1
+May 05 10:51:36 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: renamed from eth0
+May 05 10:51:36 aiserver1 kernel: nvidia-nvlink: Nvlink Core is being initialized, major device number 506
+May 05 10:51:36 aiserver1 systemd[1]: systemd 249.11-0ubuntu3.20 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
+May 05 10:51:36 aiserver1 systemd[1]: Configuration file /run/systemd/system/netplan-ovs-cleanup.service is marked world-inaccessible. This has no effect as configuration data is accessible via APIs without restrictions. Proceeding anyway.
+May 05 10:51:36 aiserver1 systemd[1]: Set up automount Arbitrary Executable File Formats File System Automount Point.
+May 05 10:51:36 aiserver1 systemd[1]: Listening on fsck to fsckd communication Socket.
+May 05 10:51:36 aiserver1 systemd[1]: Listening on Network Service Netlink Socket.
+May 05 10:51:36 aiserver1 systemd[1]: Condition check resulted in Kernel Module supporting RPCSEC_GSS being skipped.
+May 05 10:51:36 aiserver1 systemd[1]: Condition check resulted in OpenVSwitch configuration for cleanup being skipped.
+May 05 10:51:37 aiserver1 kernel: SVM: Virtual VMLOAD VMSAVE supported
+May 05 10:51:37 aiserver1 kernel: SVM: Virtual GIF supported
+May 05 10:51:41 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX/TX
+May 05 10:51:41 aiserver1 kernel: IPv6: ADDRCONF(NETDEV_CHANGE): enp10s0: link becomes ready
+May 05 10:51:46 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 0 new 10000
+May 05 10:51:46 aiserver1 kernel: IPv6: ADDRCONF(NETDEV_CHANGE): enp11s0: link becomes ready
+ai1@aiserver1:~$ sudo journalctl -k --since "24 hours ago" | grep -iE 'duplicate|arp|conflict'
+May 05 10:51:36 aiserver1 kernel: pci 0000:00:02.1: can't claim BAR 14 [mem 0xdc400000-0xdd4fffff]: address conflict with AMDIF031:00 [mem 0xdd000000-0xdd000fff]
+May 05 10:51:36 aiserver1 kernel: Expanded resource Reserved due to conflict with PCI Bus 0000:00
+May 05 10:51:36 aiserver1 kernel: device-mapper: core: CONFIG_IMA_DISABLE_HTABLE is disabled. Duplicate IMA measurements will not be recorded in the IMA log.
+ai1@aiserver1:~$ sudo journalctl -k --since "24 hours ago" | grep -i 'out of memory'
+ai1@aiserver1:~$ ping -O 20.1.1.132 | awk '{ print strftime("%Y-%m-%d %H:%M:%S"), $0; fflush(); }' > ~/ping_monitor.log
+^C
+ai1@aiserver1:~$ tmux new -s network_checks
+[detached (from session network_checks)]
+ai1@aiserver1:~$

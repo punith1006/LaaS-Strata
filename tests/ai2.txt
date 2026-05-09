@@ -1,0 +1,394 @@
+ai2@aiserver2:~$ sudo journalctl --since "2026-05-08 11:52:30" --until "2026-05-08 11:53:00"
+May 08 11:52:29 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:29 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:29 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:29 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:29 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:29 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:29 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:30 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:30 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:30 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:30 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:30 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:30 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:30 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:31 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:31 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:31 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:31 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:31 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:31 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:31 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:32 aiserver2 kernel: kauditd_printk_skb: 32 callbacks suppressed
+May 08 11:52:32 aiserver2 kernel: audit: type=1400 audit(1778241151.996:258121): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:32 aiserver2 kernel: audit: type=1400 audit(1778241151.996:258122): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:32 aiserver2 kernel: audit: type=1400 audit(1778241151.996:258123): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:32 aiserver2 kernel: audit: type=1400 audit(1778241151.996:258124): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" r>
+May 08 11:52:32 aiserver2 kernel: audit: type=1400 audit(1778241151.996:258125): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="f>
+May 08 11:52:32 aiserver2 kernel: audit: type=1400 audit(1778241151.996:258126): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm>
+May 08 11:52:32 aiserver2 kernel: audit: type=1400 audit(1778241151.996:258127): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ft>
+May 08 11:52:32 aiserver2 mongod[4962]: {"t":{"$date":"2026-05-08T11:52:32.310+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":17782>
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:32.767Z] INFO  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Reconnecting...
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:32.767Z] ERROR a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSPORTER: Server error. Error: listen EADDRINUSE: address already >
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listenInCluster (node:net:1996:12)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.listen (node:net:2101:7)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:62:11
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at new Promise (<anonymous>)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpReader.listen (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:46:10)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpTransporter.startTcpServer (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:155:2>
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:122:21
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTicksAndRejections (node:internal/process/task_queues:105:5)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at runNextTicks (node:internal/process/task_queues:69:3)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listOnTimeout (node:internal/timers:549:9)
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTimers (node:internal/timers:523:7) {
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:   code: 'EADDRINUSE',
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:   errno: -98,
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:   syscall: 'listen',
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:   address: '::',
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]:   port: 36431
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]: }
+May 08 11:52:32 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:32.767Z] WARN  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Connection is failed. listen EADDRINUSE: address already in >
+May 08 11:52:32 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:32 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:32 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:32 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:32 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:32 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:32 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:33 aiserver2 kernel: audit: type=1400 audit(1778241152.996:258128): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:33 aiserver2 kernel: audit: type=1400 audit(1778241152.996:258129): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:33 aiserver2 kernel: audit: type=1400 audit(1778241152.996:258130): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:33 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:33 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:33 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:33 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:33 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:33 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:33 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:34 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:34 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:34 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:34 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:34 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:34 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:34 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:35 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:35 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:35 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:35 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:35 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:35 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:35 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:36 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:36 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:36 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:36 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:36 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:36 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:36 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:37.767Z] INFO  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Reconnecting...
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:37.768Z] ERROR a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSPORTER: Server error. Error: listen EADDRINUSE: address already >
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listenInCluster (node:net:1996:12)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.listen (node:net:2101:7)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:62:11
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at new Promise (<anonymous>)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpReader.listen (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:46:10)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpTransporter.startTcpServer (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:155:2>
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:122:21
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTicksAndRejections (node:internal/process/task_queues:105:5)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at runNextTicks (node:internal/process/task_queues:69:3)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listOnTimeout (node:internal/timers:549:9)
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTimers (node:internal/timers:523:7) {
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:   code: 'EADDRINUSE',
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:   errno: -98,
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:   syscall: 'listen',
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:   address: '::',
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]:   port: 36431
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]: }
+May 08 11:52:37 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:37.768Z] WARN  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Connection is failed. listen EADDRINUSE: address already in >
+May 08 11:52:37 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:37 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:37 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:37 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:37 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:37 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:37 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:38 aiserver2 kernel: kauditd_printk_skb: 32 callbacks suppressed
+May 08 11:52:38 aiserver2 kernel: audit: type=1400 audit(1778241157.996:258163): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:38 aiserver2 kernel: audit: type=1400 audit(1778241157.996:258164): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:38 aiserver2 kernel: audit: type=1400 audit(1778241157.996:258165): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:38 aiserver2 kernel: audit: type=1400 audit(1778241157.996:258166): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" r>
+May 08 11:52:38 aiserver2 kernel: audit: type=1400 audit(1778241157.996:258167): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="f>
+May 08 11:52:38 aiserver2 kernel: audit: type=1400 audit(1778241157.996:258168): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm>
+May 08 11:52:38 aiserver2 kernel: audit: type=1400 audit(1778241157.996:258169): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ft>
+May 08 11:52:38 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:38 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:38 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:38 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:38 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:38 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:38 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:39 aiserver2 kernel: audit: type=1400 audit(1778241158.996:258170): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:39 aiserver2 kernel: audit: type=1400 audit(1778241158.996:258171): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:39 aiserver2 kernel: audit: type=1400 audit(1778241158.996:258172): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:39 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:39 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:39 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:39 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:39 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:39 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:39 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:40 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:40 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:40 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:40 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:40 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:40 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:40 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:41 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:41 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:41 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:41 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:41 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:41 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:41 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:42.768Z] INFO  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Reconnecting...
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:42.768Z] ERROR a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSPORTER: Server error. Error: listen EADDRINUSE: address already >
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listenInCluster (node:net:1996:12)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.listen (node:net:2101:7)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:62:11
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at new Promise (<anonymous>)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpReader.listen (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:46:10)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpTransporter.startTcpServer (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:155:2>
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:122:21
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTicksAndRejections (node:internal/process/task_queues:105:5)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at runNextTicks (node:internal/process/task_queues:69:3)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listOnTimeout (node:internal/timers:549:9)
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTimers (node:internal/timers:523:7) {
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:   code: 'EADDRINUSE',
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:   errno: -98,
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:   syscall: 'listen',
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:   address: '::',
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]:   port: 36431
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]: }
+May 08 11:52:42 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:42.768Z] WARN  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Connection is failed. listen EADDRINUSE: address already in >
+May 08 11:52:42 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:42 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:42 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:42 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:42 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:42 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:42 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:43 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:43 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:43 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:43 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:43 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:43 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:43 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:44 aiserver2 kernel: kauditd_printk_skb: 32 callbacks suppressed
+May 08 11:52:44 aiserver2 kernel: audit: type=1400 audit(1778241163.996:258205): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:44 aiserver2 kernel: audit: type=1400 audit(1778241163.996:258206): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:44 aiserver2 kernel: audit: type=1400 audit(1778241163.996:258207): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:44 aiserver2 kernel: audit: type=1400 audit(1778241163.996:258208): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" r>
+May 08 11:52:44 aiserver2 kernel: audit: type=1400 audit(1778241163.996:258209): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="f>
+May 08 11:52:44 aiserver2 kernel: audit: type=1400 audit(1778241163.996:258210): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm>
+May 08 11:52:44 aiserver2 kernel: audit: type=1400 audit(1778241163.996:258211): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ft>
+May 08 11:52:44 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:44 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:44 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:44 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:44 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:44 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:44 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:45 aiserver2 kernel: audit: type=1400 audit(1778241164.996:258212): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:45 aiserver2 kernel: audit: type=1400 audit(1778241164.996:258213): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:45 aiserver2 kernel: audit: type=1400 audit(1778241164.996:258214): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:45 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:45 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:45 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:45 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:45 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:45 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:45 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:46 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:46 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:46 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:46 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:46 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:46 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:46 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:47.769Z] INFO  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Reconnecting...
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:47.769Z] ERROR a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSPORTER: Server error. Error: listen EADDRINUSE: address already >
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listenInCluster (node:net:1996:12)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.listen (node:net:2101:7)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:62:11
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at new Promise (<anonymous>)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpReader.listen (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:46:10)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpTransporter.startTcpServer (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:155:2>
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:122:21
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTicksAndRejections (node:internal/process/task_queues:105:5)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at runNextTicks (node:internal/process/task_queues:69:3)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listOnTimeout (node:internal/timers:549:9)
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTimers (node:internal/timers:523:7) {
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:   code: 'EADDRINUSE',
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:   errno: -98,
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:   syscall: 'listen',
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:   address: '::',
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]:   port: 36431
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]: }
+May 08 11:52:47 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:47.769Z] WARN  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Connection is failed. listen EADDRINUSE: address already in >
+May 08 11:52:47 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:47 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:47 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:47 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:47 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:47 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:47 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:48 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:48 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:48 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:48 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:48 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:48 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:48 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:49 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:49 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:49 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:49 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:49 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:49 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:49 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:50 aiserver2 kernel: kauditd_printk_skb: 32 callbacks suppressed
+May 08 11:52:50 aiserver2 kernel: audit: type=1400 audit(1778241169.996:258247): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:50 aiserver2 kernel: audit: type=1400 audit(1778241169.996:258248): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:50 aiserver2 kernel: audit: type=1400 audit(1778241169.996:258249): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:50 aiserver2 kernel: audit: type=1400 audit(1778241169.996:258250): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" r>
+May 08 11:52:50 aiserver2 kernel: audit: type=1400 audit(1778241169.996:258251): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="f>
+May 08 11:52:50 aiserver2 kernel: audit: type=1400 audit(1778241169.996:258252): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm>
+May 08 11:52:50 aiserver2 kernel: audit: type=1400 audit(1778241169.996:258253): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ft>
+May 08 11:52:50 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:50 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:50 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:50 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:50 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:50 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:50 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:51 aiserver2 kernel: audit: type=1400 audit(1778241170.996:258254): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:51 aiserver2 kernel: audit: type=1400 audit(1778241170.996:258255): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:51 aiserver2 kernel: audit: type=1400 audit(1778241170.996:258256): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:51 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:51 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:51 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:51 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:51 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:51 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:51 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:52.769Z] INFO  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Reconnecting...
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:52.769Z] ERROR a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSPORTER: Server error. Error: listen EADDRINUSE: address already >
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listenInCluster (node:net:1996:12)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.listen (node:net:2101:7)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:62:11
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at new Promise (<anonymous>)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpReader.listen (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:46:10)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpTransporter.startTcpServer (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:155:2>
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:122:21
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTicksAndRejections (node:internal/process/task_queues:105:5)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at runNextTicks (node:internal/process/task_queues:69:3)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listOnTimeout (node:internal/timers:549:9)
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTimers (node:internal/timers:523:7) {
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:   code: 'EADDRINUSE',
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:   errno: -98,
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:   syscall: 'listen',
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:   address: '::',
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]:   port: 36431
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]: }
+May 08 11:52:52 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:52.769Z] WARN  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Connection is failed. listen EADDRINUSE: address already in >
+May 08 11:52:52 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:52 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:52 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:52 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:52 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:52 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:52 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:53 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:53 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:53 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:53 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:53 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:53 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:53 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:54 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:54 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:54 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:54 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:54 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:54 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:54 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:55 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:55 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:55 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:55 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:55 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:55 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:55 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:56 aiserver2 kernel: kauditd_printk_skb: 32 callbacks suppressed
+May 08 11:52:56 aiserver2 kernel: audit: type=1400 audit(1778241175.996:258289): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:56 aiserver2 kernel: audit: type=1400 audit(1778241175.996:258290): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:56 aiserver2 kernel: audit: type=1400 audit(1778241175.996:258291): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:56 aiserver2 kernel: audit: type=1400 audit(1778241175.996:258292): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" r>
+May 08 11:52:56 aiserver2 kernel: audit: type=1400 audit(1778241175.996:258293): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="f>
+May 08 11:52:56 aiserver2 kernel: audit: type=1400 audit(1778241175.996:258294): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm>
+May 08 11:52:56 aiserver2 kernel: audit: type=1400 audit(1778241175.996:258295): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ft>
+May 08 11:52:56 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:56 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:56 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:56 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:56 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:56 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:56 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:57 aiserver2 kernel: audit: type=1400 audit(1778241176.996:258296): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 com>
+May 08 11:52:57 aiserver2 kernel: audit: type=1400 audit(1778241176.996:258297): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm=">
+May 08 11:52:57 aiserver2 kernel: audit: type=1400 audit(1778241176.996:258298): apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm=>
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:57.769Z] INFO  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Reconnecting...
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:57.770Z] ERROR a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSPORTER: Server error. Error: listen EADDRINUSE: address already >
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.setupListenHandle [as _listen2] (node:net:1939:16)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listenInCluster (node:net:1996:12)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at Server.listen (node:net:2101:7)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:62:11
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at new Promise (<anonymous>)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpReader.listen (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp/tcp-reader.js:46:10)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at TcpTransporter.startTcpServer (/snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:155:2>
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at /snap/rocketchat-server/1786/programs/server/npm/node_modules/moleculer/src/transporters/tcp.js:122:21
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTicksAndRejections (node:internal/process/task_queues:105:5)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at runNextTicks (node:internal/process/task_queues:69:3)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at listOnTimeout (node:internal/timers:549:9)
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:     at processTimers (node:internal/timers:523:7) {
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:   code: 'EADDRINUSE',
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:   errno: -98,
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:   syscall: 'listen',
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:   address: '::',
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]:   port: 36431
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]: }
+May 08 11:52:57 aiserver2 rocketchat-server.rocketchat-server[5696]: [2026-05-08T11:52:57.770Z] WARN  a68cde29-0fd1-4d1b-b2f1-745c5cf5f3de/TRANSIT: Connection is failed. listen EADDRINUSE: address already in >
+May 08 11:52:57 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:57 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:57 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:57 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:57 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:57 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:57 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+May 08 11:52:58 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/netstat" pid=4962 comm="ftdc" requested_mask="r" denied_mas>
+May 08 11:52:58 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/net/snmp" pid=4962 comm="ftdc" requested_mask="r" denied_mask=">
+May 08 11:52:58 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/4962/mountinfo" pid=4962 comm="ftdc" requested_mask="r" denied_mask=>
+May 08 11:52:58 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/vmstat" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r" fsui>
+May 08 11:52:58 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/cpu" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r>
+May 08 11:52:58 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/memory" pid=4962 comm="ftdc" requested_mask="r" denied_mask>
+May 08 11:52:58 aiserver2 audit[4962]: AVC apparmor="DENIED" operation="open" profile="snap.rocketchat-server.rocketchat-mongo" name="/proc/pressure/io" pid=4962 comm="ftdc" requested_mask="r" denied_mask="r">
+lines 340-392/392 (END)

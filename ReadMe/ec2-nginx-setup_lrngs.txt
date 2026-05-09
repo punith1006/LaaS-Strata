@@ -1,0 +1,149 @@
+[ec2-user@ip-172-26-15-32 backend]$ sudo cat /etc/nginx/nginx.conf
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    include /etc/nginx/conf.d/*.conf;
+}
+[ec2-user@ip-172-26-15-32 backend]$ sudo cat /etc/nginx/conf.d/*.conf
+# HTTP to HTTPS redirect
+server {
+    listen 80;
+    server_name ksrceailab.com www.ksrceailab.com;
+    return 301 https://$server_name$request_uri;
+}
+
+# HTTPS
+server {
+    listen 443 ssl;
+    server_name ksrceailab.com www.ksrceailab.com;
+
+    ssl_certificate /etc/letsencrypt/live/ksrceailab.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ksrceailab.com/privkey.pem;
+
+    # Keycloak
+    location /auth {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_buffer_size 128k;
+        proxy_buffers 4 128k;
+        proxy_busy_buffers_size 256k;
+    }
+
+    # Proxy API calls to backend
+    location /api/ {
+        proxy_pass http://localhost:3001/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Proxy to Next.js frontend
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+[ec2-user@ip-172-26-15-32 backend]$ ^C
+[ec2-user@ip-172-26-15-32 backend]$
+
+
+
+
+###################AI1 App Server Setup#################
+
+sudo tee /etc/nginx/sites-available/laas-gateway << 'EOF'
+server {
+    listen 80;
+    server_name ksrceailab.com www.ksrceailab.com;
+    # Redirect all HTTP traffic to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ksrceailab.com www.ksrceailab.com;
+
+    # Note: You MUST copy your SSL certs from EC2 to these paths
+    ssl_certificate /etc/letsencrypt/live/ksrceailab.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ksrceailab.com/privkey.pem;
+
+    # 1. Keycloak (Authentication)
+    location /auth {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_buffer_size 128k;
+        proxy_buffers 4 128k;
+        proxy_busy_buffers_size 256k;
+    }
+
+    # 2. Backend API
+    location /api/ {
+        proxy_pass http://localhost:3010/; # Note the trailing slash
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 3. Next.js Frontend
+    location / {
+        proxy_pass http://localhost:3011;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOF
+
+
