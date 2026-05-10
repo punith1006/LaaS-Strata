@@ -648,7 +648,7 @@ export default function StoragePage() {
             )}
           </div>
           {/* Upgrade Storage Button */}
-          {totalAllocated > 0 && totalAllocated < 10 && (
+          {totalAllocated > 0 && totalAllocated < 32 && (
             <button
               onClick={() => setShowUpgradeModal(true)}
               style={{
@@ -677,7 +677,7 @@ export default function StoragePage() {
             </button>
           )}
           {/* Already at max - show disabled button */}
-          {totalAllocated >= 10 && (
+          {totalAllocated >= 32 && (
             <button
               disabled
               style={{
@@ -1896,7 +1896,7 @@ function CreateStorageModal({
 
   const handleSizeChange = (newSize: number) => {
     // Enforce minimum of 5GB
-    setSizeGb(Math.max(5, Math.min(10, newSize)));
+    setSizeGb(Math.max(5, Math.min(32, newSize)));
   };
 
   const handleMouseDown = () => setIsDragging(true);
@@ -1916,7 +1916,7 @@ function CreateStorageModal({
     !nameError &&
     !nameChecking &&
     sizeGb >= 5 &&
-    sizeGb <= 10 &&
+    sizeGb <= 32 &&
     hasEnoughCredits;
 
   const handleSubmit = async () => {
@@ -2080,7 +2080,7 @@ function CreateStorageModal({
               <strong>File Store</strong> provides persistent network storage that attaches to your compute instances. 
               Storage is billed at <strong>Rs.7/GB per month</strong>{" "}
               (~Rs.0.01/GB per hour), charged continuously as long as the File Store exists 
-              — even when not mounted to an instance. Minimum allocation is <strong>5 GB</strong>.
+              — even when not mounted to an instance. Minimum allocation is <strong>5 GB</strong>. Maximum is <strong>32 GB</strong>.
             </div>
           </div>
 
@@ -2182,7 +2182,7 @@ function CreateStorageModal({
                   paddingBottom: "4px",
                 }}
               >
-                Size (5 GB - 10 GB)
+                Size (5 GB - 32 GB)
               </label>
               
               {/* Current size display */}
@@ -2213,7 +2213,7 @@ function CreateStorageModal({
                   const rect = e.currentTarget.getBoundingClientRect();
                   const x = e.clientX - rect.left;
                   const percent = Math.max(0, Math.min(1, x / rect.width));
-                  handleSizeChange(Math.round(percent * 5) + 5);
+                  handleSizeChange(Math.round(percent * 27) + 5);
                 }}
               >
                 {/* Slider fill */}
@@ -2223,7 +2223,7 @@ function CreateStorageModal({
                     left: 0,
                     top: 0,
                     bottom: 0,
-                    width: `${((sizeGb - 5) / 5) * 100}%`,
+                    width: `${((sizeGb - 5) / 27) * 100}%`,
                     backgroundColor: "var(--fgColor-default)",
                     borderRadius: "2px",
                     transition: isDragging ? "none" : "width 0.1s ease",
@@ -2235,7 +2235,7 @@ function CreateStorageModal({
                   style={{
                     position: "absolute",
                     top: "50%",
-                    left: `${((sizeGb - 5) / 5) * 100}%`,
+                    left: `${((sizeGb - 5) / 27) * 100}%`,
                     transform: "translate(-50%, -50%)",
                     width: "16px",
                     height: "16px",
@@ -2257,7 +2257,7 @@ function CreateStorageModal({
                     const rect = slider.getBoundingClientRect();
                     const x = e.clientX - rect.left;
                     const percent = Math.max(0, Math.min(1, x / rect.width));
-                    handleSizeChange(Math.round(percent * 5) + 5);
+                    handleSizeChange(Math.round(percent * 27) + 5);
                   }}
                 />
               </div>
@@ -2286,7 +2286,7 @@ function CreateStorageModal({
                     color: "var(--fgColor-muted)",
                   }}
                 >
-                  10 GB
+                  32 GB
                 </span>
               </div>
             </div>
@@ -2501,14 +2501,14 @@ function UpgradeStorageModal({
   onSuccess: (volume: StorageVolumeUpgrade) => void;
   volume: StorageVolume;
 }) {
-  const [newQuotaGb, setNewQuotaGb] = useState(Math.min(Math.floor(volume.quotaGb) + 1, 10));
+  const [newQuotaGb, setNewQuotaGb] = useState(Math.min(Math.floor(volume.quotaGb) + 1, 32));
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const currentQuotaGb = Math.floor(volume.quotaGb);
-  const maxQuota = 10;
+  const maxQuota = 32;
   const minNewQuota = currentQuotaGb + 1;
 
   // Dark mode detection

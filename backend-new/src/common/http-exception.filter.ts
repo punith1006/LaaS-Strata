@@ -30,9 +30,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
     }
 
-    this.logger.error(
-      `${status} ${Array.isArray(message) ? message.join(', ') : message}`,
-    );
+    // For debugging: log the full exception stack trace if it's not a standard HttpException
+    if (!(exception instanceof HttpException)) {
+      this.logger.error('Unexpected Error:', exception);
+    } else {
+      this.logger.error(
+        `${status} ${Array.isArray(message) ? message.join(', ') : message}`,
+      );
+    }
 
     reply.status(status).send({
       statusCode: status,

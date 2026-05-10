@@ -28,7 +28,7 @@ import { AuditService } from '../audit/audit.service';
 import { randomBytes } from 'crypto';
 
 const MIN_QUOTA_GB = 5;
-const MAX_QUOTA_GB = 10;
+const MAX_QUOTA_GB = 32;
 
 export class CreateStorageVolumeDto {
   @IsString()

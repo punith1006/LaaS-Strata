@@ -29,6 +29,10 @@ export class PaymentService {
     private prisma: PrismaService,
     private referralService: ReferralService,
   ) {
+    console.log('--- RAZORPAY ENV CHECK ---');
+    console.log('ID:', process.env.RAZORPAY_KEY_ID?.substring(0, 8));
+    console.log('SECRET:', process.env.RAZORPAY_KEY_SECRET?.substring(0, 3));
+    console.log('--------------------------');
     this.razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID,
       key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -53,7 +57,7 @@ export class PaymentService {
 
     // Create Razorpay order
     const receipt = `rcpt_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
-    
+
     const razorpayOrder = await this.razorpay.orders.create({
       amount: amountInPaise,
       currency: 'INR',
@@ -366,25 +370,25 @@ export class PaymentService {
       updatedAt: transaction.updatedAt,
       invoice: invoiceLineItem
         ? {
-            id: invoiceLineItem.invoice.id,
-            invoiceNumber: invoiceLineItem.invoice.invoiceNumber,
-            periodStart: invoiceLineItem.invoice.periodStart,
-            periodEnd: invoiceLineItem.invoice.periodEnd,
-            subtotalCents: Number(invoiceLineItem.invoice.subtotalCents),
-            taxCents: Number(invoiceLineItem.invoice.taxCents),
-            totalCents: Number(invoiceLineItem.invoice.totalCents),
-            currency: invoiceLineItem.invoice.currency,
-            status: invoiceLineItem.invoice.status,
-            issuedAt: invoiceLineItem.invoice.issuedAt,
-            paidAt: invoiceLineItem.invoice.paidAt,
-            lineItems: invoiceLineItem.invoice.invoiceLineItems.map((item) => ({
-              id: item.id,
-              description: item.description,
-              quantity: item.quantity,
-              unitPriceCents: item.unitPriceCents,
-              totalCents: Number(item.totalCents),
-            })),
-          }
+          id: invoiceLineItem.invoice.id,
+          invoiceNumber: invoiceLineItem.invoice.invoiceNumber,
+          periodStart: invoiceLineItem.invoice.periodStart,
+          periodEnd: invoiceLineItem.invoice.periodEnd,
+          subtotalCents: Number(invoiceLineItem.invoice.subtotalCents),
+          taxCents: Number(invoiceLineItem.invoice.taxCents),
+          totalCents: Number(invoiceLineItem.invoice.totalCents),
+          currency: invoiceLineItem.invoice.currency,
+          status: invoiceLineItem.invoice.status,
+          issuedAt: invoiceLineItem.invoice.issuedAt,
+          paidAt: invoiceLineItem.invoice.paidAt,
+          lineItems: invoiceLineItem.invoice.invoiceLineItems.map((item) => ({
+            id: item.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPriceCents: item.unitPriceCents,
+            totalCents: Number(item.totalCents),
+          })),
+        }
         : null,
     };
   }

@@ -644,9 +644,10 @@ sudo chown root:root /usr/local/bin/provision-user-storage.sh
 # On .88 - install Python dependencies:
 pip3 install flask werkzeug
 
-
 echo 'zenith ALL=(root) NOPASSWD: /usr/local/bin/provision-user-storage.sh' | sudo tee /etc/sudoers.d/laas-provision
 sudo chmod 440 /etc/sudoers.d/laas-provision
+
+echo 'ai2 ALL=(root) NOPASSWD: /usr/local/bin/provision-user-storage.sh, /usr/sbin/exportfs, /usr/bin/mount, /usr/bin/umount' | sudo tee /etc/sudoers.d/laas-provision
 
 echo 'zenith ALL=(root) NOPASSWD: /usr/local/bin/provision-user-storage.sh' | sudo tee /etc/sudoers.d/laas-provision
 sudo chmod 440 /etc/sudoers.d/laas-provision
@@ -659,7 +660,8 @@ start the app (stroage-provision)!
 curl -X POST http://localhost:9999/provision \
   -H "Content-Type: application/json" \
   -H "X-Provision-Secret: e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365" \
-  -d '{"storageUid": "u_aabbccddeeff001122334455", "quotaGb": 5}'
+  -d '{"storageUid": "u_7d5ac90d65d6694b96f65147", "quotaGb": 10}'
+
 
 
 # If NFS automount was enabled, unmount first
@@ -1615,6 +1617,63 @@ psql -U postgres -d laas -c "INSERT INTO wallets (id, user_id, balance_cents, li
 psql -U postgres -d laas -c "INSERT INTO wallets (id, user_id, balance_cents, lifetime_credits_cents, currency, low_balance_threshold_cents, spend_limit_enabled, spend_limit_warning_85_sent, runway_warning_1hour_sent, is_frozen, created_at, updated_at) VALUES (gen_random_uuid(), (SELECT id FROM users WHERE email = 'test-user108@gmail.com'), 2000000, 2000000, 'INR', 10000, false, false, false, false, NOW(), NOW());"
 
 
+correct way to add user credits!!
+-- 1. IDENTIFY THE USER
+-- Replace the email below if needed
+DO $$
+DECLARE
+    target_user_id UUID;
+    target_wallet_id UUID;
+    recharge_amount_paise BIGINT := 20000000; -- ₹2,00,000
+BEGIN
+    SELECT id INTO target_user_id FROM users WHERE email = 'punith.vs74064@gmail.com';
+    
+    IF target_user_id IS NULL THEN
+        RAISE EXCEPTION 'User not found';
+    END IF;
+
+    -- 2. "ACTIVATE" STORAGE BILLING
+    -- This changes the type from 'sso_default' to 'purchased' so the Billing Engine picks it up
+    UPDATE user_storage_volumes 
+    SET allocation_type = 'purchased' 
+    WHERE user_id = target_user_id;
+
+    -- 3. UPSERT WALLET
+    INSERT INTO wallets (id, user_id, balance_cents, lifetime_credits_cents, currency, created_at, updated_at)
+    VALUES (gen_random_uuid(), target_user_id, recharge_amount_paise, recharge_amount_paise, 'INR', NOW(), NOW())
+    ON CONFLICT (user_id) DO UPDATE SET 
+        balance_cents = wallets.balance_cents + recharge_amount_paise,
+        lifetime_credits_cents = wallets.lifetime_credits_cents + recharge_amount_paise,
+        updated_at = NOW()
+    RETURNING id INTO target_wallet_id;
+
+    -- 4. CREATE AUDIT TRANSACTION (So the balance looks 'real' to the UI)
+    INSERT INTO wallet_transactions (id, wallet_id, user_id, txn_type, amount_cents, balance_after_cents, reference_type, description, created_at)
+    SELECT 
+        gen_random_uuid(), 
+        target_wallet_id, 
+        target_user_id, 
+        'credit', 
+        recharge_amount_paise, 
+        (SELECT balance_cents FROM wallets WHERE id = target_wallet_id), 
+        'manual_recharge', 
+        'Admin Manual Credit (Razorpay Bypass)', 
+        NOW();
+
+    -- 5. CREATE A DUMMY INVOICE (So it shows up in "Invoice & Payment History")
+    INSERT INTO invoices (id, user_id, invoice_number, period_start, period_end, subtotal_cents, total_cents, currency, status, issued_at, paid_at, created_at, updated_at)
+    VALUES (
+        gen_random_uuid(), 
+        target_user_id, 
+        'MANUAL-' || to_char(NOW(), 'YYYYMMDD') || '-' || substring(gen_random_uuid()::text, 1, 8),
+        NOW(), NOW(), recharge_amount_paise, recharge_amount_paise, 'INR', 'paid', NOW(), NOW(), NOW(), NOW()
+    );
+
+    RAISE NOTICE 'Success: Rs 2,00,000 added and Billing activated for %', target_user_id;
+END $$;
+
+
+
 
 
 # Extend the storage
@@ -1770,6 +1829,28 @@ sudo systemctl restart nginx
 
 # change this in C:\Windows\System32\drivers\etc\ !!
 103.115.236.34 ksrceailab.com
+
+
+# Delete zvol (sequence) from terminal!
+# 1. Define the target ID
+ID="u_ec2de1aa873a3894dcf5c1ad"
+
+# 2. STEP 1: Tear down the NVMe-oF Target (The "Network" side)
+# This is usually what causes the "Busy" error for zvols
+sudo rm -f /sys/kernel/config/nvmet/ports/1/subsystems/laas-$ID
+sudo bash -c "echo 0 > /sys/kernel/config/nvmet/subsystems/laas-$ID/namespaces/1/enable" 2>/dev/null
+sudo rmdir /sys/kernel/config/nvmet/subsystems/laas-$ID/namespaces/1 2>/dev/null
+sudo rmdir /sys/kernel/config/nvmet/subsystems/laas-$ID 2>/dev/null
+
+# 3. STEP 2: Force Unmount any local access
+sudo umount -l /datapool/users/$ID 2>/dev/null
+
+# 4. STEP 3: Remove from NFS Exports (if any)
+sudo sed -i "/$ID/d" /etc/exports
+sudo exportfs -ra
+
+# 5. STEP 4: The Final Kill (Force Destroy)
+sudo zfs destroy -f datapool/users/$ID
 
 
 
