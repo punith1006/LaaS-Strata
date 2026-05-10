@@ -1591,6 +1591,16 @@ Checks for connectivity (nvme-oF)
 # sudo ufw allow 4420/tcp
 # sudo dmesg | tail -n 20
 
+#very important!!
+sudo modprobe nvmet
+sudo modprobe nvmet-tcp
+
+sudo mount -t configfs none /sys/kernel/config 2>/dev/null || true
+
+# To presist them
+echo "nvmet" | sudo tee -a /etc/modules
+echo "nvmet-tcp" | sudo tee -a /etc/modules
+
 
 # Post Installation!! on the App Server!
 # Postgres Setup

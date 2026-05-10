@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NodeService } from '../node/node.service';
 import { Node } from '@prisma/client';
@@ -214,29 +214,61 @@ export class StorageService {
       return result;
     }
 
-    // Multi-node: select the best storage node
+    // Multi-node: select candidates and try provisioning in sequence
     try {
-      const selectedNode = await this.nodeService.selectStorageNode(validQuota);
-      const baseUrl = this.nodeService.getStorageProvisionUrl(selectedNode);
-      const url = `${baseUrl}/provision`;
-
-      const result = await this.callProvisionUrl(url, storageUid, validQuota, 'zfs_zvol');
-
-      if (result.ok) {
-        this.logger.log(
-          `Storage provisioned on node ${selectedNode.hostname} for userId=${userId} storageUid=${storageUid} quota=${validQuota}GB backend=zfs_zvol`,
+      const candidates = await this.nodeService.selectStorageNodeCandidates(validQuota);
+      
+      if (candidates.length === 0) {
+        throw new ServiceUnavailableException(
+          `No node has enough storage space for ${validQuota}GB (with headroom)`,
         );
-        return {
-          ok: true,
-          nodeId: selectedNode.id,
-          storageBackend: 'zfs_zvol',
-        };
       }
 
-      return result;
+      this.logger.log(`Storage candidates for ${validQuota}GB: ${candidates.map(n => n.hostname).join(', ')}`);
+
+      let lastError: string | null = null;
+
+      for (const node of candidates) {
+        const baseUrl = this.nodeService.getStorageProvisionUrl(node);
+        const url = `${baseUrl}/provision`;
+
+        try {
+          this.logger.log(`Attempting storage provision on node ${node.hostname}...`);
+          const result = await this.callProvisionUrl(url, storageUid, validQuota, 'zfs_zvol');
+
+          if (result.ok) {
+            this.logger.log(
+              `SUCCESS: Storage provisioned on node ${node.hostname} for userId=${userId} storageUid=${storageUid} quota=${validQuota}GB backend=zfs_zvol`,
+            );
+            return {
+              ok: true,
+              nodeId: node.id,
+              storageBackend: 'zfs_zvol',
+            };
+          } else {
+            this.logger.warn(
+              `FAILED: Storage provision on node ${node.hostname} returned error: ${result.error}`,
+            );
+            lastError = result.error || 'Unknown error';
+            // Continue to next node if error is space related (507) or node unreachable (503)
+            // But if it's a 400 (Bad Request), maybe we should stop? 
+            // For now, let's keep trying other nodes as space is the primary concern.
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.error(`Node ${node.hostname} threw exception during provision: ${msg}`);
+          lastError = msg;
+          continue;
+        }
+      }
+
+      return { 
+        ok: false, 
+        error: `All candidate nodes failed to provision storage. Last error: ${lastError}` 
+      };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Storage provisioning failed for storageUid=${storageUid}: ${msg}`);
+      this.logger.error(`Storage provisioning logic failed: ${msg}`);
       return { ok: false, error: msg };
     }
   }

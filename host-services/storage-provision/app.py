@@ -1044,23 +1044,35 @@ def get_host_space():
         "totalGb": 100.0
       }
     """
-    # Get pool space info
-    ok, out = _run_cmd(["zpool", "list", "-p", "-o", "size,free", "datapool"])
+    # Get dataset space info (avail and logicalused/size)
+    # We check datapool/users specifically as that's where user volumes are provisioned
+    dataset = "datapool/users"
+    ok, out = _run_cmd(["zfs", "list", "-p", "-H", "-o", "available,size", dataset])
     if not ok:
-        return jsonify(error=f"Failed to get pool space: {out}"), 500
-
-    lines = out.strip().split("\n")
-    if len(lines) < 2:
-        return jsonify(error="Unexpected zpool output format"), 500
-
-    # Parse header and data
-    headers = lines[0].split()
-    values = lines[1].split()
-    size_idx = headers.index("SIZE") if "SIZE" in headers else 0
-    free_idx = headers.index("FREE") if "FREE" in headers else 1
-
-    total_bytes = _parse_zfs_size(values[size_idx])
-    free_bytes = _parse_zfs_size(values[free_idx])
+        # Fallback to pool if dataset doesn't exist yet (though it should)
+        ok, out = _run_cmd(["zpool", "list", "-p", "-o", "size,free", "datapool"])
+        if not ok:
+            return jsonify(error=f"Failed to get space: {out}"), 500
+        
+        lines = out.strip().split("\n")
+        if len(lines) < 2:
+            return jsonify(error="Unexpected zpool output format"), 500
+        
+        headers = lines[0].split()
+        values = lines[1].split()
+        size_idx = headers.index("SIZE") if "SIZE" in headers else 0
+        free_idx = headers.index("FREE") if "FREE" in headers else 1
+        
+        total_bytes = _parse_zfs_size(values[size_idx])
+        free_bytes = _parse_zfs_size(values[free_idx])
+    else:
+        # Parse zfs list output: <avail> <size>
+        parts = out.strip().split()
+        if len(parts) < 2:
+            return jsonify(error="Unexpected zfs list output format"), 500
+        
+        free_bytes = int(parts[0])
+        total_bytes = int(parts[1])
 
     return jsonify({
         "availableBytes": free_bytes,

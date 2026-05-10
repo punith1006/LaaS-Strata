@@ -243,10 +243,10 @@ export class NodeService {
   // ============================================================================
 
   /**
-   * Selects the first healthy node (ordered by hostname) that has enough
-   * real-time disk space for the requested quota, respecting headroom.
+   * Returns an ordered list of healthy nodes that have enough space for the
+   * requested quota. Ordered by hostname (Sequential filling).
    */
-  async selectStorageNode(requiredQuotaGb: number): Promise<Node> {
+  async selectStorageNodeCandidates(requiredQuotaGb: number): Promise<Node[]> {
     const healthyNodes = await this.prisma.node.findMany({
       where: { status: 'healthy' },
       orderBy: { hostname: 'asc' },
@@ -259,13 +259,14 @@ export class NodeService {
     }
 
     const secret = process.env.USER_STORAGE_PROVISION_SECRET;
+    const candidates: Node[] = [];
 
     for (const node of healthyNodes) {
       const ip = node.ipManagement || node.ipCompute;
       const url = `http://${ip}:${node.storageProvisionPort}/host-space`;
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       try {
         const headers: Record<string, string> = {};
@@ -292,15 +293,12 @@ export class NodeService {
 
         const remainingAfter = data.availableGb - requiredQuotaGb;
         if (remainingAfter >= node.storageHeadroomGb) {
-          this.logger.log(
-            `Selected storage node ${node.hostname}: ${data.availableGb}GB available, need ${requiredQuotaGb}GB + ${node.storageHeadroomGb}GB headroom`,
+          candidates.push(node);
+        } else {
+          this.logger.debug(
+            `Node ${node.hostname} skipped for storage: ${data.availableGb}GB available, need ${requiredQuotaGb}GB + ${node.storageHeadroomGb}GB headroom`,
           );
-          return node;
         }
-
-        this.logger.debug(
-          `Node ${node.hostname} skipped for storage: ${data.availableGb}GB available, need ${requiredQuotaGb}GB + ${node.storageHeadroomGb}GB headroom`,
-        );
       } catch (err) {
         clearTimeout(timeoutId);
         const msg = err instanceof Error ? err.message : String(err);
@@ -311,9 +309,20 @@ export class NodeService {
       }
     }
 
-    throw new ServiceUnavailableException(
-      `No node has enough storage space for ${requiredQuotaGb}GB (with headroom)`,
-    );
+    return candidates;
+  }
+
+  /**
+   * Backward compatible: Selects the first available storage node.
+   */
+  async selectStorageNode(requiredQuotaGb: number): Promise<Node> {
+    const candidates = await this.selectStorageNodeCandidates(requiredQuotaGb);
+    if (candidates.length === 0) {
+      throw new ServiceUnavailableException(
+        `No node has enough storage space for ${requiredQuotaGb}GB (with headroom)`,
+      );
+    }
+    return candidates[0];
   }
 
   // ============================================================================

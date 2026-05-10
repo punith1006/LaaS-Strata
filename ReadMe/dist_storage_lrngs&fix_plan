@@ -1,0 +1,39 @@
+# Implementation Plan - Robust Storage Provisioning & Accurate Metrics
+
+This plan fixes the issue where storage provisioning fails due to inaccurate space reporting and lack of node fallback.
+
+## User Review Required
+
+> [!IMPORTANT]
+> This change modifies both the Python Host Service and the NestJS Backend. Ensure the Python `app.py` is redeployed or restarted on the storage nodes after applying changes.
+
+## Proposed Changes
+
+### Host Service (Python)
+
+#### [MODIFY] [app.py](file:///c:/Users/Punith/LaaS/host-services/storage-provision/app.py)
+- Update `get_host_space()` to use `zfs list -p -H -o available,size datapool/users`.
+- This ensures the "Available GB" reported to the backend accounts for ZFS reservations and quotas, not just raw pool capacity.
+
+### Backend (NestJS)
+
+#### [MODIFY] [node.service.ts](file:///c:/Users/Punith/LaaS/backend-new/src/node/node.service.ts)
+- Modify `selectStorageNode()` to:
+    - Collect *all* candidate nodes that meet the space + headroom requirements.
+    - Sort them by available space (Descending) so the "Best Fit" node is tried first.
+    - Change return type to `Promise<Node[]>` or provide a new method `getStorageCandidates()`.
+
+#### [MODIFY] [storage.service.ts](file:///c:/Users/Punith/LaaS/backend-new/src/storage/storage.service.ts)
+- Update `provisionUserQuota()` to:
+    - Request candidate nodes from `NodeService`.
+    - Iterate through the candidates in a loop.
+    - Attempt provisioning on the current node.
+    - If the node returns a 507 (Insufficient Space) or 503, log a warning and try the next node.
+    - Only throw a final error if all candidates fail.
+
+## Verification Plan
+
+### Manual Verification
+- Attempt to create a 15GB File Store.
+- Verify in NestJS logs that `10.99` is skipped (if it reports < 15GB+headroom) or that if it fails, the system immediately tries `10.88`.
+- Verify the volume is successfully created on `10.88`.
