@@ -177,6 +177,7 @@ export class NodeService {
     requiredVcpu: number,
     requiredRamMb: number,
     requiredVramMb: number,
+    requiredStorageGb: number = 0,
   ): Promise<Node> {
     const healthyNodes = await this.prisma.node.findMany({
       where: { status: 'healthy' },
@@ -202,7 +203,7 @@ export class NodeService {
         ramMb: alloc.ramMb - used.ramMb,
       };
 
-      // Skip nodes that can't fit the requested config
+      // 1. Skip nodes that can't fit the requested compute config
       if (
         free.vcpu < requiredVcpu ||
         free.ramMb < requiredRamMb ||
@@ -211,25 +212,64 @@ export class NodeService {
         continue;
       }
 
-      // Score: higher = more headroom = preferred
-      // VRAM weighted 0.5, RAM 0.3, CPU 0.2
-      const score =
-        (alloc.vcpu > 0 ? (free.vcpu / alloc.vcpu) * 0.2 : 0) +
-        (alloc.ramMb > 0 ? (free.ramMb / alloc.ramMb) * 0.3 : 0) +
-        (alloc.vramMb > 0 ? (free.vramMb / alloc.vramMb) * 0.5 : 0);
-
-      candidates.push({ node, score });
+      candidates.push({ node, score: 0 });
     }
 
     if (candidates.length === 0) {
       throw new ServiceUnavailableException(
-        `No node has enough free resources (need vcpu=${requiredVcpu}, ram=${requiredRamMb}MB, vram=${requiredVramMb}MB)`,
+        `No node has enough free compute resources (need vcpu=${requiredVcpu}, ram=${requiredRamMb}MB, vram=${requiredVramMb}MB)`,
       );
     }
 
+    // 2. If storage is also required (e.g. ephemeral sessions), filter by storage availability
+    let finalCandidates = candidates;
+    if (requiredStorageGb > 0) {
+      this.logger.log(
+        `Filtering ${candidates.length} nodes for ${requiredStorageGb}GB ephemeral storage availability...`,
+      );
+      const storageResults = await Promise.all(
+        candidates.map(async (c) => {
+          const hasSpace = await this.checkNodeStorageAvailability(
+            c.node,
+            requiredStorageGb,
+          );
+          return { ...c, hasSpace };
+        }),
+      );
+      finalCandidates = storageResults.filter((r) => r.hasSpace);
+
+      this.logger.log(
+        `Storage filtering complete: ${finalCandidates.length}/${candidates.length} nodes have sufficient space.`,
+      );
+    }
+
+    if (finalCandidates.length === 0) {
+      throw new ServiceUnavailableException(
+        `No node has enough free resources AND storage space (need vcpu=${requiredVcpu}, vram=${requiredVramMb}MB, storage=${requiredStorageGb}GB)`,
+      );
+    }
+
+    // 3. Score the remaining candidates
+    for (const c of finalCandidates) {
+      const alloc = this.getAllocatableForNode(c.node);
+      const used = usedMap.get(c.node.id) || { vramMb: 0, vcpu: 0, ramMb: 0 };
+      const free = {
+        vramMb: alloc.vramMb - used.vramMb,
+        vcpu: alloc.vcpu - used.vcpu,
+        ramMb: alloc.ramMb - used.ramMb,
+      };
+
+      // Score: higher = more headroom = preferred
+      // VRAM weighted 0.5, RAM 0.3, CPU 0.2
+      c.score =
+        (alloc.vcpu > 0 ? (free.vcpu / alloc.vcpu) * 0.2 : 0) +
+        (alloc.ramMb > 0 ? (free.ramMb / alloc.ramMb) * 0.3 : 0) +
+        (alloc.vramMb > 0 ? (free.vramMb / alloc.vramMb) * 0.5 : 0);
+    }
+
     // Pick the node with the highest score (most headroom)
-    candidates.sort((a, b) => b.score - a.score);
-    const selected = candidates[0];
+    finalCandidates.sort((a, b) => b.score - a.score);
+    const selected = finalCandidates[0];
 
     this.logger.log(
       `Selected compute node ${selected.node.hostname} (score=${selected.score.toFixed(3)}) for vcpu=${requiredVcpu} ram=${requiredRamMb}MB vram=${requiredVramMb}MB`,
@@ -323,6 +363,46 @@ export class NodeService {
       );
     }
     return candidates[0];
+  }
+
+  /**
+   * Helper: Checks if a node has enough ZFS storage space available.
+   */
+  async checkNodeStorageAvailability(
+    node: Node,
+    requiredGb: number,
+  ): Promise<boolean> {
+    const secret = process.env.USER_STORAGE_PROVISION_SECRET;
+    const ip = node.ipManagement || node.ipCompute;
+    const url = `http://${ip}:${node.storageProvisionPort}/host-space`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const headers: Record<string, string> = {};
+      if (secret) headers['X-Storage-Secret'] = secret;
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) return false;
+
+      const data = (await res.json()) as {
+        availableGb: number;
+        totalGb: number;
+      };
+
+      const remainingAfter = data.availableGb - requiredGb;
+      return remainingAfter >= node.storageHeadroomGb;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      return false;
+    }
   }
 
   // ============================================================================

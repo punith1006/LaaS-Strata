@@ -2321,6 +2321,7 @@ export function LandingPage({ isAuthenticated }: { isAuthenticated?: boolean }) 
             </p>
             <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, flexWrap: "wrap", marginBottom: 20, animation: "fadeUp 0.4s ease 0.5s both" }}>
               <Link href="/signup"
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: isMobile ? "12px 24px" : "14px 30px", background: ACCENT, color: "#fff", fontFamily: "var(--font-sans)", fontSize: isMobile ? "0.95rem" : "1rem", fontWeight: 700, borderRadius: 8, border: `1px solid ${ACCENT}`, textDecoration: "none", boxShadow: `0 4px 24px ${ACCENT_GLOW}`, transition: "all 0.2s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = ACCENT_DARK; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = ACCENT; e.currentTarget.style.transform = "translateY(0)"; }}>
                   Launch GPU Instance →
@@ -2728,6 +2729,7 @@ export function LandingPage({ isAuthenticated }: { isAuthenticated?: boolean }) 
           <p style={{ fontFamily: "var(--font-sans)", fontSize: isMobile ? "0.9rem" : "clamp(0.9rem, 1.5vw, 1.1rem)", color: "rgba(255,255,255,0.85)", marginBottom: 40, lineHeight: 1.6, maxWidth: 640, margin: "0 auto 40px" }}>Stop waiting. Start training. Harness the raw power of the KSRCE RTX 5090 fleet and scale your research from zero to state-of-the-art in under 30 seconds.</p>
           <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/signup"
+              style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: isMobile ? "12px 24px" : "14px 36px", background: ACCENT, color: "#fff", fontFamily: "var(--font-sans)", fontSize: "1rem", fontWeight: 700, borderRadius: 8, textDecoration: "none", boxShadow: `0 4px 24px rgba(79,110,247,0.5)`, transition: "all 0.2s" }}
               onMouseEnter={e => { e.currentTarget.style.background = ACCENT_DARK; e.currentTarget.style.transform = "translateY(-3px)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = ACCENT; e.currentTarget.style.transform = "translateY(0)"; }}>
               Ignite Your Session →

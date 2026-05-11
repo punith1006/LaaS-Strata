@@ -305,10 +305,13 @@ export class ComputeService {
         }
 
         // 3. Select compute node using fleet-wide balanced selection
+        // Ephemeral sessions require storage on the same node (default 10GB)
+        const requiredStorageGb = dto.storageType === 'ephemeral' ? 10 : 0;
         const computeNode = await this.nodeService.selectComputeNode(
           config.vcpu,
           config.memoryMb,
           config.gpuVramMb,
+          requiredStorageGb,
         );
         const node = computeNode;
 

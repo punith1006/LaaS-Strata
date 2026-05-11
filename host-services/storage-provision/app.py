@@ -1044,42 +1044,39 @@ def get_host_space():
         "totalGb": 100.0
       }
     """
-    # Get dataset space info (avail and logicalused/size)
-    # We check datapool/users specifically as that's where user volumes are provisioned
+    # Get dataset space info (avail and size)
+    # We check datapool/users specifically as that's where user volumes are provisioned.
+    # We MUST use sudo to ensure we have permission to read ZFS stats.
+    # We use 'zfs list' instead of 'zpool list' because 'zfs list' accounts for 
+    # reservations and quotas, whereas 'zpool list' only shows physical free space.
     dataset = "datapool/users"
-    ok, out = _run_cmd(["zfs", "list", "-p", "-H", "-o", "available,size", dataset])
+    ok, out = _run_cmd(["sudo", "zfs", "list", "-p", "-H", "-o", "available,used", dataset])
+    
     if not ok:
-        # Fallback to pool if dataset doesn't exist yet (though it should)
-        ok, out = _run_cmd(["zpool", "list", "-p", "-o", "size,free", "datapool"])
+        # Fallback to the root pool if the sub-dataset doesn't exist
+        ok, out = _run_cmd(["sudo", "zfs", "list", "-p", "-H", "-o", "available,used", "datapool"])
         if not ok:
-            return jsonify(error=f"Failed to get space: {out}"), 500
-        
-        lines = out.strip().split("\n")
-        if len(lines) < 2:
-            return jsonify(error="Unexpected zpool output format"), 500
-        
-        headers = lines[0].split()
-        values = lines[1].split()
-        size_idx = headers.index("SIZE") if "SIZE" in headers else 0
-        free_idx = headers.index("FREE") if "FREE" in headers else 1
-        
-        total_bytes = _parse_zfs_size(values[size_idx])
-        free_bytes = _parse_zfs_size(values[free_idx])
-    else:
-        # Parse zfs list output: <avail> <size>
+            return jsonify(error=f"Failed to get ZFS space: {out}"), 500
+
+    # Parse zfs list output: <avail> <used>
+    try:
         parts = out.strip().split()
         if len(parts) < 2:
-            return jsonify(error="Unexpected zfs list output format"), 500
+            return jsonify(error=f"Unexpected zfs output format: {out}"), 500
         
         free_bytes = int(parts[0])
-        total_bytes = int(parts[1])
+        used_bytes = int(parts[1])
+        total_bytes = free_bytes + used_bytes
 
-    return jsonify({
-        "availableBytes": free_bytes,
-        "totalBytes": total_bytes,
-        "availableGb": round(free_bytes / (1024 ** 3), 2),
-        "totalGb": round(total_bytes / (1024 ** 3), 2),
-    }), 200
+        return jsonify({
+            "availableBytes": free_bytes,
+            "usedBytes": used_bytes,
+            "totalBytes": total_bytes,
+            "availableGb": round(free_bytes / (1024 ** 3), 2),
+            "totalGb": round(total_bytes / (1024 ** 3), 2),
+        }), 200
+    except (ValueError, IndexError) as e:
+        return jsonify(error=f"Error parsing ZFS output: {str(e)}"), 500
 
 
 @app.route("/upgrade-storage", methods=["POST"])

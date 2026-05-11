@@ -231,6 +231,15 @@ function CopyIcon() {
   );
 }
 
+// Check icon (for copied state)
+function CheckIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#009C00" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 // Eye icon
 function EyeIcon() {
   return (
@@ -372,9 +381,34 @@ function ConnectionDetails({ connection }: { connection: ConnectionInfo }) {
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, field: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(field);
-    setTimeout(() => setCopied(null), 2000);
+    if (!text) return;
+    
+    try {
+      // Priority 1: Modern Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Priority 2: Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        // Ensure textarea is not visible
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand("copy");
+        document.body.removeChild(textArea);
+        if (!successful) throw new Error("Fallback copy failed");
+      }
+      
+      setCopied(field);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+      // Optional: show error state in UI if needed
+    }
   };
 
   const fieldStyle: React.CSSProperties = {
@@ -430,9 +464,14 @@ function ConnectionDetails({ connection }: { connection: ConnectionInfo }) {
         </span>
         <button
           onClick={() => copyToClipboard(connection.sessionUrl || "", "url")}
-          style={buttonStyle}
+          style={{
+            ...buttonStyle,
+            borderColor: copied === "url" ? "#009C00" : "var(--borderColor-default)",
+            color: copied === "url" ? "#009C00" : "var(--fgColor-muted)",
+          }}
+          title="Copy URL"
         >
-          <CopyIcon />
+          {copied === "url" ? <CheckIcon /> : <CopyIcon />}
           {copied === "url" ? "Copied" : ""}
         </button>
       </div>
@@ -443,9 +482,14 @@ function ConnectionDetails({ connection }: { connection: ConnectionInfo }) {
         <span style={valueStyle}>{connection.username || "ubuntu"}</span>
         <button
           onClick={() => copyToClipboard(connection.username || "ubuntu", "user")}
-          style={buttonStyle}
+          style={{
+            ...buttonStyle,
+            borderColor: copied === "user" ? "#009C00" : "var(--borderColor-default)",
+            color: copied === "user" ? "#009C00" : "var(--fgColor-muted)",
+          }}
+          title="Copy Username"
         >
-          <CopyIcon />
+          {copied === "user" ? <CheckIcon /> : <CopyIcon />}
           {copied === "user" ? "Copied" : ""}
         </button>
       </div>
@@ -462,9 +506,14 @@ function ConnectionDetails({ connection }: { connection: ConnectionInfo }) {
           </button>
           <button
             onClick={() => copyToClipboard(connection.password || "", "pass")}
-            style={buttonStyle}
+            style={{
+              ...buttonStyle,
+              borderColor: copied === "pass" ? "#009C00" : "var(--borderColor-default)",
+              color: copied === "pass" ? "#009C00" : "var(--fgColor-muted)",
+            }}
+            title="Copy Password"
           >
-            <CopyIcon />
+            {copied === "pass" ? <CheckIcon /> : <CopyIcon />}
             {copied === "pass" ? "Copied" : ""}
           </button>
         </div>

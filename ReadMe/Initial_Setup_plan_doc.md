@@ -1682,7 +1682,60 @@ BEGIN
     RAISE NOTICE 'Success: Rs 2,00,000 added and Billing activated for %', target_user_id;
 END $$;
 
+## In Server!
+sudo -u postgres psql -d laas <<'EOF'
+DO $$
+DECLARE
+    target_user_id UUID;
+    target_wallet_id UUID;
+    recharge_amount_paise BIGINT := 2000000; -- ₹20,000 (20 lakh Paise)
+BEGIN
+    -- 1. IDENTIFY THE USER
+    SELECT id INTO target_user_id FROM users WHERE email = 'gopinathcse@ksrce.ac.in';
+    
+    IF target_user_id IS NULL THEN
+        RAISE EXCEPTION 'User gopinathcse@ksrce.ac.in not found';
+    END IF;
 
+    -- 2. "ACTIVATE" STORAGE BILLING
+    UPDATE user_storage_volumes 
+    SET allocation_type = 'purchased' 
+    WHERE user_id = target_user_id;
+
+    -- 3. UPSERT WALLET
+    INSERT INTO wallets (id, user_id, balance_cents, lifetime_credits_cents, currency, created_at, updated_at)
+    VALUES (gen_random_uuid(), target_user_id, recharge_amount_paise, recharge_amount_paise, 'INR', NOW(), NOW())
+    ON CONFLICT (user_id) DO UPDATE SET 
+        balance_cents = wallets.balance_cents + recharge_amount_paise,
+        lifetime_credits_cents = wallets.lifetime_credits_cents + recharge_amount_paise,
+        updated_at = NOW()
+    RETURNING id INTO target_wallet_id;
+
+    -- 4. CREATE AUDIT TRANSACTION
+    INSERT INTO wallet_transactions (id, wallet_id, user_id, txn_type, amount_cents, balance_after_cents, reference_type, description, created_at)
+    SELECT 
+        gen_random_uuid(), 
+        target_wallet_id, 
+        target_user_id, 
+        'credit', 
+        recharge_amount_paise, 
+        (SELECT balance_cents FROM wallets WHERE id = target_wallet_id), 
+        'manual_recharge', 
+        'Admin Manual Credit (Razorpay Bypass)', 
+        NOW();
+
+    -- 5. CREATE A DUMMY INVOICE
+    INSERT INTO invoices (id, user_id, invoice_number, period_start, period_end, subtotal_cents, total_cents, currency, status, issued_at, paid_at, created_at, updated_at)
+    VALUES (
+        gen_random_uuid(), 
+        target_user_id, 
+        'MANUAL-' || to_char(NOW(), 'YYYYMMDD') || '-' || substring(gen_random_uuid()::text, 1, 8),
+        NOW(), NOW(), recharge_amount_paise, recharge_amount_paise, 'INR', 'paid', NOW(), NOW(), NOW(), NOW()
+    );
+
+    RAISE NOTICE 'Success: Rs 20,000 added for gopinathcse@ksrce.ac.in';
+END $$;
+EOF
 
 
 
@@ -1731,6 +1784,9 @@ fi
 
 # 3. Final Permissions Check
 sudo chown -R ai1:ai1 /opt/LaaS/
+
+# Important without this your ll not get email!!
+scp -r "c:\Users\Punith\LaaS\backend-new\templates" zenith@192.168.10.99:/opt/LaaS/backend/
 
 # Update Firewall if sudo ufw status -> Active
 sudo ufw allow 3478/udp
@@ -1837,6 +1893,65 @@ sudo ln -s /etc/nginx/sites-available/ksrceailab /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 
+
+---
+
+## 🚀 UAT Deployment (10.99 & 10.88)
+
+### 1. Build and Zip (Local Machine)
+Run these in your local terminal to prepare the packages:
+
+```bash
+# Backend
+cd backend-new
+# (Update .env for UAT first!)
+npm run build
+powershell Compress-Archive -Path dist, node_modules, package.json, prisma, .env, templates -DestinationPath ..\deploy\uat-backend.zip -Force
+
+# Frontend
+cd ../frontend-new
+# (Update .env.local for UAT first!)
+npm run build
+powershell Compress-Archive -Path .next, public, package.json, node_modules, .env.local -DestinationPath ..\deploy\uat-frontend.zip -Force
+```
+
+### 2. Upload to UAT Node (10.99)
+```bash
+# Upload Backend
+scp "C:\Users\Punith\deploy\uat-backend.zip" zenith@192.168.10.99:/tmp/
+
+# Upload Frontend
+scp "C:\Users\Punith\deploy\uat-frontend.zip" zenith@192.168.10.99:/tmp/
+```
+
+### 3. Setup on 10.99
+```bash
+# Create directories
+sudo mkdir -p /opt/LaaS/backend /opt/LaaS/frontend
+sudo chown -R zenith:zenith /opt/LaaS
+
+# Extract Backend
+rm -rf /opt/LaaS/backend/*
+unzip /tmp/uat-backend.zip -d /opt/LaaS/backend/
+
+# Extract Frontend
+rm -rf /opt/LaaS/frontend/*
+unzip /tmp/uat-frontend.zip -d /opt/LaaS/frontend/
+
+# Restart Services (assuming pm2)
+pm2 restart all || pm2 start /opt/LaaS/backend/dist/main.js --name laas-backend
+```
+
+### 4. Configure storage-provisioner (10.99 & 10.88)
+Ensure the `app.py` is updated on these nodes:
+```bash
+scp "c:\Users\Punith\LaaS\host-services\storage-provision\app.py" zenith@192.168.10.99:/home/zenith/storage-provision/
+scp "c:\Users\Punith\LaaS\host-services\storage-provision\app.py" zenith@192.168.10.88:/home/zenith/storage-provision/
+```
+
+sudo nginx -t
+sudo systemctl restart nginx
+
 # change this in C:\Windows\System32\drivers\etc\ !!
 103.115.236.34 ksrceailab.com
 
@@ -1861,6 +1976,21 @@ sudo exportfs -ra
 
 # 5. STEP 4: The Final Kill (Force Destroy)
 sudo zfs destroy -f datapool/users/$ID
+
+
+# To check Podman
+sudo podman ps -a
+
+podman ps -a
+
+history | grep podman
+
+
+sudo systemctl status nginx
+
+sudo systemctl restart nginx
+
+
 
 
 
