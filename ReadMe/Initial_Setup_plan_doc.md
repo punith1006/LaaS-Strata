@@ -1019,7 +1019,8 @@ sudo iptables-save | sudo tee /etc/iptables/rules.v4
 # IP tables config
 LAAS_SUBNET="172.31.0.0/16"
 TURN_IP="100.94.157.114"
-# TURN_IP="100.115.142.23" for ai1 
+# TURN_IP="100.115.142.23" for ai1 (need to change to its public IP!)
+# TURN_IP="20.1.1.132" for ai2
 
 sudo iptables -I DOCKER-USER -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
 sudo iptables -I DOCKER-USER 2 -s "$LAAS_SUBNET" -d "$TURN_IP/32" -p tcp --dport 3478 -j RETURN
@@ -1090,6 +1091,13 @@ sudo systemctl enable coturn
 sudo systemctl start coturn
 sudo systemctl status coturn
 
+
+# Firewall Checks
+sudo ufw status
+
+sudo ufw allow 3478/tcp
+sudo ufw allow 3478/udp
+sudo ufw allow 49152:65535/udp
 
 # final checks
 systemctl is-enabled docker
@@ -1314,8 +1322,6 @@ sudo nvme list
 
 sudo mkdir -p /mnt/nvme-test
 sudo mount /dev/nvme0n1 /mnt/nvme-test
-
-
 
 # tests to find if it is correct
 # On 10.88:
