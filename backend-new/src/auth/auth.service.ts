@@ -50,6 +50,14 @@ export class AuthService {
     return userWithOrg?.organization?.university?.slug ?? undefined;
   }
 
+  async getUserRoles(userId: string): Promise<string[]> {
+    const userOrgRoles = await this.prisma.userOrgRole.findMany({
+      where: { userId },
+      include: { role: { select: { name: true } } },
+    });
+    return userOrgRoles.map((uor) => uor.role.name);
+  }
+
   async getUniversityDepartments(slug: string): Promise<
     Array<{ id: string; name: string; code: string | null }>
   > {

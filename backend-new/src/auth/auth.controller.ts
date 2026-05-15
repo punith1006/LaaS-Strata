@@ -153,6 +153,8 @@ export class AuthController {
       institutionSlug = await this.auth.getInstitutionSlugForUser(id);
     }
 
+    const roles = await this.auth.getUserRoles(id);
+
     return {
       id,
       email,
@@ -165,6 +167,7 @@ export class AuthController {
       storageProvisionedAt: storageProvisionedAt ?? undefined,
       storageQuotaGb,
       institutionSlug,
+      roles,
     };
   }
 

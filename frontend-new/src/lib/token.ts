@@ -91,3 +91,33 @@ export function isTokenExpired(): boolean {
   // If expired or will expire in less than 30 seconds, consider it expired
   return expiresIn < 30000;
 }
+
+// --- Analytics Portal Token Management (separate namespace) ---
+const ANALYTICS_ACCESS_KEY = "laas_analytics_access_token";
+const ANALYTICS_REFRESH_KEY = "laas_analytics_refresh_token";
+
+export function saveAnalyticsTokens(tokens: { accessToken: string; refreshToken: string }): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(ANALYTICS_ACCESS_KEY, tokens.accessToken);
+  localStorage.setItem(ANALYTICS_REFRESH_KEY, tokens.refreshToken);
+}
+
+export function getAnalyticsAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ANALYTICS_ACCESS_KEY);
+}
+
+export function getAnalyticsRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ANALYTICS_REFRESH_KEY);
+}
+
+export function clearAnalyticsTokens(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(ANALYTICS_ACCESS_KEY);
+  localStorage.removeItem(ANALYTICS_REFRESH_KEY);
+}
+
+export function isAnalyticsAuthenticated(): boolean {
+  return !!getAnalyticsAccessToken();
+}

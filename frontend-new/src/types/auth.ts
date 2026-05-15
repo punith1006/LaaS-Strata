@@ -87,4 +87,6 @@ export interface User {
   storageQuotaGb?: number | null;
   /** For institution users: the university slug (used for department fetch) */
   institutionSlug?: string;
+  /** User's assigned roles across organizations */
+  roles?: string[];
 }

@@ -1,5 +1,5 @@
 import type { AuthTokens, User, ProfileData, EditableProfileData } from "@/types/auth";
-import { saveTokens, getAccessToken, getRefreshToken, clearTokens, isTokenExpired } from "@/lib/token";
+import { saveTokens, getAccessToken, getRefreshToken, clearTokens, isTokenExpired, saveAnalyticsTokens, getAnalyticsAccessToken, clearAnalyticsTokens } from "@/lib/token";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -113,6 +113,35 @@ export async function signIn(
     expiresIn: 900,
   };
   saveTokens(mock);
+  return mock;
+}
+
+export async function analyticsSignIn(
+  email: string,
+  password: string,
+): Promise<AuthTokens> {
+  if (API_BASE) {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = Array.isArray(data.message) ? data.message[0] : data.message;
+      throw new Error(msg || "Sign in failed");
+    }
+    const tokens: AuthTokens = await res.json();
+    saveAnalyticsTokens(tokens);
+    return tokens;
+  }
+  await delay(1200);
+  const mock: AuthTokens = {
+    accessToken: "mock-access-token",
+    refreshToken: "mock-refresh-token",
+    expiresIn: 900,
+  };
+  saveAnalyticsTokens(mock);
   return mock;
 }
 
@@ -266,6 +295,29 @@ export async function getMe(): Promise<User | null> {
       },
     });
     if (!res.ok) return null;
+    return res.json();
+  }
+  return null;
+}
+
+export async function getAnalyticsMe(): Promise<User | null> {
+  const token = getAnalyticsAccessToken();
+  if (!token) return null;
+
+  if (API_BASE) {
+    const res = await fetch(`${API_BASE}/api/auth/me?t=${Date.now()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+      },
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        clearAnalyticsTokens();
+      }
+      return null;
+    }
     return res.json();
   }
   return null;
