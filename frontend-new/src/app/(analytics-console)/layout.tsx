@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAnalyticsAccessToken } from "@/lib/token";
+import { AnalyticsShell } from "@/components/analytics/analytics-shell";
 
 export default function AnalyticsConsoleLayout({
   children,
@@ -29,11 +30,5 @@ export default function AnalyticsConsoleLayout({
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {children}
-      </div>
-    </div>
-  );
+  return <AnalyticsShell>{children}</AnalyticsShell>;
 }

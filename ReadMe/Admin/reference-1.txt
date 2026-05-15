@@ -1,0 +1,245 @@
+1. Reference Image Analysis
+Design Patterns Observed:The reference image shows a crypto trading/portfolio dashboard (Atex Markets) that demonstrates several effective enterprise analytics patterns:Layout Structure:
+Top Navigation: Left sidebar with menu sections (MARKETS, ACCOUNT) providing clear information hierarchy
+Header with Context: "Markets > Overview" breadcrumb + time-range selector (24H / 7D / 30D / All)
+Grid-Based Card Layout: 4-5 KPI cards in the top section, arranged horizontally
+Supporting Visualizations: Candlestick chart, top assets table, recent activity feed arranged in complementary positions
+Responsive Sections: Primary metrics above fold, detailed views below
+KPI Card Presentation:
+Large bold numbers ($48,210.27) immediately catch attention
+Small percentage change badges with green/red color coding (✓ +2.41% vs yesterday)
+Subtitle context ("vs yesterday") adds temporal context
+Micro-sparklines or trend indicators provide quick pattern recognition
+Muted secondary text for supporting details
+Visual Hierarchy Techniques:
+Color Coding: Green = positive, red = negative, muted text for secondary information
+Contrast: Dark background with light text maximizes readability
+Sizing: Metric numbers are substantially larger than surrounding text
+Spacing: Clear separation between sections prevents cognitive overload
+Icons/Badges: Status indicators (●LIVE, Green scoring) add visual richness
+Chart Types Used:
+Candlestick charts with overlaid line trend (dual axis visualization)
+Stacked/clustered bar charts (volume visualization)
+Simple tables with inline status badges
+Text-based alert/signal list (Market signals section)
+Actionable Design Elements:
+Time-range toggle makes temporal analysis accessible (compare 24H vs 7D)
+"View all" links invite deeper exploration without cluttering overview
+Search and action buttons (Connect wallet) positioned for discoverability
+Clear status/progress indicators (Fear & Greed score "72")
+2. Available Data Inventory from Prisma Schema
+A. Revenue & Financial Models
+Model	Key Fields	Business Use
+Wallet	balanceCents, lifetimeCreditsCents, lifetimeSpentCents, spendLimitCents, spendLimitPeriod	User credit balance, lifetime spending, spend limit tracking
+BillingCharge	amountCents, chargeType (compute/storage), durationSeconds, rateCentsPerHour, createdAt	Individual charges for compute and storage sessions
+WalletTransaction	txnType (debit/credit), amountCents, balanceAfterCents, referenceType, createdAt	Complete transaction ledger (no deletes - financial audit trail)
+PaymentTransaction	amountCents, gateway, status, refundAmountCents, gatewayResponse	External payment processing (Razorpay, etc.)
+Invoice	subtotalCents, taxCents, totalCents, status (issued/paid), periodStart, periodEnd	Formal invoicing with period tracking
+Subscription	status, startsAt, endsAt, gpuHoursRemaining, autoRenew	Subscription lifecycle and allowance tracking
+SubscriptionPlan	priceCents, billingPeriod, gpuHoursIncluded, features	Pricing tiers and plan definitions
+OrgContract	totalCreditsCents, usedCreditsCents, status, maxSeats	Organization-level contracts with bulk credits
+B. Session & Utilization Models
+Model	Key Fields	Business Use
+Session	status, startedAt, endedAt, lastActivityAt, computeConfigId, sessionType, cumulativeCostCents	Session lifetime, costs, idle detection
+Booking	status, scheduledStartAt, scheduledEndAt, computeConfigId	Reservation data for capacity planning
+SessionEvent	eventType, payload, createdAt	Session lifecycle events (start, pause, error)
+NodeResourceReservation	reservedVcpu, reservedMemoryMb, reservedGpuVramMb, status, reservedAt, releasedAt	Resource allocation audit trail
+ComputeConfig	vcpu, memoryMb, gpuVramMb, basePricePerHourCents, tier, sessionType	Sku definitions and pricing
+C. User & Organization Models
+Model	Key Fields	Business Use
+User	createdAt, lastLoginAt, onboardingCompletedAt, isActive, authType, email	User lifecycle metrics (signups, DAU, churn)
+Organization	createdAt, orgType (university/partner/enterprise), status	Organization segmentation and growth
+UserOrgRole	role, createdAt	Team composition and role distribution
+Department	organizationId, createdAt	Organizational structure
+D. Storage Models
+Model	Key Fields	Business Use
+UserStorageVolume	quotaBytes, usedBytes, status, allocationType (ssodefault/purchase/admingranted/bonus), pricePerGbCentsMonth	Storage allocation and revenue
+StorageExtension	extensionBytes, amountCents, extensionType	Storage upgrade tracking
+E. Infrastructure Models
+Model	Key Fields	Business Use
+Node	status, allocatedVcpu, allocatedMemoryMb, allocatedGpuVramMb, currentSessionCount, totalGpuVramMb, gpuModel	Fleet utilization and capacity
+BaseImage	tag, sizeBytes, isDefault	Software deployment tracking
+F. Support & Engagement Models
+Model	Key Fields	Business Use
+SupportTicket	status, priority, category, createdAt, resolvedAt, satisfactionRating	Support quality and resolution time
+UserFeedback	feedbackType, rating, status, createdAt	User satisfaction signals
+Referral	totalSignups, totalRewardsCents, totalClicks	Viral growth metrics
+ReferralConversion	status, signupCompletedAt, firstPaymentAt, rewardStatus	Conversion funnel stages
+3. Monitoring Data Infrastructure
+Prometheus Metrics Already Collected:GPU Monitoring (DCGM Exporter @ 5s interval):
+DCGM_FI_DEV_GPU_TEMP, GPU_UTIL, FB_USED, POWER_USAGE
+DCGM_FI_DEV_MEMORYTEMP, SMCLOCK, ECC_DBE_VOL_TOTAL, PCIE_REPLAY_COUNTER
+DCGM_FI_DEV_ENC_UTIL (NVENC saturation)
+Host Metrics (Node Exporter @ 15s):
+CPU utilization, memory usage, disk I/O, network throughput
+Process-level metrics for Docker containers (cAdvisor @ 15s)
+Custom LaaS Metrics (MPS/Session Exporters @ 5s-10s):
+laas_mps_daemon_state, laas_mps_fault_total (GPU compute health)
+laas_nvenc_active_sessions, laas_vram_allocated_mb / laas_vram_total_mb (resource tracking)
+laas_active_sessions_total, laas_session_startup_seconds (session orchestration)
+WebRTC/Streaming Metrics (Selkies @ 10s):
+selkies_stream_fps, selkies_stream_bitrate
+selkies_ice_connection_type (relay vs direct), selkies_packet_loss
+Network Health (Blackbox Exporter):
+probe_success for TURN server (coturn:3478), Selkies endpoint health, Prometheus health
+Alert Rules Already Defined:
+GPU temperature thresholds (80°C warning, 90°C critical)
+NVENC session limits (3+ sessions warning)
+CUDA MPS fault detection (automatic recovery needed)
+Session startup timeout (>60s anomaly)
+TURN server availability (critical service)
+WebRTC framerate degradation (<20 fps)
+Session idle detection (>45 minutes)
+Resource overcommit protection (VRAM >94%)
+4. Recommended Overview Metrics for Business Lead
+TIER 1: Revenue & Financial Health (Above-the-Fold Priority)
+Metric	What It Shows	Why It's Actionable	Decision It Enables	Visualization	Prisma Source
+Gross Revenue (24H / 7D / 30D)	Total income in INR from all sessions and storage	Top-line business performance; cash flow indicator	Scale hiring, marketing budget, infrastructure spend	Large KPI card + sparkline	SUM(BillingCharge.amountCents) grouped by date
+Average Revenue Per User (ARPU)	Revenue ÷ active users	Monetization efficiency; unit economics	Pricing adjustments, upsell opportunities	KPI + bar chart trend	SUM(BillingCharge) / COUNT(DISTINCT User WHERE lastLoginAt > 30d ago)
+Churn Rate (30-day rolling)	% of paying users who stopped sessions/deleted storage	Retention signal; early warning for product issues	Product roadmap priorities, sales support	Percentage + trend sparkline	1 - (Active Users Month N / Active Users Month N-1)
+Wallet Balance Distribution	How many users at critical low balance (<10k paise)	Cash runway risk; payment collection urgency	When to send payment reminders, pricing floor analysis	Histogram/segmentation chart	Distribution of Wallet.balanceCents buckets
+Monthly Recurring Revenue (MRR) Projection	Expected next-month revenue from active subscriptions	Predictable cash flow; investor metric	Budget forecasting, compensation targets	Large KPI + trend	SUM(Subscription WHERE status='active') * (basePricePerHourCents * 730)
+TIER 2: User Acquisition & Engagement
+Metric	What It Shows	Why It's Actionable	Decision It Enables	Visualization	Prisma Source
+New Users (24H / 7D)	Signups in time window	Marketing/growth velocity; demand signal	Ad spend optimization, server provisioning needs	KPI + daily bar chart	COUNT(User WHERE createdAt in period)
+Active Users (Daily/Weekly/Monthly)	Users with sessions/logins in period	Platform health; engagement baseline	Feature adoption decisions, support staffing	Three-number metric card	COUNT(DISTINCT User WHERE lastLoginAt >= period start)
+First-Session Conversion	% of new users who launch a session within 7 days	Onboarding effectiveness	UX/tutorial improvements, friction analysis	Conversion funnel	COUNT(User with session <= 7d) / COUNT(new User)
+Storage Adoption	% of users with active storage volumes	Feature penetration	Bundle pricing, upsell campaigns	Percentage + trend	COUNT(DISTINCT User with UserStorageVolume.status='active') / COUNT(User)
+Referral Performance	Active referral programs + click-to-signup conversion	Growth multiplier	Referral reward calibration, influencer targeting	KPI + funnel	SUM(Referral.totalSignups WHERE isActive=true)
+TIER 3: Fleet/Infrastructure Utilization
+Metric	What It Shows	Why It's Actionable	Decision It Enables	Visualization	Prisma Source
+GPU Hours Sold (24H)	Sum of session GPU durations	Capacity utilization vs revenue opportunity	Hardware ROI analysis, node expansion timing	KPI + stacked bar (by tier)	SUM(Session.durationSeconds) WHERE status='ended' / 3600
+GPU Utilization (Live)	% of provisioned GPU VRAM being actively used	Waste detection; overprovisioning signals	Resize fleet, incentivize tier migration	Gauge/donut chart	laas_vram_allocated_mb / laas_vram_total_mb (Prometheus)
+Session Success Rate	% of sessions completed without failure	Platform reliability; customer satisfaction	Support prioritization, infrastructure hardening	Percentage + sparkline	COUNT(Session.status='ended') / COUNT(Session WHERE status IN ('ended', 'failed', 'terminated')) |
+Compute Config Popularity	Sessions by tier/config	Market demand signal; inventory planning	Retire unpopular SKUs, promote high-margin tiers	Stacked bar or pie	COUNT(Session) GROUP BY ComputeConfig.tier
+Node Health Distribution	Nodes by status (healthy/degraded/offline)	Infrastructure reliability	Maintenance scheduling, SLA impact	Horizontal bar or status table	COUNT(Node) GROUP BY status
+TIER 4: Risk Signals & Anomalies
+Metric	What It Shows	Why It's Actionable	Decision It Enables	Visualization	Prisma Source
+Support Ticket Backlog	Unresolved tickets > 24 hours	Customer pain; support resource gap	Hire support staff, auto-escalate critical tickets	KPI + trend	COUNT(SupportTicket WHERE status IN ('open','in_progress') AND createdAt < 24h ago)
+Low-Satisfaction Feedback	Rating ≤ 2/5 in last 7 days	Product quality regression	Root-cause analysis, hotfix prioritization	KPI + recent feedback list	COUNT(UserFeedback WHERE rating <= 2 AND createdAt >= 7d ago)
+Session Startup Failures	% of sessionstarting that failed | Orchestration/infrastructure issues | Incident investigation, auto-remediation triggers | Percentage + sparkline | COUNT(SessionEvent.eventType='sessionstart_failed') / COUNT(Session WHERE status='pending')
+Spend Limit Hits	Users prevented from spending (daily/monthly)	Growth ceiling; UX friction point	Personalize spend limits, upgrade path analysis	KPI + trend	COUNT(BillingCharge WHERE rejected=true due to limit)
+Storage Quota Exhaustion	Users at >90% quota utilization	Churn risk; upsell opportunity	Auto-send "upgrade storage" reminder, grace period policy	Percentage + segmented list	COUNT(DISTINCT User WHERE (usedBytes / quotaBytes) > 0.9)
+5. Visualization Library Recommendations
+Library	Pros	Cons	Best For	Cost
+Recharts	React-native, composable components, large charts, animations, time-series friendly	Steep learning curve for complex charts, limited interactivity by default	KPI cards with sparklines, trend charts, session duration time-series	Free (Apache 2.0)
+Nivo	Rich gallery of charts (bar, line, funnel, sankey), excellent theming, dark mode, responsive	Performance overhead on large datasets (1000+ points), smaller ecosystem	Infrastructure utilization stacked bars, complex multi-dimension views, heatmaps	Free (MIT)
+Tremor	Rapid dashboard building, pre-built KPI cards, alert components, number formatting	Limited customization, abstracts away control, newer/smaller community	Executive dashboards with big numbers + sparklines, quick iteration	Free (Apache 2.0)
+Chart.js	Lightweight, well-documented, fast rendering, good for simple charts	Limited interactivity, lower ceiling for complex visualizations	Gauge charts, simple bar/line comparisons, performance-critical mobile views	Free (MIT)
+Apache ECharts	Extremely powerful, handles 10k+ data points, real-time streaming, geo maps	Steeper learning curve, larger bundle size (1MB+), older codebase	Real-time metrics (GPU utilization, live session count), time-range drill-down	Free (Apache 2.0)
+Recommendation for LaaS Business Lead Overview:
+Primary: Tremor (for KPI cards, quick executive communication)
+Secondary: Recharts (for time-series revenue trends, session duration patterns)
+Fallback: Chart.js (for simple comparison bar charts, mobile-friendly)
+Consider: Apache ECharts if real-time GPU metrics are displayed with high-frequency updates
+6. Layout Proposal
+Responsive Grid Structure (Above-the-Fold Priority)
+plaintext
+┌─────────────────────────────────────────────────────┐
+│  Analytics > Overview     [24H] [7D] [30D] [90D]   │  Header with time-range filter
+└─────────────────────────────────────────────────────┘
+
+┌──────────────────┬──────────────────┬──────────────────┐
+│  Revenue (24H)   │  Active Users    │  Churn Rate      │
+│  ₹1,24,567       │  342 (+12% WoW)  │  2.3% (-0.1pp)   │
+│  ⬆ +23% vs 7d    │  ⬆ +45% vs 7d   │  ⬇ Improving     │
+│  [Sparkline]     │  [Sparkline]     │  [Sparkline]     │
+└──────────────────┴──────────────────┴──────────────────┘
+
+┌──────────────────┬──────────────────┬──────────────────┐
+│  MRR Projection  │  GPU Hours Sold  │  Fleet Health    │
+│  ₹42,15,000      │  847 GPU-hrs     │  23/25 nodes     │
+│  (Next 30 days)  │  (Today)         │  92% uptime      │
+│  [Trend arrow]   │  [Stacked bars]  │  [Status dots]   │
+└──────────────────┴──────────────────┴──────────────────┘
+
+───────────────────────────────────────────────────────────
+
+    MIDDLE SECTION (Drill-Down Ready)
+
+┌─────────────────────────────────────────────────────┐
+│  Revenue Breakdown (Last 30 Days)                   │
+│  [Stacked Area Chart: Compute vs Storage]          │
+│                                                     │
+│  ₹2.1M compute | ₹340K storage                      │
+└─────────────────────────────────────────────────────┘
+
+┌──────────────────────────┬────────────────────────┐
+│  GPU Utilization         │  Top Support Issues    │
+│  (Live via Prometheus)   │  • Startup timeouts:4  │
+│                          │  • Storage full:       │
+│  [Gauge: 73%] ⚠          │    3 users             │
+│  [3 nodes degraded]      │  • Payment failed: 2   │
+└──────────────────────────┴────────────────────────┘
+
+───────────────────────────────────────────────────────────
+
+    BELOW-FOLD SECTION (Secondary Metrics)
+
+┌──────────────────┬──────────────────┬──────────────────┐
+│  Storage Revenue │  Referral Signups│  Low Balance Risk│
+│  ₹340K (13%)     │  12 (↑3 vs 7d)   │  18 users <10k   │
+│  [Pie/Donut]     │  [Trend line]    │  [Action needed]│
+└──────────────────┴──────────────────┴──────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│  Recent Activity Feed                               │
+│  • 47 new users signed up today (2:30 PM IST)      │
+│  • Payment failed: 3 users (auto-retrying)         │
+│  • 2 nodes degraded: GPU temp warnings              │
+│  • Storage extension purchased: ₹1500              │
+└─────────────────────────────────────────────────────┘
+Grid Responsive Design:
+Desktop (>1200px): 3-column KPI grid (6 metrics visible) + 2-column drill-down below
+Tablet (800-1200px): 2-column KPI grid + full-width charts
+Mobile (<800px): Single-column stack (limit to top 3 metrics above fold)
+Color Scheme (Dark mode, enterprise):
+Primary KPIs: White text on dark-blue/charcoal background (#1a1a1a)
+Positive trend: Green (#10b981)
+Negative trend: Red (#ef4444)
+Warning/Degraded: Amber (#f59e0b)
+Chart colors: Accent palette (blue #0ea5e9, purple #a855f7, emerald #10b981)
+Interaction Patterns:
+Time-range selector (24H/7D/30D/90D): Global filter affecting all KPIs
+Drill-down: Click any KPI card to see filtered transaction list or detailed breakdown
+Real-time updates: MRR, active users, GPU utilization refresh every 30-60 seconds
+Hover tooltips: Revenue sparklines show exact daily amounts on hover
+Alerts: Red border on any metric exceeding thresholds (e.g., churn >5%)
+7. Key Considerations for LaaS Platform
+Org-Level Scoping:
+Analytics portal is org-level only (KSRCE org admins via /signin)
+No platform-level superadmin view — each org sees only their metrics
+Filtered by user.defaultOrgId in all queries
+Data Sources:
+DB: Wallet, BillingCharge, Session, User (transactional, queryable, but read-heavy on production)
+Real-time: Prometheus (GPU metrics, session count) — use with 1-hour retention for overview
+Storage service: ZFS live usage queries (avoid caching >5 min old)
+Cost Calculation Complexity:
+Compute: SUM(Session.durationSeconds) * (ComputeConfig.basePricePerHourCents / 3600)
+Storage: (UserStorageVolume.quotaBytes / 1024^3) * (pricePerGbCentsMonth / 730) per hour
+Both require wallet deduction checks (spend limits, low balance)
+Billing Cycle Timing:
+Hourly storage billing (cron @ top of every hour)
+Session charges posted in real-time
+Invoice generation monthly (separate batch job)
+Consider 1-hour dashboard refresh lag for financial accuracy
+8. Recommended Next Steps
+Implement Core KPI Cards First (Tier 1: Revenue, Active Users, Churn)
+Use Tremor for rapid iteration
+Connect to existing dashboard service methods
+Add sparkline trends for temporal context
+Add Real-Time GPU Metrics via Prometheus
+Scrape laas_vram_allocated_mb and node status
+Cache for 30-60 seconds to avoid query storms
+Visualize as gauge + alert indicators
+Build Time-Range Selector
+Implement global state manager (Zustand/Jotai)
+Refactor all metric queries to accept dateStart, dateEnd parameters
+Validate against BillingCharge/Session indexes for performance
+Add Support Ticket SLA Dashboard
+"Tickets open > 24h" KPI with escalation trigger
+Recent feedback sentiment analysis (for future feedback rating integration)
+Implement Role-Based Filtering
+Org admins see full org metrics
+Support team sees ticket/feedback subset
+Prepare for multi-org views in future (if platform policy changes)
