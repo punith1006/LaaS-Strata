@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { BarChart3 } from "lucide-react";
 import { clearAnalyticsTokens } from "@/lib/token";
+import { SupportModal } from "@/components/support/support-modal";
 
 /**
  * Analytics console shell — mirrors the main AppShell layout structure.
@@ -15,6 +17,7 @@ import { clearAnalyticsTokens } from "@/lib/token";
 export function AnalyticsShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
   const handleSignOutClick = () => {
     setIsSignOutModalOpen(true);
@@ -134,8 +137,50 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
           }}
           aria-label="Navigation"
         >
-          {/* Empty nav area (no user-specific items for analytics admin) */}
-          <div className="flex-1 min-h-0 overflow-y-auto" />
+          {/* Navigation area */}
+          <div className="flex-1 min-h-0 overflow-y-auto" style={{ paddingTop: "8px", paddingBottom: "8px" }}>
+            {/* OVERVIEW nav item — active state */}
+            <button
+              className="w-full flex items-center gap-3 relative"
+              style={{
+                height: "48px",
+                padding: "0 16px",
+                color: "var(--fgColor-default)",
+                backgroundColor: "var(--bgColor-default)",
+                fontWeight: 400,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              {/* Active indicator - 2px left border */}
+              <span
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: "2px",
+                  height: "28px",
+                  backgroundColor: "var(--fgColor-default)",
+                  borderRadius: "1px",
+                }}
+              />
+              <span className="shrink-0">
+                <BarChart3 size={22} />
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "var(--text-base)",
+                  fontWeight: 400,
+                  textTransform: "uppercase",
+                  letterSpacing: "var(--tracking-label)",
+                }}
+              >
+                OVERVIEW
+              </span>
+            </button>
+          </div>
 
           {/* Sidebar footer — Support, Company + copyright */}
           <div
@@ -157,6 +202,7 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
                     <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
                 ),
+                onClick: () => setIsSupportModalOpen(true),
                 disabled: false,
               },
               {
@@ -171,9 +217,10 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
                 ),
                 disabled: true,
               },
-            ].map(({ label, icon, disabled }) => (
+            ].map(({ label, icon, onClick, disabled }) => (
               <button
                 key={label}
+                onClick={onClick}
                 disabled={disabled}
                 style={{
                   width: "100%",
@@ -356,6 +403,12 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
+
+      {/* Support modal */}
+      <SupportModal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
+      />
     </div>
   );
 }
