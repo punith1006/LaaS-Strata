@@ -7,10 +7,14 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DashboardService, HomeDashboardData, BillingData } from './dashboard.service';
+import { AnalyticsAdminService } from './analytics-admin.service';
 
 @Controller('api/dashboard')
 export class DashboardController {
-  constructor(private dashboardService: DashboardService) {}
+  constructor(
+    private dashboardService: DashboardService,
+    private analyticsAdminService: AnalyticsAdminService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('home')
@@ -43,6 +47,14 @@ export class DashboardController {
     return this.dashboardService.getRecentActivity(
       req.user.id,
       parseInt(days || '30', 10),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/kpi')
+  async getAnalyticsKpi(@Query('timeRange') timeRange: string) {
+    return this.analyticsAdminService.getKpiData(
+      (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
     );
   }
 }

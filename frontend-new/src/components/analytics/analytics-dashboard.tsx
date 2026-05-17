@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from 'next/dynamic';
 import { RotateCcw } from "lucide-react";
 import type { User } from "@/types/auth";
+import { getAnalyticsAccessToken } from "@/lib/token";
 import {
   BarChart,
   Bar,
@@ -27,6 +28,13 @@ const RevenueChart = dynamic(
 
 interface AnalyticsDashboardProps {
   user: User;
+}
+
+interface AnalyticsKpiResponse {
+  revenue: { total: number; dailyAvg: number; changePct: number; subtitleContext: string };
+  activeUsers: { count: number; changePct: number; liveSessions: number; newUsers: number; newUsersChangePct: number; subtitleContext: string };
+  gpuHours: { totalHours: number; avgSessionHours: number; sessionCount: number; changePct: number; subtitleContext: string };
+  fleetHealth: { trustScore: number; uptimePct: number; totalNodes: number; healthyNodes: number; alertNodes: string[] };
 }
 
 // --- MOCK DATA ---
@@ -70,9 +78,34 @@ function getGreeting(): string {
 
 // --- COMPONENT ---
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+
 export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [timeRange, setTimeRange] = useState<"24H" | "7D" | "30D" | "All">("7D");
   const [chartKey, setChartKey] = useState(0);
+  const [kpiData, setKpiData] = useState<AnalyticsKpiResponse | null>(null);
+  const [, setKpiLoading] = useState(true);
+
+  useEffect(() => {
+    setKpiLoading(true);
+    const token = getAnalyticsAccessToken();
+    console.log('[KPI] token exists:', !!token, 'timeRange:', timeRange);
+    if (!token) { setKpiLoading(false); return; }
+    fetch(`${API_BASE}/api/dashboard/analytics/kpi?timeRange=${timeRange}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => {
+        console.log('[KPI] response status:', res.status);
+        return res.ok ? res.json() : res.text().then(t => { console.log('[KPI] error body:', t); return null; });
+      })
+      .then(data => {
+        console.log('[KPI] data:', data);
+        if (data) setKpiData(data);
+      })
+      .catch((err) => { console.error('[KPI] fetch error:', err); })
+      .finally(() => setKpiLoading(false));
+  }, [timeRange]);
+
   const greeting = getGreeting();
   const displayName = user.firstName || "there";
 
@@ -127,29 +160,29 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           {/* Revenue */}
           <KPICard
             label="REVENUE"
-            value="₹2,47,830"
-            change="+18.3%"
-            changePositive
-            subtitle="vs prior period"
-            insight="₹8,261 avg daily"
+            value={kpiData ? `₹${(kpiData.revenue.total / 100).toLocaleString("en-IN")}` : "—"}
+            change={kpiData ? `${kpiData.revenue.changePct >= 0 ? '+' : ''}${kpiData.revenue.changePct.toFixed(1)}%` : "—"}
+            changePositive={kpiData ? kpiData.revenue.changePct >= 0 : true}
+            subtitle={kpiData?.revenue.subtitleContext || ""}
+            insight={kpiData ? `₹${(kpiData.revenue.dailyAvg / 100).toLocaleString("en-IN")} avg daily` : ""}
           />
           {/* Active Users */}
           <KPICard
             label="ACTIVE USERS"
-            value="156"
-            change="+12 new"
-            changePositive
-            subtitle="this week"
-            insight="23 sessions live now"
+            value={kpiData ? String(kpiData.activeUsers.count) : "—"}
+            change={kpiData ? `${kpiData.activeUsers.newUsers >= 0 ? '+' : ''}${kpiData.activeUsers.newUsers} new` : "—"}
+            changePositive={kpiData ? kpiData.activeUsers.newUsers >= 0 : true}
+            subtitle={kpiData?.activeUsers.subtitleContext || ""}
+            insight={kpiData ? `${kpiData.activeUsers.liveSessions} sessions live now` : ""}
           />
           {/* GPU Hours */}
           <KPICard
             label="GPU HOURS SOLD"
-            value="847 hrs"
-            change="+34.2%"
-            changePositive
-            subtitle="vs prior period"
-            insight="Avg session: 2.4 hrs"
+            value={kpiData ? `${kpiData.gpuHours.totalHours.toFixed(0)} hrs` : "—"}
+            change={kpiData ? `${kpiData.gpuHours.changePct >= 0 ? '+' : ''}${kpiData.gpuHours.changePct.toFixed(1)}%` : "—"}
+            changePositive={kpiData ? kpiData.gpuHours.changePct >= 0 : true}
+            subtitle={kpiData?.gpuHours.subtitleContext || ""}
+            insight={kpiData ? `Avg session: ${kpiData.gpuHours.avgSessionHours.toFixed(1)} hrs` : ""}
           />
           {/* Fleet Health */}
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
@@ -157,11 +190,21 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               FLEET HEALTH
             </span>
             <div className="mt-2">
-              <span className="text-2xl font-bold text-white">4/4 nodes</span>
+              <span className="text-2xl font-bold text-white">
+                {kpiData ? `${kpiData.fleetHealth.healthyNodes}/${kpiData.fleetHealth.totalNodes} nodes` : "—"}
+              </span>
             </div>
             <div className="flex items-center gap-2 mt-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
-              <span className="text-xs text-zinc-400">92% uptime</span>
+              <span className={`w-2 h-2 rounded-full inline-block ${
+                kpiData && kpiData.fleetHealth.alertNodes.length > 0 ? 'bg-amber-400' : 'bg-emerald-400'
+              }`} />
+              <span className="text-xs text-zinc-400">
+                {kpiData
+                  ? kpiData.fleetHealth.alertNodes.length > 0
+                    ? `${kpiData.fleetHealth.alertNodes.join(', ')} degraded`
+                    : `${kpiData.fleetHealth.uptimePct.toFixed(0)}% uptime`
+                  : ""}
+              </span>
             </div>
           </div>
         </div>

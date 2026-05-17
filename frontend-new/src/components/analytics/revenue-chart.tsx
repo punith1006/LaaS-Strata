@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, AreaSeries, HistogramSeries, type UTCTimestamp } from 'lightweight-charts';
+import { createChart, ColorType, AreaSeries, HistogramSeries, type UTCTimestamp, type IChartApi, type ISeriesApi } from 'lightweight-charts';
 
 interface RevenueChartProps {
   height?: number;
@@ -98,9 +98,9 @@ const generateMockVolumeData = (lineData: { time: UTCTimestamp; value: number }[
 
 export function RevenueChart({ height = 240, timeRange }: RevenueChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<any>(null);
-  const lineSeriesRef = useRef<any>(null);
-  const volumeSeriesRef = useRef<any>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const lineSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const batchesLoadedRef = useRef(2);
   const aggregatedDataRef = useRef<{ time: UTCTimestamp; value: number }[]>([]);
   const isLoadingRef = useRef(false);
@@ -192,7 +192,7 @@ export function RevenueChart({ height = 240, timeRange }: RevenueChartProps) {
     });
 
     // Subscribe to visible range changes for lazy-loading
-    chart.timeScale().subscribeVisibleLogicalRangeChange((range: any) => {
+    chart.timeScale().subscribeVisibleLogicalRangeChange((range: { from: number; to: number } | null) => {
       if (!range) return;
       if (isLoadingRef.current) return;
 
