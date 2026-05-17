@@ -71,7 +71,7 @@ function getGreeting(): string {
 // --- COMPONENT ---
 
 export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
-  const [timeRange, setTimeRange] = useState<"24H" | "7D" | "30D" | "All">("30D");
+  const [timeRange, setTimeRange] = useState<"24H" | "7D" | "30D" | "All">("7D");
   const [chartKey, setChartKey] = useState(0);
   const greeting = getGreeting();
   const displayName = user.firstName || "there";
@@ -79,6 +79,17 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const todayIndex = new Date().getDay();
   // Map: 0=Sun,1=Mon...6=Sat to our array index (Mon=0)
   const todayBarIndex = todayIndex === 0 ? 6 : todayIndex - 1;
+
+  // Revenue Rate — trading-view style mock values (varies by timeRange)
+  const ohlcByRange = {
+    "24H": { open: 4880, high: 6240, low: 3420, close: 5700, change: 820 },
+    "7D":  { open: 4200, high: 6240, low: 2800, close: 5700, change: 1500 },
+    "30D": { open: 3600, high: 6240, low: 1200, close: 5700, change: 2100 },
+    "All": { open: 3600, high: 6240, low: 1200, close: 5700, change: 2100 },
+  };
+  const { open: previousRevenueRate, high: revenueRateHigh, low: revenueRateLow, close: currentRevenueRate, change: revenueRateChange } = ohlcByRange[timeRange];
+  const revenueRateChangePct = ((revenueRateChange / previousRevenueRate) * 100);
+  const isRatePositive = revenueRateChange >= 0;
 
   return (
     <div className="min-h-full bg-[#0a0a0a] py-4 px-2">
@@ -159,24 +170,44 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.35fr] gap-3 mb-3">
           {/* Left: Revenue Trend Chart */}
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 pb-2 flex flex-col">
-            {/* Compact Header */}
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h2 className="text-white font-semibold text-sm">Revenue Trend</h2>
-                <p className="text-zinc-500 text-[11px] mt-0.5">
-                  {timeRange === "24H" ? "Last 24 hours" : timeRange === "7D" ? "Last 7 days" : timeRange === "All" ? "All time" : "Last 30 days"}
-                </p>
+            {/* Top row: big value left, title + reset right */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-baseline gap-3">
+                <div className="flex items-baseline">
+                  <span className="text-2xl font-bold text-white">₹{currentRevenueRate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  <span className="text-sm text-zinc-500 ml-1">/hr</span>
+                </div>
+                <span className={`text-sm font-medium ${isRatePositive ? "text-emerald-400" : "text-red-400"}`}>
+                  {isRatePositive ? "+" : ""}₹{Math.abs(revenueRateChange).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </span>
+                <span className={`text-sm font-medium ${isRatePositive ? "text-emerald-400" : "text-red-400"}`}>
+                  {isRatePositive ? "+" : ""}{revenueRateChangePct.toFixed(1)}%
+                </span>
               </div>
-              <button
-                onClick={() => setChartKey(prev => prev + 1)}
-                className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                title="Reset chart view"
-              >
-                <RotateCcw size={14} />
-              </button>
+              <div className="flex items-center gap-2 mr-1">
+                <h2 className="text-white font-semibold text-base">Revenue Rate</h2>
+                <span className="text-zinc-500 text-xs">
+                  {timeRange === "24H" ? "Last 24 hours" : timeRange === "7D" ? "Last 7 days" : timeRange === "All" ? "All time" : "Last 30 days"}
+                </span>
+                <button
+                  onClick={() => setChartKey(prev => prev + 1)}
+                  className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                  title="Reset chart view"
+                >
+                  <RotateCcw size={14} />
+                </button>
+              </div>
             </div>
 
-            <RevenueChart key={chartKey} height={240} />
+            {/* OHLC row */}
+            <div className="flex items-center gap-4 mt-1.5 mb-2">
+              <span className="text-[11px] text-zinc-500">O <span className="text-zinc-300">₹{previousRevenueRate.toLocaleString("en-IN")}</span></span>
+              <span className="text-[11px] text-zinc-500">H <span className="text-emerald-400">₹{revenueRateHigh.toLocaleString("en-IN")}</span></span>
+              <span className="text-[11px] text-zinc-500">L <span className="text-red-400">₹{revenueRateLow.toLocaleString("en-IN")}</span></span>
+              <span className="text-[11px] text-zinc-500">C <span className="text-zinc-300">₹{currentRevenueRate.toLocaleString("en-IN")}</span></span>
+            </div>
+
+            <RevenueChart key={chartKey} height={240} timeRange={timeRange} />
           </div>
 
           {/* Right: Attention Required */}
@@ -237,16 +268,21 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                     tickFormatter={(v: number) => `${v}h`}
                   />
                   <Tooltip
+                    cursor={{ fill: 'transparent' }}
                     contentStyle={{
-                      backgroundColor: "#1a1a1a",
-                      border: "1px solid #333",
-                      borderRadius: "8px",
-                      fontSize: "12px",
+                      backgroundColor: "var(--fgColor-default)",
+                      border: "1px solid var(--borderColor-default)",
+                      borderRadius: "4px",
+                      fontSize: "0.875rem",
+                      fontWeight: 500,
+                      color: "var(--fgColor-inverse)",
+                      padding: "6px 16px",
                     }}
-                    labelStyle={{ color: "#aaa" }}
+                    labelStyle={{ color: "var(--fgColor-inverse)", fontWeight: 600, marginBottom: 2 }}
+                    itemStyle={{ color: "var(--fgColor-inverse)" }}
                     formatter={(value: unknown) => [`${value} hrs`, "GPU Hours"]}
                   />
-                  <Bar dataKey="hours" radius={[4, 4, 0, 0]} label={{ position: "top", fill: "#a1a1aa", fontSize: 10, formatter: (v: unknown) => `${v}h` }}>
+                  <Bar dataKey="hours" radius={[4, 4, 0, 0]} activeBar={{ fill: '#6366f1', fillOpacity: 0.6, stroke: '#6366f1', strokeWidth: 1 }} label={{ position: "top", fill: "#a1a1aa", fontSize: 10, formatter: (v: unknown) => `${v}h` }}>
                     {weeklyComputeData.map((_, index) => (
                       <Cell
                         key={`cell-${index}`}
@@ -404,7 +440,7 @@ function KPICard({
       </div>
       {/* Bottom row: insight left */}
       <div className="mt-2">
-        <span className="text-xs text-zinc-400">{insight}</span>
+        <span className="text-sm text-zinc-400">{insight}</span>
       </div>
     </div>
   );
