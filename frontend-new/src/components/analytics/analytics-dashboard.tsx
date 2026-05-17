@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from 'next/dynamic';
+import { RotateCcw } from "lucide-react";
 import type { User } from "@/types/auth";
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   PieChart,
@@ -15,54 +15,21 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  ComposedChart,
 } from "recharts";
+
+const RevenueChart = dynamic(
+  () => import('./revenue-chart').then(mod => ({ default: mod.RevenueChart })),
+  { 
+    ssr: false,
+    loading: () => <div className="w-full h-[240px] bg-[#141414] rounded animate-pulse" />
+  }
+);
 
 interface AnalyticsDashboardProps {
   user: User;
 }
 
 // --- MOCK DATA ---
-
-function generateRevenueData() {
-  const data: { date: string; revenue: number; prevRevenue: number }[] = [];
-  const base = new Date(2026, 4, 1); // May 1, 2026
-  // Realistic 30 days: weekdays ₹7000-₹11000, weekends ₹3000-₹6000
-  const dailyAmounts = [
-    8200, 9100, 7800, 10200, 9400, 4800, 5200, // Week 1 (Thu-Wed, May 1-7)
-    8700, 9800, 8400, 10500, 9900, 5100, 4600, // Week 2
-    9200, 10100, 8900, 11000, 9600, 5400, 4900, // Week 3
-    9800, 10800, 9300, 10700, 10200, 5600, 5100, // Week 4
-    9500, 10430, // May 29-30
-  ];
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(base);
-    d.setDate(d.getDate() + i);
-    data.push({
-      date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      revenue: dailyAmounts[i],
-      prevRevenue: i === 0 ? 7800 : dailyAmounts[i - 1],
-    });
-  }
-  return data;
-}
-
-const revenueData = generateRevenueData();
-
-const sparklineRevenue = [
-  { v: 6200 }, { v: 7100 }, { v: 6800 }, { v: 7900 }, { v: 8200 },
-  { v: 7400 }, { v: 8600 }, { v: 9100 }, { v: 8800 }, { v: 9400 },
-];
-
-const sparklineUsers = [
-  { v: 120 }, { v: 128 }, { v: 131 }, { v: 138 }, { v: 142 },
-  { v: 145 }, { v: 148 }, { v: 150 }, { v: 153 }, { v: 156 },
-];
-
-const sparklineGPU = [
-  { v: 22 }, { v: 28 }, { v: 25 }, { v: 31 }, { v: 34 },
-  { v: 29 }, { v: 36 }, { v: 32 }, { v: 38 }, { v: 35 },
-];
 
 const weeklyComputeData = [
   { day: "Mon", hours: 6.2 },
@@ -74,13 +41,11 @@ const weeklyComputeData = [
   { day: "Sun", hours: 3.1 },
 ];
 
-const configData = [
-  { name: "Starter (CPU)", value: 35, color: "#71717a" },
-  { name: "Standard (CPU)", value: 25, color: "#a1a1aa" },
-  { name: "Pro (4GB GPU)", value: 20, color: "#6366f1" },
-  { name: "Power (8GB GPU)", value: 12, color: "#818cf8" },
-  { name: "Max (16GB GPU)", value: 5, color: "#a78bfa" },
-  { name: "Full Machine", value: 3, color: "#f59e0b" },
+const liveSessionsData = [
+  { name: "Spark (2GB)", value: 8, color: "#71717a" },
+  { name: "Blaze (4GB)", value: 12, color: "#6366f1" },
+  { name: "Inferno (8GB)", value: 5, color: "#818cf8" },
+  { name: "Supernova (16GB)", value: 2, color: "#f59e0b" },
 ];
 
 const recentTransactions = [
@@ -107,6 +72,7 @@ function getGreeting(): string {
 
 export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [timeRange, setTimeRange] = useState<"24H" | "7D" | "30D" | "All">("30D");
+  const [chartKey, setChartKey] = useState(0);
   const greeting = getGreeting();
   const displayName = user.firstName || "there";
 
@@ -154,8 +120,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             change="+18.3%"
             changePositive
             subtitle="vs prior period"
-            sparkData={sparklineRevenue}
-            sparkColor="#6366f1"
+            insight="₹8,261 avg daily"
           />
           {/* Active Users */}
           <KPICard
@@ -164,8 +129,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             change="+12 new"
             changePositive
             subtitle="this week"
-            sparkData={sparklineUsers}
-            sparkColor="#10b981"
+            insight="23 sessions live now"
           />
           {/* GPU Hours */}
           <KPICard
@@ -174,12 +138,11 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             change="+34.2%"
             changePositive
             subtitle="vs prior period"
-            sparkData={sparklineGPU}
-            sparkColor="#f59e0b"
+            insight="Avg session: 2.4 hrs"
           />
           {/* Fleet Health */}
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-            <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-white uppercase tracking-wider">
               FLEET HEALTH
             </span>
             <div className="mt-2">
@@ -200,81 +163,20 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-white font-semibold text-sm">Revenue Trend</h2>
-                <p className="text-zinc-500 text-[11px] mt-0.5">Last 30 days</p>
+                <p className="text-zinc-500 text-[11px] mt-0.5">
+                  {timeRange === "24H" ? "Last 24 hours" : timeRange === "7D" ? "Last 7 days" : timeRange === "All" ? "All time" : "Last 30 days"}
+                </p>
               </div>
+              <button
+                onClick={() => setChartKey(prev => prev + 1)}
+                className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="Reset chart view"
+              >
+                <RotateCcw size={14} />
+              </button>
             </div>
 
-            {/* ComposedChart: Area (revenue) + Bar (volume, green/red) */}
-            <div className="h-[240px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={revenueData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35} />
-                      <stop offset="60%" stopColor="#6366f1" stopOpacity={0.08} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    stroke="#333"
-                    tick={{ fill: "#52525b", fontSize: 10 }}
-                    tickLine={false}
-                    axisLine={false}
-                    interval={4}
-                  />
-                  <YAxis
-                    yAxisId="revenue"
-                    orientation="left"
-                    stroke="#333"
-                    tick={{ fill: "#52525b", fontSize: 10 }}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}k`}
-                    domain={[0, "auto"]}
-                  />
-                  <YAxis
-                    yAxisId="volume"
-                    orientation="right"
-                    hide
-                    domain={[0, (dataMax: number) => dataMax * 4]}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1a1a1a",
-                      border: "1px solid #333",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    labelStyle={{ color: "#aaa" }}
-                    formatter={(value: unknown, name: unknown) => {
-                      if (String(name) === "revenue") return [`₹${Number(value).toLocaleString("en-IN")}`, "Revenue"];
-                      return [`₹${Number(value).toLocaleString("en-IN")}`, "Volume"];
-                    }}
-                  />
-                  <Bar yAxisId="volume" dataKey="revenue" radius={[2, 2, 0, 0]} barSize={8} opacity={0.7}>
-                    {revenueData.map((entry, index) => (
-                      <Cell
-                        key={`vol-${index}`}
-                        fill={entry.revenue >= entry.prevRevenue ? "#22c55e" : "#ef4444"}
-                        fillOpacity={0.6}
-                      />
-                    ))}
-                  </Bar>
-                  <Area
-                    yAxisId="revenue"
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#6366f1"
-                    strokeWidth={2}
-                    fill="url(#gradRevenue)"
-                    dot={false}
-                    activeDot={{ r: 4, fill: "#6366f1", stroke: "#fff", strokeWidth: 1 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            <RevenueChart key={chartKey} height={240} />
           </div>
 
           {/* Right: Attention Required */}
@@ -355,27 +257,33 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-zinc-500 text-[11px] mt-1">
+            <p className="text-zinc-500 text-xs mt-1">
               You sold <span className="text-zinc-300 font-medium">42.3 GPU hours</span> this week, up 4.8 hrs from last week.
             </p>
           </div>
 
-          {/* Middle: Config Popularity */}
-          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 pb-2">
-            <h2 className="text-white font-semibold text-sm mb-2">Config Popularity</h2>
-            <div className="h-[180px] flex items-center justify-center relative">
-              <ResponsiveContainer width="100%" height="100%">
+          {/* Middle: Live Sessions */}
+          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 pb-3 flex flex-col">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-white font-semibold text-sm">Active Sessions</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Live</span>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center relative">
+              <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie
-                    data={configData}
+                    data={liveSessionsData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={42}
-                    outerRadius={62}
+                    innerRadius={52}
+                    outerRadius={75}
                     paddingAngle={2}
                     dataKey="value"
                   >
-                    {configData.map((entry, index) => (
+                    {liveSessionsData.map((entry, index) => (
                       <Cell key={`pie-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -386,30 +294,34 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: unknown, name: unknown) => [`${value}%`, String(name)]}
+                    formatter={(value: unknown, name: unknown) => [`${value} sessions`, String(name)]}
                   />
                 </PieChart>
               </ResponsiveContainer>
               {/* Center label */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-white">1,247</div>
-                  <div className="text-[10px] text-zinc-500 uppercase">sessions</div>
+                  <div className="text-xl font-bold text-white">27</div>
+                  <div className="text-[10px] text-zinc-500 uppercase">active</div>
                 </div>
               </div>
             </div>
             {/* Legend */}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1">
-              {configData.map((item) => (
-                <div key={item.name} className="flex items-center gap-1.5">
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-[11px] text-zinc-400 truncate">{item.name}</span>
-                  <span className="text-[11px] text-zinc-500 ml-auto">{item.value}%</span>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+              {liveSessionsData.map((item) => {
+                const total = liveSessionsData.reduce((sum, d) => sum + d.value, 0);
+                const pct = Math.round((item.value / total) * 100);
+                return (
+                  <div key={item.name} className="flex items-center gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-[11px] text-white truncate">{item.name}</span>
+                    <span className="text-[11px] text-zinc-500 ml-auto">{item.value} ({pct}%)</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -461,56 +373,38 @@ function KPICard({
   change,
   changePositive,
   subtitle,
-  sparkData,
-  sparkColor,
+  insight,
 }: {
   label: string;
   value: string;
   change: string;
   changePositive: boolean;
   subtitle: string;
-  sparkData: { v: number }[];
-  sparkColor: string;
+  insight: string;
 }) {
   return (
     <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-      <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+      <span className="text-xs font-semibold text-white uppercase tracking-wider">
         {label}
       </span>
-      <div className="flex items-end justify-between mt-2">
-        <div>
-          <div className="text-2xl font-bold text-white">{value}</div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              changePositive
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "bg-red-500/10 text-red-400"
-            }`}>
-              {change}
-            </span>
-            <span className="text-[11px] text-zinc-500">{subtitle}</span>
-          </div>
+      {/* Value row: big number left, CDC capsule right */}
+      <div className="flex items-center justify-between mt-2">
+        <div className="text-2xl font-bold text-white">{value}</div>
+        <div className="flex flex-col items-end mt-1">
+          <span className={`inline-flex items-center gap-1 text-sm font-semibold px-3 py-1 rounded-full ${
+            changePositive
+              ? "bg-emerald-500/15 text-emerald-400"
+              : "bg-red-500/15 text-red-400"
+          }`}>
+            <span>{changePositive ? "\u2197" : "\u2198"}</span>
+            {change}
+          </span>
+          <span className="text-[11px] text-zinc-500 mt-0.5">{subtitle}</span>
         </div>
-        {/* Sparkline */}
-        <div className="w-[80px] h-[32px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sparkData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={`spark-${label.replace(/\s+/g, "-")}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={sparkColor} stopOpacity={0.3} />
-                  <stop offset="100%" stopColor={sparkColor} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke={sparkColor}
-                strokeWidth={1.5}
-                fill={`url(#spark-${label.replace(/\s+/g, "-")})`}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+      </div>
+      {/* Bottom row: insight left */}
+      <div className="mt-2">
+        <span className="text-xs text-zinc-400">{insight}</span>
       </div>
     </div>
   );
