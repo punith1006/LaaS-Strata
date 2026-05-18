@@ -65,4 +65,30 @@ export class DashboardController {
       (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/compute-activity')
+  async getComputeActivity(@Query('timeRange') timeRange: string) {
+    return this.analyticsAdminService.getComputeActivityData(
+      (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/active-sessions')
+  async getActiveSessions() {
+    return this.analyticsAdminService.getActiveSessionsByTier();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/recent-transactions')
+  async getRecentTransactions() {
+    return this.analyticsAdminService.getRecentTransactions();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/attention-required')
+  async getAttentionRequired() {
+    return this.analyticsAdminService.getAttentionRequiredData();
+  }
 }
