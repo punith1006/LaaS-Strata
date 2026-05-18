@@ -33,6 +33,22 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   });
 
+  // Add reply hook to serialize BigInt values to Number for all responses
+  app.getHttpAdapter().getInstance().addHook('onSend', (_req: unknown, reply: unknown, payload: string, done: (err: Error | null, payload?: string) => void) => {
+    if (payload && typeof payload === 'string') {
+      try {
+        const parsed = JSON.parse(payload);
+        const result = JSON.stringify(parsed, (_key: string, value: unknown) =>
+          typeof value === 'bigint' ? Number(value) : value,
+        );
+        return done(null, result);
+      } catch {
+        // Not JSON, pass through
+      }
+    }
+    done(null, payload);
+  });
+
   const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
   console.log(`Backend running on http://localhost:${port}`);

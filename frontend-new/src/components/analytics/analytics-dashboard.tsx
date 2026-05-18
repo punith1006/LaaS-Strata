@@ -84,6 +84,12 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [timeRange, setTimeRange] = useState<"24H" | "7D" | "30D" | "All">("7D");
   const [chartKey, setChartKey] = useState(0);
   const [kpiData, setKpiData] = useState<AnalyticsKpiResponse | null>(null);
+  const [revenueChartData, setRevenueChartData] = useState<{
+    ohlc: { open: number; high: number; low: number; close: number };
+    currentRate: number;
+    rateChange: number;
+    rateChangePct: number;
+  } | null>(null);
   const [, setKpiLoading] = useState(true);
 
   useEffect(() => {
@@ -113,15 +119,13 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   // Map: 0=Sun,1=Mon...6=Sat to our array index (Mon=0)
   const todayBarIndex = todayIndex === 0 ? 6 : todayIndex - 1;
 
-  // Revenue Rate — trading-view style mock values (varies by timeRange)
-  const ohlcByRange = {
-    "24H": { open: 4880, high: 6240, low: 3420, close: 5700, change: 820 },
-    "7D":  { open: 4200, high: 6240, low: 2800, close: 5700, change: 1500 },
-    "30D": { open: 3600, high: 6240, low: 1200, close: 5700, change: 2100 },
-    "All": { open: 3600, high: 6240, low: 1200, close: 5700, change: 2100 },
-  };
-  const { open: previousRevenueRate, high: revenueRateHigh, low: revenueRateLow, close: currentRevenueRate, change: revenueRateChange } = ohlcByRange[timeRange];
-  const revenueRateChangePct = ((revenueRateChange / previousRevenueRate) * 100);
+  // Revenue Rate — from actual chart data via onDataLoaded callback
+  const currentRevenueRate = revenueChartData?.currentRate ?? 0;
+  const revenueRateChange = revenueChartData?.rateChange ?? 0;
+  const revenueRateChangePct = revenueChartData?.rateChangePct ?? 0;
+  const revenueRateHigh = revenueChartData?.ohlc.high ?? 0;
+  const revenueRateLow = revenueChartData?.ohlc.low ?? 0;
+  const previousRevenueRate = revenueChartData?.ohlc.open ?? 0;
   const isRatePositive = revenueRateChange >= 0;
 
   return (
@@ -164,7 +168,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             change={kpiData ? `${kpiData.revenue.changePct >= 0 ? '+' : ''}${kpiData.revenue.changePct.toFixed(1)}%` : "—"}
             changePositive={kpiData ? kpiData.revenue.changePct >= 0 : true}
             subtitle={kpiData?.revenue.subtitleContext || ""}
-            insight={kpiData ? `₹${(kpiData.revenue.dailyAvg / 100).toLocaleString("en-IN")} avg daily` : ""}
+            insight={kpiData ? (timeRange === '24H' ? '₹ — avg daily' : `₹${(kpiData.revenue.dailyAvg / 100).toLocaleString("en-IN")} avg daily`) : ""}
           />
           {/* Active Users */}
           <KPICard
@@ -250,7 +254,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               <span className="text-[11px] text-zinc-500">C <span className="text-zinc-300">₹{currentRevenueRate.toLocaleString("en-IN")}</span></span>
             </div>
 
-            <RevenueChart key={chartKey} height={240} timeRange={timeRange} />
+            <RevenueChart key={chartKey} height={240} timeRange={timeRange} onDataLoaded={setRevenueChartData} />
           </div>
 
           {/* Right: Attention Required */}

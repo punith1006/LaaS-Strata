@@ -57,4 +57,12 @@ export class DashboardController {
       (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/revenue-chart')
+  async getRevenueChart(@Query('timeRange') timeRange: string) {
+    return this.analyticsAdminService.getRevenueChartData(
+      (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
+    );
+  }
 }
