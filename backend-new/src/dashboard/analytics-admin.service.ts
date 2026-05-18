@@ -459,12 +459,17 @@ export class AnalyticsAdminService {
     const low = nonZeroValues.length > 0 ? Math.min(...nonZeroValues) : 0;
 
     // Step 6: Calculate rate metrics
-    const currentRate =
-      nonZeroValues.length > 0 ? nonZeroValues[nonZeroValues.length - 1] : 0;
-    const rateChange = Math.round((currentRate - open) * 100) / 100;
+    // currentRate should always reflect the most recent HOUR's revenue (independent of timeframe/bucket size)
+    // Get from raw hourly data, not from aggregated buckets
+    const hourlyValues = Array.from(dataMap.values());
+    const lastHourRevenue = hourlyValues.length > 0 ? hourlyValues[hourlyValues.length - 1] : 0;
+    const previousHourRevenue = hourlyValues.length > 1 ? hourlyValues[hourlyValues.length - 2] : 0;
+    
+    const currentRate = lastHourRevenue;
+    const rateChange = Math.round((lastHourRevenue - previousHourRevenue) * 100) / 100;
     const rateChangePct =
-      open > 0
-        ? Math.round(((currentRate - open) / open) * 100 * 100) / 100
+      previousHourRevenue > 0
+        ? Math.round(((lastHourRevenue - previousHourRevenue) / previousHourRevenue) * 100 * 100) / 100
         : 0;
 
     return {
@@ -879,12 +884,12 @@ export class AnalyticsAdminService {
         count: backlogTickets.length,
         thresholdHours: 12,
         avgResolutionTime: Math.round(avgResolutionTime * 10) / 10, // Round to 1 decimal
-        subtitle: `Avg resolution time: ${Math.round(avgResolutionTime * 10) / 10} hrs`,
+        subtitle: `Avg resolution time: <span style="color: white; font-weight: 600;">${Math.round(avgResolutionTime * 10) / 10} hrs</span>`,
       },
       sessionFailures: {
         failureRate: Math.round(currentFailureRate * 10) / 10,
         priorWeekRate: Math.round(priorFailureRate * 10) / 10,
-        subtitle: `Down from ${Math.round(priorFailureRate * 10) / 10}% last week`,
+        subtitle: `Down from <span style="color: white; font-weight: 600;">${Math.round(priorFailureRate * 10) / 10}%</span> last week`,
       },
     };
   }

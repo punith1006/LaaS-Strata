@@ -289,20 +289,26 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 pb-2 flex flex-col">
             {/* Top row: big value left, title + reset right */}
             <div className="flex items-center justify-between">
-              <div className="flex items-baseline gap-3">
-                <div className="flex items-baseline">
-                  <span className="text-2xl font-bold text-white">₹{currentRevenueRate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-                  <span className="text-sm text-zinc-500 ml-1">/hr</span>
+              <div className="flex items-end gap-3">
+                <span className="text-2xl font-bold text-white leading-none">₹{currentRevenueRate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                <div className="flex flex-col gap-0.5 mb-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">LIVE</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm text-zinc-500">/hr</span>
+                    <span className={`text-sm font-medium ${isRatePositive ? "text-emerald-400" : "text-red-400"}`}>
+                      {isRatePositive ? "+" : ""}₹{Math.abs(revenueRateChange).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </span>
+                    <span className={`text-sm font-medium ${isRatePositive ? "text-emerald-400" : "text-red-400"}`}>
+                      {isRatePositive ? "+" : ""}{revenueRateChangePct.toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
-                <span className={`text-sm font-medium ${isRatePositive ? "text-emerald-400" : "text-red-400"}`}>
-                  {isRatePositive ? "+" : ""}₹{Math.abs(revenueRateChange).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                </span>
-                <span className={`text-sm font-medium ${isRatePositive ? "text-emerald-400" : "text-red-400"}`}>
-                  {isRatePositive ? "+" : ""}{revenueRateChangePct.toFixed(1)}%
-                </span>
               </div>
               <div className="flex items-center gap-2 mr-1">
-                <h2 className="text-white font-semibold text-base">Revenue Rate</h2>
+                <h2 className="text-white font-semibold text-base">Revenue Trend</h2>
                 <span className="text-zinc-500 text-xs">
                   {timeRange === "24H" ? "Last 24 hours" : timeRange === "7D" ? "Last 7 days" : timeRange === "All" ? "All time" : "Last 30 days"}
                 </span>
@@ -650,9 +656,12 @@ function AlertItem({
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
           <span className="text-sm text-white font-semibold whitespace-nowrap">{title}</span>
         </div>
-        <span className={`text-right leading-snug flex-shrink-0 max-w-[55%] ${
-          title === 'Low Balance Users' ? 'text-[10px] text-zinc-500 whitespace-nowrap' : 'text-sm text-zinc-400'
-        }`}>{context}</span>
+        <span 
+          className={`text-right leading-snug flex-shrink-0 max-w-[55%] ${
+            title === 'Low Balance Users' ? 'text-[10px] text-zinc-500 whitespace-nowrap' : 'text-sm text-zinc-400'
+          }`}
+          dangerouslySetInnerHTML={{ __html: context }}
+        />
       </div>
       
       {/* Row 2: Value (full width) */}
