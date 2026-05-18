@@ -102,7 +102,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [chartKey, setChartKey] = useState(0);
   const [kpiData, setKpiData] = useState<AnalyticsKpiResponse | null>(null);
   const [revenueChartData, setRevenueChartData] = useState<{
-    ohlc: { open: number; high: number; low: number; close: number };
+    ohlc: { open: number; high: number; low: number; close: number; previousHigh?: number };
     currentRate: number;
     rateChange: number;
     rateChangePct: number;
@@ -324,10 +324,20 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
 
             {/* OHLC row */}
             <div className="flex items-center gap-4 mt-1.5 mb-2">
-              <span className="text-[11px] text-zinc-500">O <span className="text-zinc-300">₹{previousRevenueRate.toLocaleString("en-IN")}</span></span>
-              <span className="text-[11px] text-zinc-500">H <span className="text-emerald-400">₹{revenueRateHigh.toLocaleString("en-IN")}</span></span>
-              <span className="text-[11px] text-zinc-500">L <span className="text-red-400">₹{revenueRateLow.toLocaleString("en-IN")}</span></span>
-              <span className="text-[11px] text-zinc-500">C <span className="text-zinc-300">₹{currentRevenueRate.toLocaleString("en-IN")}</span></span>
+              {timeRange === 'All' ? (
+                <>
+                  <span className="text-[11px] text-zinc-500">H <span className="text-emerald-400">₹{revenueRateHigh.toLocaleString("en-IN")}</span></span>
+                  <span className="text-[11px] text-zinc-500">L <span className="text-red-400">₹{revenueRateLow.toLocaleString("en-IN")}</span></span>
+                  <span className="text-[11px] text-zinc-500">C <span className="text-zinc-300">₹{currentRevenueRate.toLocaleString("en-IN")}</span></span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[11px] text-zinc-500">PH <span className="text-zinc-300">₹{(revenueChartData?.ohlc.previousHigh ?? 0).toLocaleString("en-IN")}</span></span>
+                  <span className="text-[11px] text-zinc-500">H <span className="text-emerald-400">₹{revenueRateHigh.toLocaleString("en-IN")}</span></span>
+                  <span className="text-[11px] text-zinc-500">L <span className="text-red-400">₹{revenueRateLow.toLocaleString("en-IN")}</span></span>
+                  <span className="text-[11px] text-zinc-500">C <span className="text-zinc-300">₹{currentRevenueRate.toLocaleString("en-IN")}</span></span>
+                </>
+              )}
             </div>
 
             <RevenueChart key={chartKey} height={240} timeRange={timeRange} onDataLoaded={setRevenueChartData} />

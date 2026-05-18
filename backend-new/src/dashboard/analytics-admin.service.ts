@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export interface RevenueChartResponse {
   series: Array<{ time: number; value: number }>;
-  ohlc: { open: number; high: number; low: number; close: number };
+  ohlc: { open: number; high: number; low: number; close: number; previousHigh?: number };
   currentRate: number;
   rateChange: number;
   rateChangePct: number;
@@ -472,9 +472,37 @@ export class AnalyticsAdminService {
         ? Math.round(((lastHourRevenue - previousHourRevenue) / previousHourRevenue) * 100 * 100) / 100
         : 0;
 
+    // Calculate previous period high (for 24H, 7D, 30D only)
+    let previousHigh = 0;
+    if (timeRange !== 'All') {
+      // Calculate the previous period bounds
+      const periodDuration = now.getTime() - periodStart.getTime();
+      const previousPeriodStart = new Date(periodStart.getTime() - periodDuration);
+      const previousPeriodEnd = new Date(periodStart.getTime());
+
+      // Query for the maximum hourly bucket in the previous period
+      const previousPeriodRows = await this.prisma.$queryRaw<
+        Array<{ time: number; total_cents: bigint }>
+      >`
+        SELECT
+          EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at"))::int as time,
+          SUM("amount_cents")::bigint as total_cents
+        FROM "billing_charges"
+        WHERE "created_at" >= ${previousPeriodStart} AND "created_at" < ${previousPeriodEnd}
+        GROUP BY DATE_TRUNC('hour', "created_at")
+      `;
+
+      // Find the maximum value from previous period
+      if (previousPeriodRows.length > 0) {
+        previousHigh = Math.max(
+          ...previousPeriodRows.map(row => Number(row.total_cents) / 100)
+        );
+      }
+    }
+
     return {
       series: aggregatedSeries,
-      ohlc: { open, high, low, close },
+      ohlc: { open, high, low, close, previousHigh },
       currentRate,
       rateChange,
       rateChangePct,

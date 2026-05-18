@@ -100,28 +100,14 @@ export function RevenueChart({ height = 240, timeRange, onDataLoaded }: RevenueC
         }
 
         // Map to chart format
-        // First, add IST offset to shift timestamps for display
+        // Add IST offset to shift UTC timestamps to IST for display
         const rawData = data.series.map(p => ({
           time: p.time + IST_OFFSET_SECONDS,
           value: p.value,
         }));
 
-        // Re-bucket data into IST-aligned hours
-        // The backend returns UTC-hour buckets, but we need to regroup them into IST-hour buckets
-        const istHourSeconds = 3600;
-        const reBucketedMap = new Map<number, number>();
-        
-        for (const point of rawData) {
-          // Align to IST hour boundary
-          const istAlignedTime = point.time - (point.time % istHourSeconds);
-          const existing = reBucketedMap.get(istAlignedTime) || 0;
-          reBucketedMap.set(istAlignedTime, existing + point.value);
-        }
-
-        // Convert back to sorted array
-        const lineData = Array.from(reBucketedMap.entries())
-          .map(([time, value]) => ({ time: time as UTCTimestamp, value }))
-          .sort((a, b) => a.time - b.time);
+        // Data is already aligned after IST offset - no re-bucketing needed
+        const lineData = rawData.map(p => ({ time: p.time as UTCTimestamp, value: p.value }));
 
         // Volume bars: delta indicator (BTC-style)
         // Height = absolute change from previous point; color = direction of change
