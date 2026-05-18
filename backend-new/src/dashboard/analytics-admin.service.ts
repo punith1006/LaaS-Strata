@@ -376,6 +376,14 @@ export class AnalyticsAdminService {
       dataMap.set(Number(row.time), Number(row.total_cents) / 100);
     }
 
+    console.log('[RevenueChart] Raw hourly data from database:', {
+      totalHours: rows.length,
+      sampleData: rows.slice(-5).map(r => ({
+        time: new Date(Number(r.time) * 1000).toISOString(),
+        value: Number(r.total_cents) / 100
+      }))
+    });
+
     // Step 3: Fill gaps with zeros — generate complete hourly series in UTC
     // Then convert to IST for display alignment
     const startEpoch = Math.floor(periodStart.getTime() / 1000);
@@ -418,6 +426,16 @@ export class AnalyticsAdminService {
       const sum = bucket.reduce((acc, p) => acc + p.value, 0);
       aggregatedSeries.push({ time: bucket[0].time, value: Math.round(sum * 100) / 100 });
     }
+
+    // Debug logging for bucket aggregation
+    console.log('[RevenueChart] Bucket aggregation:', {
+      timeRange,
+      bucketSize,
+      hourlySeriesLength: hourlySeries.length,
+      aggregatedSeriesLength: aggregatedSeries.length,
+      firstFewBuckets: aggregatedSeries.slice(0, 3).map(b => ({ time: new Date(b.time * 1000).toISOString(), value: b.value })),
+      lastFewBuckets: aggregatedSeries.slice(-3).map(b => ({ time: new Date(b.time * 1000).toISOString(), value: b.value })),
+    });
 
     if (aggregatedSeries.length === 0) {
       return emptyResponse;
