@@ -120,6 +120,28 @@ function formatTicketTime(iso: string): string {
   }
 }
 
+// Format ticket createdAt as "May 20, 2026 at 12:26 AM" in IST timezone
+function formatTicketRaisedAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const datePart = d.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return `${datePart} at ${timePart}`;
+  } catch {
+    return iso;
+  }
+}
+
 // Format elapsed time since iso as "2h 15m" or "3d 4h"
 function formatElapsed(iso: string): string {
   const start = new Date(iso).getTime();
@@ -553,7 +575,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           {/* Right: Attention Required / Open Tickets */}
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col min-w-0 overflow-visible">
             {/* Tabbed header — billing-page style: thick underline + full-width separator */}
-            <div className="relative flex items-center gap-5 mb-3 border-b border-[#262626]">
+            <div className="relative flex items-center gap-5 mb-2 border-b border-[#262626]">
               <button
                 onClick={() => { setActiveTab('attention'); }}
                 className={`relative flex items-center gap-2 pb-2 -mb-px transition-colors ${
@@ -593,7 +615,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             </div>
 
             {activeTab === 'attention' ? (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2">
                 {/* Low Balance Users */}
                 <AlertItem
                   title="Low Balance Users"
@@ -647,7 +669,13 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                     ) : (
                       <>
                         <div className="flex-1 overflow-visible">
-                          <table className="w-full text-left">
+                          <table className="w-full text-left table-fixed">
+                            <colgroup>
+                              <col className="w-[130px]" />
+                              <col />
+                              <col className="w-[60px]" />
+                              <col className="w-[50px]" />
+                            </colgroup>
                             <thead>
                               <tr className="border-b border-zinc-800">
                                 <th className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider pb-2 pr-2">Time</th>
@@ -659,8 +687,8 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                             <tbody>
                               {pagedTickets.map((t) => (
                                 <tr key={t.id} className="border-b border-zinc-800/50 last:border-0">
-                                  <td className="py-2 pr-2 text-xs text-zinc-400 font-mono whitespace-nowrap">{formatTicketTime(t.createdAt)}</td>
-                                  <td className="py-2 pr-2 text-xs text-zinc-300 truncate max-w-[120px]" title={t.user?.email}>{t.user?.email}</td>
+                                  <td className="py-2 pr-3 text-xs text-zinc-400 font-mono whitespace-nowrap">{formatTicketTime(t.createdAt)}</td>
+                                  <td className="py-2 pr-3 text-xs text-zinc-300 truncate" title={t.user?.email}>{t.user?.email}</td>
                                   <td className="py-2 pr-2 text-xs text-zinc-300 whitespace-nowrap">{formatElapsed(t.createdAt)}</td>
                                   <td className="py-2">
                                     <div className="flex justify-end">
@@ -929,7 +957,12 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
       {/* View Ticket Modal */}
       {showViewModal && selectedTicket && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
+          style={{
+            backgroundColor: 'rgba(11, 11, 11, 0.5)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+          }}
           onClick={() => {
             if (!isResolvingTicket) {
               setShowViewModal(false);
@@ -939,12 +972,19 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           }}
         >
           <div
-            className="max-w-[480px] w-[calc(100%-32px)] bg-[#1a1a1a] border border-[#333] rounded-lg flex flex-col"
-            style={{ maxHeight: '85vh' }}
+            className="max-w-[480px] w-[calc(100%-32px)] flex flex-col"
+            style={{
+              maxHeight: '85vh',
+              backgroundColor: 'var(--bgColor-default)',
+              border: '1px solid var(--borderColor-default)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[#333]">
+            <div
+              className="flex items-center justify-between px-5 py-3"
+              style={{ borderBottom: '1px solid var(--borderColor-default)' }}
+            >
               <h3 className="text-white text-base font-medium">Ticket Details</h3>
               <button
                 onClick={() => {
@@ -961,6 +1001,22 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
 
             {/* Content */}
             <div className="px-5 py-4 overflow-y-auto flex-1" style={{ maxHeight: '70vh' }}>
+              {/* Raised by */}
+              <div
+                className="flex items-center justify-between text-sm text-zinc-400 pb-3 mb-3"
+                style={{ borderBottom: '1px solid var(--borderColor-default)' }}
+              >
+                <span className="truncate pr-3">
+                  {(() => {
+                    const fn = selectedTicket.user?.firstName?.trim();
+                    const ln = selectedTicket.user?.lastName?.trim();
+                    const fullName = [fn, ln].filter(Boolean).join(' ');
+                    return fullName || selectedTicket.user?.email || 'Unknown user';
+                  })()}
+                </span>
+                <span className="whitespace-nowrap">{formatTicketRaisedAt(selectedTicket.createdAt)}</span>
+              </div>
+
               {/* Type */}
               <div className="mb-3">
                 <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Type</div>
@@ -985,7 +1041,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                           key={att.id}
                           type="button"
                           onClick={() => url && setEnlargedImage(url)}
-                          className="w-16 h-16 rounded overflow-hidden bg-[#0d0d0d] border border-[#333] cursor-pointer flex items-center justify-center"
+                          className="w-16 h-16 rounded-sm overflow-hidden bg-[#0d0d0d] border border-[#262626] cursor-pointer flex items-center justify-center"
                           title={att.fileName}
                         >
                           {url ? (
@@ -1008,10 +1064,10 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               <div className="mb-3">
                 <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Description</div>
                 <div
-                  className="text-sm text-zinc-300 bg-[#0d0d0d] border border-[#333] rounded p-3"
+                  className="text-sm text-white bg-[#2a2a2a] border border-[#3a3a3a] p-3"
                   style={{ whiteSpace: 'pre-wrap' }}
                 >
-                  {selectedTicket.description || <span className="text-zinc-500">(No description)</span>}
+                  {selectedTicket.description || <span className="text-zinc-400">(No description)</span>}
                 </div>
               </div>
 
@@ -1023,13 +1079,16 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                   onChange={(e) => setResolutionNotes(e.target.value)}
                   placeholder="Add resolution notes (optional)"
                   rows={3}
-                  className="w-full text-sm text-zinc-300 bg-[#0d0d0d] border border-[#333] rounded p-3 outline-none focus:border-zinc-500 resize-y"
+                  className="w-full text-sm text-zinc-300 bg-[#0d0d0d] border border-[#262626] p-3 outline-none focus:border-zinc-500 resize-y"
                 />
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-[#333]">
+            <div
+              className="flex items-center justify-end gap-3 px-5 py-3"
+              style={{ borderTop: '1px solid var(--borderColor-default)' }}
+            >
               <button
                 onClick={() => {
                   setShowViewModal(false);
@@ -1054,9 +1113,8 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               <button
                 onClick={handleConfirmCloseFromModal}
                 disabled={isResolvingTicket}
+                className="bg-[#2E2E2E] text-[#E7E6D9] hover:bg-[#E7E6D9] hover:text-[#0B0B0B] transition-all duration-300"
                 style={{
-                  color: '#E7E6D9',
-                  backgroundColor: '#2E2E2E',
                   border: '1px solid transparent',
                   borderRadius: '4px',
                   padding: '0 24px',
@@ -1074,10 +1132,11 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         </div>
       )}
 
-      {/* Close Confirmation Popup */}
+      {/* Close Confirmation Popup - matches SignOutModal */}
       {showCloseConfirm && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(11, 11, 11, 0.15)' }}
           onClick={() => {
             if (!isResolvingTicket) {
               setShowCloseConfirm(false);
@@ -1086,17 +1145,63 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           }}
         >
           <div
-            className="max-w-[420px] w-[calc(100%-32px)] bg-[#1a1a1a] border border-[#333] rounded-lg flex flex-col"
             onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'calc(100% - 32px)',
+              maxWidth: '420px',
+              maxHeight: '95%',
+              backgroundColor: 'var(--bgColor-default)',
+              border: '1px solid var(--borderColor-default)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
           >
-            <div className="flex items-center px-6 py-4 border-b border-[#333]">
-              <h3 className="text-white text-base font-normal">Close Ticket</h3>
+            {/* Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '16px 24px',
+                borderBottom: '1px solid var(--borderColor-default)',
+                lineHeight: '1.375rem',
+              }}
+            >
+              <h3
+                style={{
+                  flex: 1,
+                  color: 'var(--fgColor-default)',
+                  fontSize: '1.125rem',
+                  fontFamily: 'var(--font-sans), ui-sans-serif, system-ui, sans-serif',
+                  fontWeight: 400,
+                  margin: 0,
+                }}
+              >
+                Close Ticket
+              </h3>
             </div>
-            <div className="px-6 py-6">
-              <p className="text-sm text-[#a1a1aa] mb-6 leading-relaxed">
+
+            {/* Body */}
+            <div
+              style={{
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                padding: '24px',
+              }}
+            >
+              <p
+                style={{
+                  color: 'var(--fgColor-mild)',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.375rem',
+                  fontFamily: 'var(--font-sans), ui-sans-serif, system-ui, sans-serif',
+                  margin: 0,
+                  marginBottom: '24px',
+                }}
+              >
                 Are you sure you want to close this ticket? The user will be notified that their issue has been resolved.
               </p>
-              <div className="flex items-center justify-end gap-3">
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button
                   onClick={() => {
                     setShowCloseConfirm(false);
@@ -1110,9 +1215,17 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                     borderRadius: '4px',
                     padding: '0 24px',
                     height: '40px',
+                    fontFamily: 'var(--font-sans), ui-sans-serif, system-ui, sans-serif',
                     fontSize: '0.875rem',
                     fontWeight: 500,
                     cursor: isResolvingTicket ? 'not-allowed' : 'pointer',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(11, 11, 11, 0.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
                   Cancel
@@ -1127,10 +1240,18 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                     borderRadius: '4px',
                     padding: '0 24px',
                     height: '40px',
+                    fontFamily: 'var(--font-sans), ui-sans-serif, system-ui, sans-serif',
                     fontSize: '0.875rem',
                     fontWeight: 500,
                     cursor: isResolvingTicket ? 'not-allowed' : 'pointer',
                     opacity: isResolvingTicket ? 0.7 : 1,
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isResolvingTicket) e.currentTarget.style.backgroundColor = '#0B0B0B';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isResolvingTicket) e.currentTarget.style.backgroundColor = '#2E2E2E';
                   }}
                 >
                   {isResolvingTicket ? 'Closing…' : 'Close Ticket'}
@@ -1194,20 +1315,20 @@ function TicketActionDropdown({
       </button>
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-1 z-[100] min-w-[150px] bg-[#1a1a1a] border border-[#333] rounded shadow-lg overflow-hidden"
+          className="absolute right-0 top-full mt-1 z-[100] min-w-[170px] bg-[#0d0d0d] border border-[#333] rounded-sm shadow-lg overflow-hidden"
         >
           <button
             onClick={() => { setIsOpen(false); onViewDetails(); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-zinc-200 hover:bg-zinc-800 transition-colors text-left cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-white hover:bg-[#1a1a1a] transition-colors text-left cursor-pointer"
           >
-            <Eye size={13} />
+            <Eye size={14} />
             View Details
           </button>
           <button
             onClick={() => { setIsOpen(false); onCloseTicket(); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-zinc-200 hover:bg-zinc-800 transition-colors text-left cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-white hover:bg-[#1a1a1a] transition-colors text-left cursor-pointer"
           >
-            <XCircle size={13} />
+            <XCircle size={14} />
             Close Ticket
           </button>
         </div>
@@ -1274,9 +1395,9 @@ function AlertItem({
   const valueColor = severity === 'critical' ? 'text-red-400' : severity === 'warning' ? 'text-amber-400' : 'text-zinc-400';
 
   return (
-    <div className="bg-[#0d0d0d] border border-zinc-800/50 rounded-lg p-3.5">
+    <div className="bg-[#0d0d0d] border border-zinc-800/50 rounded-lg p-3">
       {/* Row 1: Title (left) + Context (right) */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
           <span className="text-sm text-white font-semibold whitespace-nowrap">{title}</span>
