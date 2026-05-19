@@ -172,6 +172,26 @@ export class MailService {
     });
   }
 
+  async sendTicketResolutionNotification(
+    to: string,
+    context: {
+      userName: string;
+      ticketId: string;
+      subject: string;
+      category: string;
+      resolutionNotes: string;
+      resolvedAt: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `Your Support Ticket Has Been Resolved - ${context.subject}`,
+      template: 'ticket-resolution',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
+
   async sendWaitlistConfirmationEmail(
     to: string,
     context: {

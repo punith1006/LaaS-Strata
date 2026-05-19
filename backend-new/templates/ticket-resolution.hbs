@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f8f8f7;color:#1a1a1a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8f8f7;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="padding:32px 40px 24px;border-bottom:1px solid #eee;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="left" style="vertical-align:middle;">
+                    <img src="cid:ksrce-logo@laas.ai" alt="KSRCE" height="32" style="display:inline-block;vertical-align:middle;margin-right:10px;border:0;outline:none;text-decoration:none;">
+                    <img src="cid:global-knowledge-logo@laas.ai" alt="Global Knowledge" height="32" style="display:inline-block;vertical-align:middle;margin-right:12px;border:0;outline:none;text-decoration:none;">
+                    <span style="font-size:20px;font-weight:600;color:#1a1a1a;vertical-align:middle;">LaaS</span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;padding:4px 10px;background-color:#ecfdf5;color:#16a34a;border:1px solid #bbf7d0;border-radius:4px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.03em;">Resolved</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding:32px 40px;">
+              <h2 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#1a1a1a;line-height:1.3;">Your Support Ticket Has Been Resolved</h2>
+              <p style="margin:0 0 16px;font-size:16px;line-height:1.5;">Hi {{userName}},</p>
+              <p style="margin:0 0 24px;font-size:16px;line-height:1.5;">Great news — our support team has resolved your ticket. A short summary of the request and the resolution provided is below. We hope this gets you back on track quickly.</p>
+
+              <!-- Ticket Summary -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;background-color:#f9fafb;border-radius:6px;border-left:4px solid #16a34a;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Ticket Summary</p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding-bottom:12px;">
+                          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Ticket ID</p>
+                          <p style="margin:0;font-size:14px;font-family:'Courier New',monospace;font-weight:600;color:#1a1a1a;">{{ticketId}}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:12px;">
+                          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Category</p>
+                          <p style="margin:0;font-size:14px;color:#1a1a1a;">{{category}}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:12px;">
+                          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Subject</p>
+                          <p style="margin:0;font-size:14px;color:#1a1a1a;">{{subject}}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:12px;">
+                          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Resolved At</p>
+                          <p style="margin:0;font-size:14px;color:#1a1a1a;">{{resolvedAt}}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <p style="margin:0 0 4px;font-size:12px;color:#6b7280;">Status</p>
+                          <span style="display:inline-block;padding:4px 10px;background-color:#ecfdf5;color:#16a34a;border:1px solid #bbf7d0;border-radius:4px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.03em;">Resolved</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Resolution Notes -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+                <tr>
+                  <td style="padding:16px;background-color:#f3f4f6;border-radius:6px;">
+                    <p style="margin:0 0 8px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Resolution Notes</p>
+                    <p style="margin:0;font-size:14px;line-height:1.6;color:#374151;white-space:pre-wrap;">{{#if resolutionNotes}}{{resolutionNotes}}{{else}}No additional notes were provided.{{/if}}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Closing message -->
+              <div style="margin:0 0 8px;padding:16px;background-color:#eff6ff;border-left:4px solid #2563eb;border-radius:0 4px 4px 0;">
+                <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1e40af;">We're glad we could help</p>
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#1e40af;">
+                  If you feel this issue isn't fully resolved, simply open a new support ticket and reference the Ticket ID above — our team will pick it up right away.
+                </p>
+              </div>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 40px;background-color:#fafafa;border-top:1px solid #eee;border-radius:0 0 8px 8px;">
+              <p style="margin:0 0 8px;font-size:13px;color:#888;line-height:1.5;">
+                Please do not reply to this email. For further assistance, reach us at <a href="mailto:ksrcesupport@gktech.ai" style="color:#2563eb;text-decoration:underline;">ksrcesupport@gktech.ai</a>.
+              </p>
+              <p style="margin:0;font-size:13px;color:#888;line-height:1.5;">
+                Warm regards,<br>The LaaS Support Team
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

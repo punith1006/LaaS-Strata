@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from 'next/dynamic';
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, X, MoreVertical, Eye, XCircle } from "lucide-react";
 import { FleetHealthGauge, formatLastHeartbeat } from "./fleet-health-gauge";
 import type { User } from "@/types/auth";
 import { getAnalyticsAccessToken } from "@/lib/token";
+import {
+  getUnresolvedTickets,
+  getTicketDetail,
+  resolveTicket,
+  getTicketAttachmentUrl,
+  type UnresolvedTicket,
+  type TicketDetail,
+} from "@/lib/api";
 import {
   BarChart,
   Bar,
@@ -95,6 +103,52 @@ function getGreeting(): string {
   return "Good evening";
 }
 
+// Format ticket createdAt as "May 19, 11:30 PM" in IST timezone
+function formatTicketTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return iso;
+  }
+}
+
+// Format elapsed time since iso as "2h 15m" or "3d 4h"
+function formatElapsed(iso: string): string {
+  const start = new Date(iso).getTime();
+  const now = Date.now();
+  const diffMs = Math.max(0, now - start);
+  const minutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) {
+    const remH = hours - days * 24;
+    return `${days}d ${remH}h`;
+  }
+  if (hours > 0) {
+    const remM = minutes - hours * 60;
+    return `${hours}h ${remM}m`;
+  }
+  return `${minutes}m`;
+}
+
+// Format category enum like "POD_ISSUE" -> "Pod Issue"
+function formatTicketCategory(cat: string): string {
+  if (!cat) return '';
+  return cat
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
 // --- COMPONENT ---
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -116,6 +170,20 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [fleetHealthRefresh, setFleetHealthRefresh] = useState<string | null>(null);
   const [fleetHealthStatus, setFleetHealthStatus] = useState<'live' | 'stale'>('stale');
   const [, setKpiLoading] = useState(true);
+
+  // Open Tickets state
+  const [activeTab, setActiveTab] = useState<'attention' | 'tickets'>('attention');
+  const [unresolvedTickets, setUnresolvedTickets] = useState<UnresolvedTicket[]>([]);
+  const [ticketPage, setTicketPage] = useState(0);
+  const TICKETS_PER_PAGE = 4;
+  const [selectedTicket, setSelectedTicket] = useState<TicketDetail | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [ticketToClose, setTicketToClose] = useState<string | null>(null);
+  const [isResolvingTicket, setIsResolvingTicket] = useState(false);
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+  const [attachmentBlobs, setAttachmentBlobs] = useState<Record<string, string>>({});
 
   // Auto-refresh fleet health every 60 seconds
   useEffect(() => {
@@ -211,7 +279,93 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         if (data) setAttentionRequired(data);
       })
       .catch(err => console.error('[AttentionRequired] fetch error:', err));
+
+    // Fetch unresolved support tickets
+    getUnresolvedTickets().then(setUnresolvedTickets).catch(() => {});
   }, []);
+
+  // Fetch attachment blobs whenever a ticket is selected for viewing
+  useEffect(() => {
+    if (!selectedTicket || !selectedTicket.attachments?.length) {
+      return;
+    }
+    const token = getAnalyticsAccessToken();
+    if (!token) return;
+
+    const created: string[] = [];
+    let cancelled = false;
+
+    selectedTicket.attachments.forEach(att => {
+      const url = getTicketAttachmentUrl(selectedTicket.id, att.id);
+      fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => (r.ok ? r.blob() : null))
+        .then(blob => {
+          if (!blob || cancelled) return;
+          const blobUrl = URL.createObjectURL(blob);
+          created.push(blobUrl);
+          setAttachmentBlobs(prev => ({ ...prev, [att.id]: blobUrl }));
+        })
+        .catch(() => {});
+    });
+
+    return () => {
+      cancelled = true;
+      created.forEach(URL.revokeObjectURL);
+      setAttachmentBlobs({});
+    };
+  }, [selectedTicket]);
+
+  // Ticket action handlers
+  const refreshTickets = () => {
+    getUnresolvedTickets().then(setUnresolvedTickets).catch(() => {});
+  };
+
+  const handleViewTicket = async (ticketId: string) => {
+    try {
+      const detail = await getTicketDetail(ticketId);
+      setSelectedTicket(detail);
+      setResolutionNotes('');
+      setShowViewModal(true);
+    } catch (err) {
+      console.error('[Tickets] view error:', err);
+    }
+  };
+
+  const handleRequestClose = (ticketId: string) => {
+    setTicketToClose(ticketId);
+    setShowCloseConfirm(true);
+  };
+
+  const handleConfirmCloseFromTable = async () => {
+    if (!ticketToClose || isResolvingTicket) return;
+    setIsResolvingTicket(true);
+    try {
+      await resolveTicket(ticketToClose);
+      refreshTickets();
+      setShowCloseConfirm(false);
+      setTicketToClose(null);
+    } catch (err) {
+      console.error('[Tickets] close error:', err);
+    } finally {
+      setIsResolvingTicket(false);
+    }
+  };
+
+  const handleConfirmCloseFromModal = async () => {
+    if (!selectedTicket || isResolvingTicket) return;
+    setIsResolvingTicket(true);
+    try {
+      await resolveTicket(selectedTicket.id, resolutionNotes || undefined);
+      refreshTickets();
+      setShowViewModal(false);
+      setSelectedTicket(null);
+      setResolutionNotes('');
+    } catch (err) {
+      console.error('[Tickets] close from modal error:', err);
+    } finally {
+      setIsResolvingTicket(false);
+    }
+  };
 
   const greeting = getGreeting();
   const displayName = user.firstName || "there";
@@ -396,60 +550,167 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             <RevenueChart key={chartKey} height={240} timeRange={timeRange} onDataLoaded={setRevenueChartData} />
           </div>
 
-          {/* Right: Attention Required */}
-          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col min-w-0">
-            <div className="flex items-center gap-2 mb-3">
-              <span className={`w-2 h-2 rounded-full ${
-                !attentionRequired ? 'bg-zinc-500' :
-                attentionRequired.lowBalanceUsers.count > 20 || 
-                attentionRequired.supportBacklog.count > 5 || 
-                attentionRequired.sessionFailures.failureRate > 5
-                  ? 'bg-red-400' 
-                  : attentionRequired.lowBalanceUsers.count > 10 || 
-                    attentionRequired.supportBacklog.count > 2 || 
-                    attentionRequired.sessionFailures.failureRate > 2
-                    ? 'bg-amber-400' 
-                    : 'bg-emerald-400'
-              }`} />
-              <h2 className="text-white font-semibold text-sm">Attention Required</h2>
+          {/* Right: Attention Required / Open Tickets */}
+          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col min-w-0 overflow-visible">
+            {/* Tabbed header — billing-page style: thick underline + full-width separator */}
+            <div className="relative flex items-center gap-5 mb-3 border-b border-[#262626]">
+              <button
+                onClick={() => { setActiveTab('attention'); }}
+                className={`relative flex items-center gap-2 pb-2 -mb-px transition-colors ${
+                  activeTab === 'attention'
+                    ? 'border-b-[3px] border-white'
+                    : 'border-b-[3px] border-transparent cursor-pointer'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${
+                  !attentionRequired ? 'bg-zinc-500' :
+                  attentionRequired.lowBalanceUsers.count > 20 ||
+                  attentionRequired.supportBacklog.count > 5 ||
+                  attentionRequired.sessionFailures.failureRate > 5
+                    ? 'bg-red-400'
+                    : attentionRequired.lowBalanceUsers.count > 10 ||
+                      attentionRequired.supportBacklog.count > 2 ||
+                      attentionRequired.sessionFailures.failureRate > 2
+                      ? 'bg-amber-400'
+                      : 'bg-emerald-400'
+                }`} />
+                <span className={`font-semibold text-sm ${
+                  activeTab === 'attention' ? 'text-white' : 'text-[#a1a1aa]'
+                }`}>Attention Required</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab('tickets'); setTicketPage(0); }}
+                className={`relative pb-2 -mb-px transition-colors ${
+                  activeTab === 'tickets'
+                    ? 'border-b-[3px] border-white'
+                    : 'border-b-[3px] border-transparent cursor-pointer'
+                }`}
+              >
+                <span className={`font-semibold text-sm ${
+                  activeTab === 'tickets' ? 'text-white' : 'text-[#a1a1aa]'
+                }`}>Open Tickets ({unresolvedTickets.length})</span>
+              </button>
             </div>
-            <div className="flex flex-col gap-2.5">
-              {/* Low Balance Users */}
-              <AlertItem
-                title="Low Balance Users"
-                value={`${attentionRequired?.lowBalanceUsers.count ?? 0} users below ₹${attentionRequired?.lowBalanceUsers.threshold ?? 500}`}
-                context="May churn without top-up reminder"
-                severity={
-                  !attentionRequired ? 'healthy' :
-                  attentionRequired.lowBalanceUsers.count > 20 ? 'critical' :
-                  attentionRequired.lowBalanceUsers.count > 10 ? 'warning' : 'healthy'
-                }
-              />
-              
-              {/* Support Backlog */}
-              <AlertItem
-                title="Support Backlog"
-                value={`${attentionRequired?.supportBacklog.count ?? 0} tickets > ${attentionRequired?.supportBacklog.thresholdHours ?? 12}h`}
-                context={attentionRequired?.supportBacklog.subtitle ?? "Avg resolution time: 0 hrs"}
-                severity={
-                  !attentionRequired ? 'healthy' :
-                  attentionRequired.supportBacklog.count > 5 ? 'critical' :
-                  attentionRequired.supportBacklog.count > 2 ? 'warning' : 'healthy'
-                }
-              />
-              
-              {/* Session Failures */}
-              <AlertItem
-                title="Session Failures"
-                value={`${attentionRequired?.sessionFailures.failureRate ?? 0}% failure rate`}
-                context={attentionRequired?.sessionFailures.subtitle ?? "Down from 0% last week"}
-                severity={
-                  !attentionRequired ? 'healthy' :
-                  attentionRequired.sessionFailures.failureRate > 5 ? 'critical' :
-                  attentionRequired.sessionFailures.failureRate > 2 ? 'warning' : 'healthy'
-                }
-              />
-            </div>
+
+            {activeTab === 'attention' ? (
+              <div className="flex flex-col gap-2.5">
+                {/* Low Balance Users */}
+                <AlertItem
+                  title="Low Balance Users"
+                  value={`${attentionRequired?.lowBalanceUsers.count ?? 0} users below ₹${attentionRequired?.lowBalanceUsers.threshold ?? 500}`}
+                  context="May churn without top-up reminder"
+                  severity={
+                    !attentionRequired ? 'healthy' :
+                    attentionRequired.lowBalanceUsers.count > 20 ? 'critical' :
+                    attentionRequired.lowBalanceUsers.count > 10 ? 'warning' : 'healthy'
+                  }
+                />
+
+                {/* Support Backlog */}
+                <AlertItem
+                  title="Support Backlog"
+                  value={`${attentionRequired?.supportBacklog.count ?? 0} tickets > ${attentionRequired?.supportBacklog.thresholdHours ?? 12}h`}
+                  context={attentionRequired?.supportBacklog.subtitle ?? "Avg resolution time: 0 hrs"}
+                  severity={
+                    !attentionRequired ? 'healthy' :
+                    attentionRequired.supportBacklog.count > 5 ? 'critical' :
+                    attentionRequired.supportBacklog.count > 2 ? 'warning' : 'healthy'
+                  }
+                />
+
+                {/* Session Failures */}
+                <AlertItem
+                  title="Session Failures"
+                  value={`${attentionRequired?.sessionFailures.failureRate ?? 0}% failure rate`}
+                  context={attentionRequired?.sessionFailures.subtitle ?? "Down from 0% last week"}
+                  severity={
+                    !attentionRequired ? 'healthy' :
+                    attentionRequired.sessionFailures.failureRate > 5 ? 'critical' :
+                    attentionRequired.sessionFailures.failureRate > 2 ? 'warning' : 'healthy'
+                  }
+                />
+              </div>
+            ) : (
+              (() => {
+                const totalTicketPages = Math.max(1, Math.ceil(unresolvedTickets.length / TICKETS_PER_PAGE));
+                const safePage = Math.min(ticketPage, totalTicketPages - 1);
+                const pagedTickets = unresolvedTickets.slice(
+                  safePage * TICKETS_PER_PAGE,
+                  safePage * TICKETS_PER_PAGE + TICKETS_PER_PAGE
+                );
+                return (
+                  <div className="flex flex-col min-h-0 flex-1">
+                    {unresolvedTickets.length === 0 ? (
+                      <div className="flex items-center justify-center py-10 text-zinc-500 text-xs">
+                        No open tickets
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex-1 overflow-visible">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="border-b border-zinc-800">
+                                <th className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider pb-2 pr-2">Time</th>
+                                <th className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider pb-2 pr-2">User</th>
+                                <th className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider pb-2 pr-2">Elapsed</th>
+                                <th className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider pb-2 text-right">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pagedTickets.map((t) => (
+                                <tr key={t.id} className="border-b border-zinc-800/50 last:border-0">
+                                  <td className="py-2 pr-2 text-xs text-zinc-400 font-mono whitespace-nowrap">{formatTicketTime(t.createdAt)}</td>
+                                  <td className="py-2 pr-2 text-xs text-zinc-300 truncate max-w-[120px]" title={t.user?.email}>{t.user?.email}</td>
+                                  <td className="py-2 pr-2 text-xs text-zinc-300 whitespace-nowrap">{formatElapsed(t.createdAt)}</td>
+                                  <td className="py-2">
+                                    <div className="flex justify-end">
+                                      <TicketActionDropdown
+                                        onViewDetails={() => handleViewTicket(t.id)}
+                                        onCloseTicket={() => handleRequestClose(t.id)}
+                                      />
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Pagination — billing-style Previous/Next */}
+                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-zinc-800/60">
+                          <span className="text-[11px] text-zinc-500">
+                            Page {safePage + 1} of {totalTicketPages}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setTicketPage((p) => Math.max(0, p - 1))}
+                              disabled={safePage === 0}
+                              className={`px-2.5 py-1 text-[11px] rounded border border-zinc-800 bg-[#1a1a1a] transition-colors ${
+                                safePage === 0
+                                  ? 'text-zinc-600 opacity-50 cursor-not-allowed'
+                                  : 'text-zinc-300 hover:bg-zinc-800 cursor-pointer'
+                              }`}
+                            >
+                              Previous
+                            </button>
+                            <button
+                              onClick={() => setTicketPage((p) => Math.min(totalTicketPages - 1, p + 1))}
+                              disabled={safePage >= totalTicketPages - 1}
+                              className={`px-2.5 py-1 text-[11px] rounded border border-zinc-800 bg-[#1a1a1a] transition-colors ${
+                                safePage >= totalTicketPages - 1
+                                  ? 'text-zinc-600 opacity-50 cursor-not-allowed'
+                                  : 'text-zinc-300 hover:bg-zinc-800 cursor-pointer'
+                              }`}
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()
+            )}
           </div>
         </div>
 
@@ -664,11 +925,296 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         </div>
 
       </div>
+
+      {/* View Ticket Modal */}
+      {showViewModal && selectedTicket && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => {
+            if (!isResolvingTicket) {
+              setShowViewModal(false);
+              setSelectedTicket(null);
+              setResolutionNotes('');
+            }
+          }}
+        >
+          <div
+            className="max-w-[480px] w-[calc(100%-32px)] bg-[#1a1a1a] border border-[#333] rounded-lg flex flex-col"
+            style={{ maxHeight: '85vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[#333]">
+              <h3 className="text-white text-base font-medium">Ticket Details</h3>
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedTicket(null);
+                  setResolutionNotes('');
+                }}
+                className="text-zinc-400 hover:text-white cursor-pointer"
+                disabled={isResolvingTicket}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 py-4 overflow-y-auto flex-1" style={{ maxHeight: '70vh' }}>
+              {/* Type */}
+              <div className="mb-3">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Type</div>
+                <div className="text-sm text-zinc-300">{formatTicketCategory(selectedTicket.category)}</div>
+              </div>
+
+              {/* Subject */}
+              <div className="mb-3">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Subject</div>
+                <div className="text-sm text-white font-semibold">{selectedTicket.subject}</div>
+              </div>
+
+              {/* Attachments */}
+              {selectedTicket.attachments && selectedTicket.attachments.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Attachments</div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTicket.attachments.map(att => {
+                      const url = attachmentBlobs[att.id];
+                      return (
+                        <button
+                          key={att.id}
+                          type="button"
+                          onClick={() => url && setEnlargedImage(url)}
+                          className="w-16 h-16 rounded overflow-hidden bg-[#0d0d0d] border border-[#333] cursor-pointer flex items-center justify-center"
+                          title={att.fileName}
+                        >
+                          {url ? (
+                            <img
+                              src={url}
+                              alt={att.fileName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[9px] text-zinc-500">Loading…</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Description */}
+              <div className="mb-3">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Description</div>
+                <div
+                  className="text-sm text-zinc-300 bg-[#0d0d0d] border border-[#333] rounded p-3"
+                  style={{ whiteSpace: 'pre-wrap' }}
+                >
+                  {selectedTicket.description || <span className="text-zinc-500">(No description)</span>}
+                </div>
+              </div>
+
+              {/* Resolution Notes */}
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Resolution Notes</div>
+                <textarea
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  placeholder="Add resolution notes (optional)"
+                  rows={3}
+                  className="w-full text-sm text-zinc-300 bg-[#0d0d0d] border border-[#333] rounded p-3 outline-none focus:border-zinc-500 resize-y"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-[#333]">
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedTicket(null);
+                  setResolutionNotes('');
+                }}
+                disabled={isResolvingTicket}
+                style={{
+                  color: 'var(--fgColor-mild)',
+                  backgroundColor: 'transparent',
+                  border: '1px solid var(--borderColor-default)',
+                  borderRadius: '4px',
+                  padding: '0 24px',
+                  height: '40px',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  cursor: isResolvingTicket ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmCloseFromModal}
+                disabled={isResolvingTicket}
+                style={{
+                  color: '#E7E6D9',
+                  backgroundColor: '#2E2E2E',
+                  border: '1px solid transparent',
+                  borderRadius: '4px',
+                  padding: '0 24px',
+                  height: '40px',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  cursor: isResolvingTicket ? 'not-allowed' : 'pointer',
+                  opacity: isResolvingTicket ? 0.7 : 1,
+                }}
+              >
+                {isResolvingTicket ? 'Closing…' : 'Close Ticket'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Confirmation Popup */}
+      {showCloseConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => {
+            if (!isResolvingTicket) {
+              setShowCloseConfirm(false);
+              setTicketToClose(null);
+            }
+          }}
+        >
+          <div
+            className="max-w-[420px] w-[calc(100%-32px)] bg-[#1a1a1a] border border-[#333] rounded-lg flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center px-6 py-4 border-b border-[#333]">
+              <h3 className="text-white text-base font-normal">Close Ticket</h3>
+            </div>
+            <div className="px-6 py-6">
+              <p className="text-sm text-[#a1a1aa] mb-6 leading-relaxed">
+                Are you sure you want to close this ticket? The user will be notified that their issue has been resolved.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowCloseConfirm(false);
+                    setTicketToClose(null);
+                  }}
+                  disabled={isResolvingTicket}
+                  style={{
+                    color: 'var(--fgColor-mild)',
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--borderColor-default)',
+                    borderRadius: '4px',
+                    padding: '0 24px',
+                    height: '40px',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: isResolvingTicket ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmCloseFromTable}
+                  disabled={isResolvingTicket}
+                  style={{
+                    color: '#E7E6D9',
+                    backgroundColor: '#2E2E2E',
+                    border: '1px solid transparent',
+                    borderRadius: '4px',
+                    padding: '0 24px',
+                    height: '40px',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: isResolvingTicket ? 'not-allowed' : 'pointer',
+                    opacity: isResolvingTicket ? 0.7 : 1,
+                  }}
+                >
+                  {isResolvingTicket ? 'Closing…' : 'Close Ticket'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Enlarge Overlay */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center cursor-zoom-out"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <img
+            src={enlargedImage}
+            alt="Attachment preview"
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 // --- SUB-COMPONENTS ---
+
+function TicketActionDropdown({
+  onViewDetails,
+  onCloseTicket,
+}: {
+  onViewDetails: () => void;
+  onCloseTicket: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        onClick={() => setIsOpen((v) => !v)}
+        className={`w-7 h-7 rounded flex items-center justify-center transition-colors cursor-pointer ${
+          isOpen ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+        }`}
+        aria-label="Ticket actions"
+      >
+        <MoreVertical size={14} />
+      </button>
+      {isOpen && (
+        <div
+          className="absolute right-0 top-full mt-1 z-[100] min-w-[150px] bg-[#1a1a1a] border border-[#333] rounded shadow-lg overflow-hidden"
+        >
+          <button
+            onClick={() => { setIsOpen(false); onViewDetails(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-zinc-200 hover:bg-zinc-800 transition-colors text-left cursor-pointer"
+          >
+            <Eye size={13} />
+            View Details
+          </button>
+          <button
+            onClick={() => { setIsOpen(false); onCloseTicket(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-zinc-200 hover:bg-zinc-800 transition-colors text-left cursor-pointer"
+          >
+            <XCircle size={13} />
+            Close Ticket
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function KPICard({
   label,

@@ -1372,6 +1372,103 @@ export async function getSupportTickets(): Promise<SupportTicketListItem[]> {
   return [];
 }
 
+// ── Admin Support Ticket APIs (Analytics Console) ─────────
+// These endpoints are accessed from the analytics dashboard and use
+// the analytics access token (separate from the regular user token).
+// The analytics dashboard uses raw fetch with Bearer auth — same pattern here.
+export interface UnresolvedTicket {
+  id: string;
+  subject: string;
+  category: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+  user: { email: string; firstName: string; lastName: string };
+}
+
+export interface TicketDetail extends UnresolvedTicket {
+  description: string;
+  attachments: { id: string; fileName: string; mimeType: string; size: number }[];
+}
+
+// Fetch all unresolved tickets (admin)
+export async function getUnresolvedTickets(): Promise<UnresolvedTicket[]> {
+  const token = getAnalyticsAccessToken();
+  if (!token || !API_BASE) return [];
+
+  try {
+    const res = await fetch(`${API_BASE}/api/support/admin/tickets/unresolved`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const body = await res.json();
+    return Array.isArray(body?.data) ? body.data : [];
+  } catch {
+    return [];
+  }
+}
+
+// Get full ticket detail (admin)
+export async function getTicketDetail(ticketId: string): Promise<TicketDetail> {
+  const token = getAnalyticsAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  if (!API_BASE) throw new Error('No API configured');
+
+  const res = await fetch(`${API_BASE}/api/support/admin/tickets/${ticketId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const msg = Array.isArray(errData.message) ? errData.message[0] : errData.message;
+    throw new Error(msg || 'Failed to fetch ticket detail');
+  }
+
+  const body = await res.json();
+  return body?.data ?? body;
+}
+
+// Resolve/close a ticket (admin)
+export async function resolveTicket(
+  ticketId: string,
+  resolutionNotes?: string,
+): Promise<{ ticketId: string; status: string }> {
+  const token = getAnalyticsAccessToken();
+  if (!token) throw new Error('Not authenticated');
+  if (!API_BASE) throw new Error('No API configured');
+
+  const payload: { resolutionNotes?: string } = {};
+  if (resolutionNotes !== undefined && resolutionNotes !== null) {
+    payload.resolutionNotes = resolutionNotes;
+  }
+
+  const res = await fetch(`${API_BASE}/api/support/admin/tickets/${ticketId}/resolve`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const msg = Array.isArray(errData.message) ? errData.message[0] : errData.message;
+    throw new Error(msg || 'Failed to resolve ticket');
+  }
+
+  const body = await res.json();
+  return body?.data ?? body;
+}
+
+// Get attachment URL for admin viewing.
+// Returns just the URL — callers must fetch with the analytics Bearer token
+// (e.g. via getAnalyticsAccessToken()) and convert the response to a blob URL
+// for use in <img src=...> tags.
+export function getTicketAttachmentUrl(ticketId: string, attachmentId: string): string {
+  return `${API_BASE}/api/support/admin/tickets/${ticketId}/attachments/${attachmentId}`;
+}
+
 export async function updateSpendLimit(data: {
   enabled: boolean;
   limitAmountRupees?: number;

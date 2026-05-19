@@ -200,4 +200,62 @@ export class SupportController {
       .header('Content-Length', attachment.size.toString())
       .send(attachment.data);
   }
+
+  // ---------------- Admin Endpoints ----------------
+
+  @Get('admin/tickets/unresolved')
+  @HttpCode(HttpStatus.OK)
+  async adminGetUnresolvedTickets(
+    @Req() req: FastifyRequest & { user: { id: string } },
+  ) {
+    await this.supportService.assertAdminRole(req.user.id);
+    const data = await this.supportService.getUnresolvedTicketsAdmin();
+    return { success: true, data };
+  }
+
+  @Post('admin/tickets/:id/resolve')
+  @HttpCode(HttpStatus.OK)
+  async adminResolveTicket(
+    @Req() req: FastifyRequest & { user: { id: string } },
+    @Param('id') id: string,
+    @Body() body: { resolutionNotes?: string },
+  ) {
+    await this.supportService.assertAdminRole(req.user.id);
+    const data = await this.supportService.resolveTicketAdmin(
+      id,
+      body?.resolutionNotes,
+    );
+    return { success: true, data };
+  }
+
+  @Get('admin/tickets/:id')
+  @HttpCode(HttpStatus.OK)
+  async adminGetTicketDetail(
+    @Req() req: FastifyRequest & { user: { id: string } },
+    @Param('id') id: string,
+  ) {
+    await this.supportService.assertAdminRole(req.user.id);
+    const data = await this.supportService.getTicketDetailAdmin(id);
+    return { success: true, data };
+  }
+
+  @Get('admin/tickets/:id/attachments/:attachmentId')
+  async adminGetAttachment(
+    @Req() req: FastifyRequest & { user: { id: string } },
+    @Param('id') _id: string,
+    @Param('attachmentId') attachmentId: string,
+    @Res() res: FastifyReply,
+  ) {
+    await this.supportService.assertAdminRole(req.user.id);
+    const attachment =
+      await this.supportService.getAttachmentFileAdmin(attachmentId);
+    return res
+      .header('Content-Type', attachment.mimeType)
+      .header(
+        'Content-Disposition',
+        `inline; filename="${attachment.fileName}"`,
+      )
+      .header('Content-Length', attachment.size.toString())
+      .send(attachment.data);
+  }
 }
