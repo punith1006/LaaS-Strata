@@ -42,51 +42,60 @@ export function FleetHealthGauge({
   const cx = width / 2;
   const cy = height - 8;
   const radius = 90;
-  const strokeWidth = 10;
 
-  const isHealthy = alertNodes.length === 0;
+  // Helper to get SVG arc path between two angles
+  const arcPath = (startAngle: number, endAngle: number) => {
+    const x1 = cx + radius * Math.cos(startAngle);
+    const y1 = cy - radius * Math.sin(startAngle);
+    const x2 = cx + radius * Math.cos(endAngle);
+    const y2 = cy - radius * Math.sin(endAngle);
+    const largeArc = Math.abs(endAngle - startAngle) > Math.PI ? 1 : 0;
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
+  };
 
-  // Semicircle arc from left (180deg) to right (0deg)
-  const arcPath = `M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`;
+  // Angle for each key tick
+  const toAngle = (pct: number) => Math.PI - (pct / 100) * Math.PI;
 
-  const ticks = [0, 25, 50, 75, 100];
+  const ticks = [0, 50, 70, 85, 100];
+
+  // Pointer position
+  const clamped = Math.max(0, Math.min(100, uptimePct));
+  const pointerAngle = toAngle(clamped);
+  const pointerX = cx + radius * Math.cos(pointerAngle);
+  const pointerY = cy - radius * Math.sin(pointerAngle);
+
+  // Color based on value
+  const getColor = (pct: number) => {
+    if (pct <= 50) return '#EF4444';
+    if (pct <= 70) return '#F97316';
+    if (pct <= 85) return '#EAB308';
+    return '#22C55E';
+  };
+
+  const arcColor = getColor(clamped);
 
   return (
     <div className="flex flex-col items-center w-full">
-      {/* Gauge SVG container with centered percentage overlay */}
       <div className="relative" style={{ width, height }}>
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-          <defs>
-            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ef4444" />
-              <stop offset="25%" stopColor="#f97316" />
-              <stop offset="50%" stopColor="#eab308" />
-              <stop offset="75%" stopColor="#84cc16" />
-              <stop offset="100%" stopColor="#22c55e" />
-            </linearGradient>
-          </defs>
-
           {/* Background track */}
           <path
-            d={arcPath}
+            d={arcPath(Math.PI, 0)}
             fill="none"
             stroke="#27272a"
-            strokeWidth={strokeWidth}
+            strokeWidth={10}
             strokeLinecap="round"
           />
 
-          {/* Colored gradient arc */}
-          <path
-            d={arcPath}
-            fill="none"
-            stroke="url(#gaugeGradient)"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
+          {/* Colored arc segments */}
+          <path d={arcPath(Math.PI, toAngle(50))} fill="none" stroke="#EF4444" strokeWidth={10} strokeLinecap="butt" />
+          <path d={arcPath(toAngle(50), toAngle(70))} fill="none" stroke="#F97316" strokeWidth={10} strokeLinecap="butt" />
+          <path d={arcPath(toAngle(70), toAngle(85))} fill="none" stroke="#EAB308" strokeWidth={10} strokeLinecap="butt" />
+          <path d={arcPath(toAngle(85), 0)} fill="none" stroke="#22C55E" strokeWidth={10} strokeLinecap="butt" />
 
-          {/* Tick marks and labels */}
+          {/* Tick marks */}
           {ticks.map((tick) => {
-            const angle = Math.PI - (tick / 100) * Math.PI;
+            const angle = toAngle(tick);
             const innerR = radius - 16;
             const labelR = radius + 13;
             const ix = cx + innerR * Math.cos(angle);
@@ -98,22 +107,14 @@ export function FleetHealthGauge({
 
             return (
               <g key={tick}>
-                <line
-                  x1={ix}
-                  y1={iy}
-                  x2={ox}
-                  y2={oy}
-                  stroke="#52525b"
-                  strokeWidth={1.5}
-                />
+                <line x1={ix} y1={iy} x2={ox} y2={oy} stroke="#52525b" strokeWidth={1.5} />
                 <text
-                  x={lx}
-                  y={ly}
+                  x={lx} y={ly}
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill="#a1a1aa"
                   fontSize="9"
-                  fontFamily="var(--font-sans)"
+                  fontFamily="sans-serif"
                   fontWeight="500"
                 >
                   {tick}
@@ -121,14 +122,26 @@ export function FleetHealthGauge({
               </g>
             );
           })}
+
+          {/* Pointer base circle */}
+          <circle cx={cx} cy={cy} r="4" fill="#27272a" stroke="#52525b" strokeWidth="1.5" />
+
+          {/* Pointer needle */}
+          <line
+            x1={cx} y1={cy}
+            x2={pointerX} y2={pointerY}
+            stroke={arcColor}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
         </svg>
 
-        {/* Percentage centered inside the arc */}
+        {/* Percentage centered below the arc */}
         <div
           className="absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center"
           style={{ bottom: 18 }}
         >
-          <span className="text-3xl font-bold text-white leading-none">
+          <span className="text-3xl font-bold" style={{ color: arcColor }}>
             {uptimePct.toFixed(0)}%
           </span>
         </div>
