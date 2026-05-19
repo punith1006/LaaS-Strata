@@ -95,6 +95,21 @@ export interface AttentionRequiredResponse {
 export class AnalyticsAdminService {
   constructor(private prisma: PrismaService) {}
 
+  // IST offset in milliseconds (5.5 hours)
+  private readonly IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+  /**
+   * Get start of current day in IST (00:00 IST)
+   */
+  private getISTDayStart(date: Date): Date {
+    // Convert to IST
+    const istTime = new Date(date.getTime() + this.IST_OFFSET_MS);
+    // Set to midnight IST
+    istTime.setUTCHours(0, 0, 0, 0);
+    // Convert back to UTC
+    return new Date(istTime.getTime() - this.IST_OFFSET_MS);
+  }
+
   // Regular user roles that should be counted in active users
   private REGULAR_USER_ROLES = ['public_user', 'student', 'external_student'];
   // Admin role names that should be excluded from active users count
@@ -356,8 +371,8 @@ export class AnalyticsAdminService {
       periodStart = bounds.periodStart;
     }
 
-    // Step 2: Query hourly aggregates
-    // Get charges grouped by UTC hour, then we'll handle IST alignment in TypeScript
+    // Step 2: Query hourly aggregates in UTC
+    // Group charges by UTC hour boundaries
     const rows = await this.prisma.$queryRaw<
       Array<{ time: number; total_cents: bigint }>
     >`
@@ -366,7 +381,7 @@ export class AnalyticsAdminService {
         SUM("amount_cents")::bigint as total_cents
       FROM "billing_charges"
       WHERE "created_at" >= ${periodStart}
-      GROUP BY DATE_TRUNC('hour', "created_at")
+      GROUP BY 1
       ORDER BY 1 ASC
     `;
 
@@ -384,15 +399,16 @@ export class AnalyticsAdminService {
       }))
     });
 
-    // Step 3: Fill gaps with zeros — generate complete hourly series in UTC
-    // Then convert to IST for display alignment
+    // Step 3: Fill gaps with zeros — generate complete hourly series
+    // Align to UTC hour boundaries (round to next hour since periodStart is at :30)
     const startEpoch = Math.floor(periodStart.getTime() / 1000);
     const endEpoch = Math.floor(now.getTime() / 1000);
     const hourSeconds = 3600;
-
-    // Align start to the beginning of the UTC hour
-    const alignedStart = startEpoch - (startEpoch % hourSeconds);
-
+    
+    // Align start to the next UTC hour boundary (round up since IST starts at :30)
+    const remainder = startEpoch % hourSeconds;
+    const alignedStart = remainder === 0 ? startEpoch : startEpoch + (hourSeconds - remainder);
+    
     const hourlySeries: Array<{ time: number; value: number }> = [];
     for (let t = alignedStart; t <= endEpoch; t += hourSeconds) {
       hourlySeries.push({ time: t, value: dataMap.get(t) ?? 0 });
@@ -519,10 +535,15 @@ export class AnalyticsAdminService {
     daysInPeriod: number;
     subtitleContext: string;
   } {
+    // Get today's IST day start (00:00 IST)
+    const istDayStart = this.getISTDayStart(now);
+    
     switch (timeRange) {
       case '24H': {
-        const periodStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const priorStart = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+        // Today IST: 00:00 IST today to 23:59 IST today
+        const periodStart = istDayStart;
+        // Yesterday IST: 00:00 IST yesterday
+        const priorStart = new Date(istDayStart.getTime() - 24 * 60 * 60 * 1000);
         return {
           periodStart,
           priorStart,
@@ -532,12 +553,10 @@ export class AnalyticsAdminService {
         };
       }
       case '7D': {
-        const periodStart = new Date(
-          now.getTime() - 7 * 24 * 60 * 60 * 1000,
-        );
-        const priorStart = new Date(
-          now.getTime() - 14 * 24 * 60 * 60 * 1000,
-        );
+        // Last 7 complete IST days (from 00:00 IST 7 days ago)
+        const periodStart = new Date(istDayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
+        // Prior period: 7 days before periodStart
+        const priorStart = new Date(periodStart.getTime() - 7 * 24 * 60 * 60 * 1000);
         return {
           periodStart,
           priorStart,
@@ -547,12 +566,10 @@ export class AnalyticsAdminService {
         };
       }
       case '30D': {
-        const periodStart = new Date(
-          now.getTime() - 30 * 24 * 60 * 60 * 1000,
-        );
-        const priorStart = new Date(
-          now.getTime() - 60 * 24 * 60 * 60 * 1000,
-        );
+        // Last 30 complete IST days (from 00:00 IST 30 days ago)
+        const periodStart = new Date(istDayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
+        // Prior period: 30 days before periodStart
+        const priorStart = new Date(periodStart.getTime() - 30 * 24 * 60 * 60 * 1000);
         return {
           periodStart,
           priorStart,
@@ -563,7 +580,8 @@ export class AnalyticsAdminService {
       }
       case 'All':
       default: {
-        const periodStart = new Date(0); // epoch
+        // All time: complete aggregation from epoch
+        const periodStart = new Date(0);
         return {
           periodStart,
           priorStart: null,
