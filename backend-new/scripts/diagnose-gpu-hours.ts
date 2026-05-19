@@ -126,6 +126,64 @@ async function diagnoseGpuHours() {
   });
   console.log('');
 
+  // === Prior Period (Yesterday) GPU Hours - CDC ===
+  console.log('=== Prior Period (Yesterday) GPU Hours ===');
+  
+  const priorStart = new Date(period24h.getTime() - 24 * 60 * 60 * 1000);
+  const priorEnd = period24h;
+  const priorStartTs = priorStart.toISOString().replace('Z', '');
+  const priorEndTs = priorEnd.toISOString().replace('Z', '');
+
+  // OLD approach: full durationSeconds + Date params
+  const priorDataOld = await prisma.session.aggregate({
+    _sum: { durationSeconds: true },
+    where: {
+      status: { in: ['ended', 'terminated_idle', 'terminated_overuse'] },
+      endedAt: { gte: priorStart, lt: priorEnd },
+    },
+  });
+  const priorOldHours = Number(priorDataOld._sum.durationSeconds ?? 0) / 3600;
+
+  // NEW approach: prorated at both boundaries, includes spanning sessions
+  const priorDataNew = await prisma.$queryRaw<
+    Array<{ total_seconds: bigint }>
+  >`
+    SELECT
+      CAST(COALESCE(SUM(
+        CASE
+          WHEN s."started_at" IS NULL OR s."started_at" >= ${priorStartTs}::timestamp
+          THEN
+            CASE
+              WHEN s."ended_at" <= ${priorEndTs}::timestamp
+              THEN s."duration_seconds"
+              ELSE EXTRACT(EPOCH FROM ${priorEndTs}::timestamp - s."started_at")
+            END
+          ELSE
+            CASE
+              WHEN s."ended_at" <= ${priorEndTs}::timestamp
+              THEN EXTRACT(EPOCH FROM s."ended_at" - ${priorStartTs}::timestamp)
+              ELSE EXTRACT(EPOCH FROM ${priorEndTs}::timestamp - ${priorStartTs}::timestamp)
+            END
+        END
+      ), 0) AS BIGINT) as total_seconds
+    FROM "sessions" s
+    WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
+      AND s."ended_at" >= ${priorStartTs}::timestamp
+      AND s."started_at" < ${priorEndTs}::timestamp
+  `;
+  const priorNewHours = Number(priorDataNew[0]?.total_seconds ?? 0) / 3600;
+
+  console.log(`OLD (full dur, endedAt filter): ${priorOldHours.toFixed(2)} hrs`);
+  console.log(`NEW (prorated, spanning included): ${priorNewHours.toFixed(2)} hrs`);
+
+  const currentTotalHours = totalGpuHours24hNew;
+  const cdcOld = priorOldHours > 0 ? ((currentTotalHours - priorOldHours) / priorOldHours) * 100 : 0;
+  const cdcNew = priorNewHours > 0 ? ((currentTotalHours - priorNewHours) / priorNewHours) * 100 : 0;
+  console.log(`Current (24H): ${currentTotalHours.toFixed(2)} hrs`);
+  console.log(`CDC OLD: ${cdcOld.toFixed(1)}%  (based on prior OLD=${priorOldHours.toFixed(2)} hrs)`);
+  console.log(`CDC NEW: ${cdcNew.toFixed(1)}%  (based on prior NEW=${priorNewHours.toFixed(2)} hrs)`);
+  console.log('');
+
   // === 7D GPU Hours ===
   console.log('=== 7D GPU Hours ===');
 

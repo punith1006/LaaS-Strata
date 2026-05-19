@@ -110,6 +110,39 @@ export class AnalyticsAdminService {
     return new Date(istTime.getTime() - this.IST_OFFSET_MS);
   }
 
+  /**
+   * Split a duration across IST day boundaries proportionally.
+   * Returns a Map of IST date string -> hours for that day.
+   */
+  private splitDurationAcrossISTDays(
+    effectiveStartMs: number,
+    effectiveEndMs: number,
+    durationSeconds: number,
+  ): Map<string, number> {
+    const split = new Map<string, number>();
+    const spanMs = effectiveEndMs - effectiveStartMs;
+    if (spanMs <= 0 || durationSeconds <= 0) return split;
+
+    let cursorMs = effectiveStartMs;
+    while (cursorMs < effectiveEndMs) {
+      const istCursor = new Date(cursorMs + this.IST_OFFSET_MS);
+      const dayStr = istCursor.toISOString().split('T')[0];
+
+      // Next IST midnight boundary (in UTC ms)
+      const nextIstMidnight = new Date(istCursor);
+      nextIstMidnight.setUTCHours(24, 0, 0, 0);
+      const nextBoundaryMs = nextIstMidnight.getTime() - this.IST_OFFSET_MS;
+
+      const segmentEndMs = Math.min(nextBoundaryMs, effectiveEndMs);
+      const fraction = (segmentEndMs - cursorMs) / spanMs;
+      const segmentHours = (durationSeconds * fraction) / 3600;
+
+      split.set(dayStr, (split.get(dayStr) || 0) + segmentHours);
+      cursorMs = segmentEndMs;
+    }
+    return split;
+  }
+
   // Regular user roles that should be counted in active users
   private REGULAR_USER_ROLES = ['public_user', 'student', 'external_student'];
   // Admin role names that should be excluded from active users count
@@ -282,13 +315,24 @@ export class AnalyticsAdminService {
           CAST(COALESCE(SUM(
             CASE
               WHEN s."started_at" IS NULL OR s."started_at" >= ${priorStartTs}::timestamp
-              THEN s."duration_seconds"
-              ELSE EXTRACT(EPOCH FROM s."ended_at" - ${priorStartTs}::timestamp)
+              THEN
+                CASE
+                  WHEN s."ended_at" <= ${priorEndTs}::timestamp
+                  THEN s."duration_seconds"
+                  ELSE EXTRACT(EPOCH FROM ${priorEndTs}::timestamp - s."started_at")
+                END
+              ELSE
+                CASE
+                  WHEN s."ended_at" <= ${priorEndTs}::timestamp
+                  THEN EXTRACT(EPOCH FROM s."ended_at" - ${priorStartTs}::timestamp)
+                  ELSE EXTRACT(EPOCH FROM ${priorEndTs}::timestamp - ${priorStartTs}::timestamp)
+                END
             END
           ), 0) AS BIGINT) as total_seconds
         FROM "sessions" s
         WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
-          AND s."ended_at" >= ${priorStartTs}::timestamp AND s."ended_at" < ${priorEndTs}::timestamp
+          AND s."ended_at" >= ${priorStartTs}::timestamp
+          AND s."started_at" < ${priorEndTs}::timestamp
       `;
       priorGpuTotalSeconds = Number(priorGpuData[0]?.total_seconds ?? 0);
     }
@@ -640,21 +684,28 @@ export class AnalyticsAdminService {
       now,
     );
 
-    // Query ended sessions grouped by day
-    const dailyData = await this.prisma.$queryRaw<
-      Array<{ day: Date; hours: number }>
+    // NOTE: format dates as plain UTC strings (no Z suffix) to prevent PostgreSQL from
+    // treating them as timestamptz and converting through the session timezone (IST)
+    const periodStartTs = periodStart.toISOString().replace('Z', '');
+
+    // Query ended sessions — fetch per-session data for IST day-boundary splitting
+    const endedSessions = await this.prisma.$queryRaw<
+      Array<{ started_at: Date | null; ended_at: Date | null; duration_seconds: bigint }>
     >`
       SELECT
-        DATE_TRUNC('day', "started_at")::date as day,
-        SUM("duration_seconds") / 3600.0 as hours
-      FROM "sessions"
-      WHERE status IN ('ended', 'terminated_idle', 'terminated_overuse')
-        AND "ended_at" >= ${periodStart}
-      GROUP BY 1
-      ORDER BY 1
+        s.started_at,
+        s.ended_at,
+        CASE
+          WHEN s.started_at IS NULL OR s.started_at >= ${periodStartTs}::timestamp
+          THEN s.duration_seconds
+          ELSE EXTRACT(EPOCH FROM s."ended_at" - ${periodStartTs}::timestamp)
+        END as duration_seconds
+      FROM "sessions" s
+      WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
+        AND s.ended_at >= ${periodStartTs}::timestamp
     `;
 
-    // Include running sessions - attribute to their start day
+    // Include running sessions
     const runningSessions = await this.prisma.session.findMany({
       where: {
         status: 'running',
@@ -663,35 +714,65 @@ export class AnalyticsAdminService {
       select: { startedAt: true, durationSeconds: true },
     });
 
-    // Build a map of day -> hours
+    // Build a map of day -> hours, splitting each session's effective duration across IST day boundaries
     const dayMap = new Map<string, number>();
+    const periodStartMs = periodStart.getTime();
 
-    // Add ended sessions
-    for (const row of dailyData) {
-      const dayStr = row.day.toISOString().split('T')[0];
-      dayMap.set(dayStr, (dayMap.get(dayStr) || 0) + Number(row.hours));
+    // Add ended sessions — split across IST day boundaries
+    for (const s of endedSessions) {
+      const startedAtMs = s.started_at?.getTime() ?? periodStartMs;
+      const endedAtMs = s.ended_at?.getTime() ?? periodStartMs;
+      const effectiveStartMs = Math.max(startedAtMs, periodStartMs);
+      const durSeconds = Number(s.duration_seconds);
+
+      if (effectiveStartMs >= endedAtMs || durSeconds <= 0) continue;
+
+      // Fast path: same IST date -> attribute directly
+      const startIstDay = new Date(effectiveStartMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+      const endIstDay = new Date(endedAtMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+
+      if (startIstDay === endIstDay) {
+        dayMap.set(startIstDay, (dayMap.get(startIstDay) || 0) + durSeconds / 3600);
+      } else {
+        const split = this.splitDurationAcrossISTDays(effectiveStartMs, endedAtMs, durSeconds);
+        for (const [day, hours] of split) {
+          dayMap.set(day, (dayMap.get(day) || 0) + hours);
+        }
+      }
     }
 
-    // Add running sessions (only time within the period)
+    // Add running sessions — split across IST day boundaries (same logic as ended)
     for (const session of runningSessions) {
       if (!session.startedAt) continue;
-      const countFrom = Math.max(
-        periodStart.getTime(),
-        session.startedAt.getTime(),
-      );
-      const elapsedSeconds = Math.max(
-        0,
-        Math.floor((now.getTime() - countFrom) / 1000),
-      );
-      const elapsedHours = elapsedSeconds / 3600;
+      const effectiveStartMs = Math.max(periodStartMs, session.startedAt.getTime());
+      const effectiveEndMs = now.getTime();
 
-      const dayStr = session.startedAt.toISOString().split('T')[0];
-      dayMap.set(dayStr, (dayMap.get(dayStr) || 0) + elapsedHours);
+      if (effectiveStartMs >= effectiveEndMs) continue;
+      const elapsedSeconds = Math.floor((effectiveEndMs - effectiveStartMs) / 1000);
+      if (elapsedSeconds <= 0) continue;
+
+      // Fast path: same IST date
+      const startIstDay = new Date(effectiveStartMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+      const endIstDay = new Date(effectiveEndMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+
+      if (startIstDay === endIstDay) {
+        dayMap.set(startIstDay, (dayMap.get(startIstDay) || 0) + elapsedSeconds / 3600);
+      } else {
+        const split = this.splitDurationAcrossISTDays(effectiveStartMs, effectiveEndMs, elapsedSeconds);
+        for (const [day, hours] of split) {
+          dayMap.set(day, (dayMap.get(day) || 0) + hours);
+        }
+      }
     }
 
     // Always return exactly 7 days (Mon-Sun), aggregating by day of week
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const dayHours = new Array(7).fill(0);
+    
+    // Determine today's IST day-of-week index
+    const nowIst = new Date(now.getTime() + this.IST_OFFSET_MS);
+    const todayJsDay = nowIst.getUTCDay();
+    const todayIndex = todayJsDay === 0 ? 6 : todayJsDay - 1; // 0=Mon..6=Sun
     
     // Aggregate all data by day of week (0=Mon, 6=Sun)
     for (const [dateStr, hours] of dayMap.entries()) {
@@ -700,7 +781,13 @@ export class AnalyticsAdminService {
       // We want: 0=Mon, 1=Tue, ..., 6=Sun
       const jsDay = date.getDay();
       const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
-      dayHours[dayIndex] += hours;
+      
+      // For 24H, all data goes into today's bucket (other days should display as 0)
+      if (timeRange === '24H') {
+        dayHours[todayIndex] += hours;
+      } else {
+        dayHours[dayIndex] += hours;
+      }
     }
 
     // Build the breakdown array
@@ -715,14 +802,22 @@ export class AnalyticsAdminService {
 
     let priorTotalHours = 0;
     if (priorStart && priorEnd) {
+      const priorStartTs = priorStart.toISOString().replace('Z', '');
+      const priorEndTs = priorEnd.toISOString().replace('Z', '');
       const priorData = await this.prisma.$queryRaw<
         Array<{ total_hours: number }>
       >`
-        SELECT SUM("duration_seconds") / 3600.0 as total_hours
-        FROM "sessions"
-        WHERE status IN ('ended', 'terminated_idle', 'terminated_overuse')
-          AND "ended_at" >= ${priorStart}
-          AND "ended_at" < ${priorEnd}
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN s."started_at" IS NULL OR s."started_at" >= ${priorStartTs}::timestamp
+            THEN s."duration_seconds"
+            ELSE EXTRACT(EPOCH FROM s."ended_at" - ${priorStartTs}::timestamp)
+          END
+        ), 0) / 3600.0 as total_hours
+        FROM "sessions" s
+        WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
+          AND s."ended_at" >= ${priorStartTs}::timestamp
+          AND s."ended_at" < ${priorEndTs}::timestamp
       `;
       priorTotalHours = Number(priorData[0]?.total_hours || 0);
     }
