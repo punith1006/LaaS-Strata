@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { TicketPriority, TicketStatus } from '@prisma/client';
@@ -15,6 +15,13 @@ export interface SupportTicketResponse {
   createdAt: Date;
 }
 
+export interface SupportTicketAttachmentInput {
+  fileName: string;
+  mimeType: string;
+  size: number;
+  buffer: Buffer;
+}
+
 @Injectable()
 export class SupportService {
   constructor(
@@ -25,6 +32,7 @@ export class SupportService {
   async createTicket(
     userId: string,
     dto: CreateSupportTicketDto,
+    files?: SupportTicketAttachmentInput[],
   ): Promise<SupportTicketResponse> {
     // Determine priority based on category
     const priority = this.getPriorityFromCategory(dto.category);
@@ -57,6 +65,23 @@ export class SupportService {
         status: 'open' as TicketStatus,
       },
     });
+
+    // Persist any attachments uploaded with the ticket
+    if (files && files.length > 0) {
+      for (const file of files) {
+        const ab = new ArrayBuffer(file.buffer.byteLength);
+        new Uint8Array(ab).set(file.buffer);
+        await this.prisma.supportTicketAttachment.create({
+          data: {
+            ticketId: ticket.id,
+            fileName: file.fileName,
+            mimeType: file.mimeType,
+            size: file.size,
+            data: new Uint8Array(ab),
+          },
+        });
+      }
+    }
 
     // Format submission time
     const submittedAt = ticket.createdAt.toLocaleString('en-US', {
@@ -134,6 +159,40 @@ export class SupportService {
         resolvedAt: true,
       },
     });
+  }
+
+  async getTicketAttachments(ticketId: string, userId: string) {
+    return this.prisma.supportTicketAttachment.findMany({
+      where: {
+        ticketId,
+        ticket: { userId },
+      },
+      select: {
+        id: true,
+        fileName: true,
+        mimeType: true,
+        size: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async getAttachmentFile(
+    ticketId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    const attachment = await this.prisma.supportTicketAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        ticketId: ticketId,
+        ticket: { userId: userId },
+      },
+    });
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+    return attachment;
   }
 
   private getPriorityFromCategory(category: string): TicketPriority {

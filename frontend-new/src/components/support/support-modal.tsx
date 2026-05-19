@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { getMe } from "@/lib/api";
 import { submitSupportTicket, SupportTicketResponse } from "@/lib/api";
@@ -35,6 +35,88 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [ticketId, setTicketId] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ALLOWED_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/bmp",
+  ];
+  const MAX_FILES = 3;
+  const MAX_SIZE = 3 * 1024 * 1024;
+
+  // Generate (and revoke) preview URLs in lockstep with the attachments list.
+  const previewUrls = useMemo(
+    () => attachments.map((file) => URL.createObjectURL(file)),
+    [attachments]
+  );
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
+
+  const processFiles = (incoming: File[]) => {
+    if (incoming.length === 0) return;
+
+    if (attachments.length + incoming.length > MAX_FILES) {
+      setAttachmentError(`You can attach a maximum of ${MAX_FILES} images.`);
+      return;
+    }
+
+    for (const file of incoming) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setAttachmentError(
+          `"${file.name}" is not a supported image type.`
+        );
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        setAttachmentError(`"${file.name}" exceeds the 3MB size limit.`);
+        return;
+      }
+    }
+
+    setAttachmentError("");
+    setAttachments((prev) => [...prev, ...incoming]);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    processFiles(files);
+    // Reset so re-selecting the same file fires onChange again.
+    e.target.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragOver) setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    processFiles(files);
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+    setAttachmentError("");
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -55,6 +137,9 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
       setSubmitted(false);
       setTicketId("");
       setIsSubmitting(false);
+      setAttachments([]);
+      setAttachmentError("");
+      setIsDragOver(false);
     }
   }, [isOpen]);
 
@@ -70,11 +155,14 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
     setIsSubmitting(true);
 
     try {
-      const response: SupportTicketResponse = await submitSupportTicket({
-        category,
-        subject: subject.trim(),
-        description: description.trim(),
-      });
+      const response: SupportTicketResponse = await submitSupportTicket(
+        {
+          category,
+          subject: subject.trim(),
+          description: description.trim(),
+        },
+        attachments
+      );
       
       setTicketId(response.ticketId);
       setSubmitted(true);
@@ -90,6 +178,8 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
     setSubject("");
     setDescription("");
     setError("");
+    setAttachments([]);
+    setAttachmentError("");
   };
 
   return (
@@ -458,6 +548,200 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
                       e.currentTarget.style.borderColor = "var(--borderColor-default)";
                     }}
                   />
+                </div>
+
+                {/* Attach Screenshots */}
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px",
+                  }}>
+                    <label style={{
+                      fontFamily: "var(--font-sans), ui-sans-serif, system-ui, sans-serif",
+                      fontSize: "0.875rem",
+                      fontWeight: 500,
+                      color: "var(--fgColor-default)",
+                    }}>
+                      Attach Screenshots
+                    </label>
+                    <span style={{
+                      fontFamily: "var(--font-sans), ui-sans-serif, system-ui, sans-serif",
+                      fontSize: "0.75rem",
+                      fontWeight: 400,
+                      color: "var(--fgColor-muted)",
+                    }}>
+                      (Optional)
+                    </span>
+                  </div>
+
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => fileInputRef.current?.click()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      padding: "16px",
+                      borderRadius: "4px",
+                      border: `1px dashed ${isDragOver ? "rgba(255, 255, 255, 0.3)" : "var(--borderColor-default)"}`,
+                      backgroundColor: isDragOver
+                        ? "rgba(255, 255, 255, 0.02)"
+                        : "transparent",
+                      cursor: "pointer",
+                      transition: "border-color 0.15s ease, background-color 0.15s ease",
+                    }}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ color: "var(--fgColor-muted)" }}
+                    >
+                      <path d="M12 16V4" />
+                      <path d="m7 9 5-5 5 5" />
+                      <path d="M5 20h14" />
+                    </svg>
+                    <span style={{
+                      fontFamily: "var(--font-sans), ui-sans-serif, system-ui, sans-serif",
+                      fontSize: "0.8125rem",
+                      fontWeight: 400,
+                      color: "var(--fgColor-muted)",
+                    }}>
+                      Drag &amp; drop or click to upload
+                    </span>
+                    <span style={{
+                      fontFamily: "var(--font-sans), ui-sans-serif, system-ui, sans-serif",
+                      fontSize: "0.6875rem",
+                      fontWeight: 400,
+                      color: "var(--fgColor-muted)",
+                      opacity: 0.7,
+                    }}>
+                      Max 3 images, 3MB each
+                    </span>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.gif,.webp,.bmp"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    style={{ display: "none" }}
+                  />
+
+                  {attachmentError && (
+                    <span style={{
+                      fontFamily: "var(--font-sans), ui-sans-serif, system-ui, sans-serif",
+                      fontSize: "0.75rem",
+                      fontWeight: 400,
+                      color: "var(--fgColor-critical)",
+                      marginTop: "8px",
+                    }}>
+                      {attachmentError}
+                    </span>
+                  )}
+
+                  {attachments.length > 0 && (
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                      marginTop: "10px",
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "8px",
+                      }}>
+                        {attachments.map((file, idx) => (
+                          <div
+                            key={`${file.name}-${file.size}-${idx}`}
+                            style={{ position: "relative" }}
+                          >
+                            <img
+                              src={previewUrls[idx]}
+                              alt={file.name}
+                              style={{
+                                width: "64px",
+                                height: "64px",
+                                objectFit: "cover",
+                                borderRadius: "6px",
+                                border: "1px solid var(--borderColor-default)",
+                                display: "block",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveAttachment(idx);
+                              }}
+                              title="Remove"
+                              style={{
+                                position: "absolute",
+                                top: "-6px",
+                                right: "-6px",
+                                width: "18px",
+                                height: "18px",
+                                borderRadius: "50%",
+                                backgroundColor: "var(--bgColor-default)",
+                                border: "1px solid var(--borderColor-default)",
+                                color: "var(--fgColor-default)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                padding: 0,
+                                lineHeight: 0,
+                              }}
+                            >
+                              <svg
+                                width="10"
+                                height="10"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <span style={{
+                        fontFamily: "var(--font-sans), ui-sans-serif, system-ui, sans-serif",
+                        fontSize: "0.75rem",
+                        fontWeight: 400,
+                        color: "var(--fgColor-muted)",
+                      }}>
+                        {attachments.length}/{MAX_FILES}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Description */}

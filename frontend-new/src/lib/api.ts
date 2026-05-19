@@ -1312,18 +1312,39 @@ export interface SupportTicketListItem {
 }
 
 // Support Ticket API Functions
+// NOTE: When attachments are provided, we send multipart/form-data and intentionally
+// omit the Content-Type header so the browser sets the boundary automatically.
+// apiFetch only spreads provided headers, so this is safe.
 export async function submitSupportTicket(
-  data: SupportTicketRequest
+  data: SupportTicketRequest,
+  attachments?: File[]
 ): Promise<SupportTicketResponse> {
   if (!getAccessToken()) throw new Error('Not authenticated');
 
-  const res = await apiFetch(`${API_BASE}/api/support/tickets`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+
+  let res: Response;
+  if (hasAttachments) {
+    const formData = new FormData();
+    formData.append('category', data.category);
+    formData.append('subject', data.subject);
+    formData.append('description', data.description);
+    attachments!.forEach((file) => formData.append('attachments', file));
+
+    res = await apiFetch(`${API_BASE}/api/support/tickets`, {
+      method: 'POST',
+      // Do NOT set Content-Type — browser sets multipart boundary automatically.
+      body: formData,
+    });
+  } else {
+    res = await apiFetch(`${API_BASE}/api/support/tickets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  }
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));

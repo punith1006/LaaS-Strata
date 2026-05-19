@@ -2099,11 +2099,27 @@ model SupportTicket {
   relatedSession Session?        @relation(fields: [relatedSessionId], references: [id], onDelete: Restrict)
   relatedBilling BillingCharge?  @relation(fields: [relatedBillingId], references: [id], onDelete: Restrict)
   ticketMessages TicketMessage[]
+  attachments    SupportTicketAttachment[]
 
   @@index([userId, status, createdAt])
   @@index([assignedTo, status])
   @@index([organizationId, status])
   @@map("support_tickets")
+}
+
+model SupportTicketAttachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  ticketId    String   @db.Uuid
+  fileName    String   @db.VarChar(255)
+  mimeType    String   @db.VarChar(64)
+  size        Int
+  data        Bytes
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_ticket_attachments")
 }
 
 model TicketMessage {
