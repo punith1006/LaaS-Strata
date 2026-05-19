@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from 'next/dynamic';
 import { RotateCcw } from "lucide-react";
+import { FleetHealthGauge, formatLastHeartbeat } from "./fleet-health-gauge";
 import type { User } from "@/types/auth";
 import { getAnalyticsAccessToken } from "@/lib/token";
 import {
@@ -34,7 +35,7 @@ interface AnalyticsKpiResponse {
   revenue: { total: number; dailyAvg: number; changePct: number; subtitleContext: string };
   activeUsers: { count: number; changePct: number; liveSessions: number; newUsers: number; newUsersChangePct: number; subtitleContext: string };
   gpuHours: { totalHours: number; avgSessionHours: number; sessionCount: number; changePct: number; subtitleContext: string };
-  fleetHealth: { trustScore: number; uptimePct: number; totalNodes: number; healthyNodes: number; alertNodes: string[] };
+  fleetHealth: { trustScore: number; uptimePct: number; totalNodes: number; healthyNodes: number; alertNodes: string[]; lastHeartbeatAt: string | null };
 }
 
 interface ComputeActivityData {
@@ -261,25 +262,38 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           />
           {/* Fleet Health */}
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-            <span className="text-xs font-semibold text-white uppercase tracking-wider">
-              FLEET HEALTH
-            </span>
-            <div className="mt-2">
-              <span className="text-2xl font-bold text-white">
-                {kpiData ? `${kpiData.fleetHealth.healthyNodes}/${kpiData.fleetHealth.totalNodes} nodes` : "—"}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-white uppercase tracking-wider">
+                FLEET HEALTH
+              </span>
+              <span className="text-xs">
+                {(() => {
+                  const text = kpiData ? formatLastHeartbeat(kpiData.fleetHealth.lastHeartbeatAt) : "";
+                  const prefix = "Last updated: ";
+                  if (text.startsWith(prefix)) {
+                    const timePart = text.slice(prefix.length);
+                    return (
+                      <>
+                        <span className="text-zinc-500">{prefix}</span>
+                        <span className="text-white font-medium">{timePart}</span>
+                      </>
+                    );
+                  }
+                  return <span className="text-zinc-500">{text}</span>;
+                })()}
               </span>
             </div>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className={`w-2 h-2 rounded-full inline-block ${
-                kpiData && kpiData.fleetHealth.alertNodes.length > 0 ? 'bg-amber-400' : 'bg-emerald-400'
-              }`} />
-              <span className="text-xs text-zinc-400">
-                {kpiData
-                  ? kpiData.fleetHealth.alertNodes.length > 0
-                    ? `${kpiData.fleetHealth.alertNodes.join(', ')} degraded`
-                    : `${kpiData.fleetHealth.uptimePct.toFixed(0)}% uptime`
-                  : ""}
-              </span>
+            <div className="flex-1 flex items-center justify-center mt-1">
+              {kpiData ? (
+                <FleetHealthGauge
+                  uptimePct={kpiData.fleetHealth.uptimePct}
+                  healthyNodes={kpiData.fleetHealth.healthyNodes}
+                  totalNodes={kpiData.fleetHealth.totalNodes}
+                  alertNodes={kpiData.fleetHealth.alertNodes}
+                />
+              ) : (
+                <div className="text-2xl font-bold text-white">—</div>
+              )}
             </div>
           </div>
         </div>

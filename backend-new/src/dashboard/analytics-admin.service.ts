@@ -37,6 +37,7 @@ export interface AnalyticsKpiResponse {
     totalNodes: number;
     healthyNodes: number;
     alertNodes: string[];
+    lastHeartbeatAt: Date | null;
   };
 }
 
@@ -384,6 +385,10 @@ export class AnalyticsAdminService {
 
     const uptimePct = totalNodes > 0 ? (healthyNodes / totalNodes) * 100 : 0;
 
+    const lastHeartbeatAt = nodes.length > 0
+      ? new Date(Math.max(...nodes.map((n) => n.lastHeartbeatAt?.getTime() ?? 0)))
+      : null;
+
     return {
       revenue: {
         total: currentTotal,
@@ -412,6 +417,7 @@ export class AnalyticsAdminService {
         totalNodes,
         healthyNodes,
         alertNodes,
+        lastHeartbeatAt,
       },
     };
   }
