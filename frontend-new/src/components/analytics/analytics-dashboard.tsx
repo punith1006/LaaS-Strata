@@ -113,7 +113,36 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [activeSessions, setActiveSessions] = useState<ActiveSessionsData | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([]);
   const [attentionRequired, setAttentionRequired] = useState<AttentionRequiredData | null>(null);
+  const [fleetHealthRefresh, setFleetHealthRefresh] = useState<string | null>(null);
+  const [fleetHealthStatus, setFleetHealthStatus] = useState<'live' | 'stale'>('stale');
   const [, setKpiLoading] = useState(true);
+
+  // Auto-refresh fleet health every 60 seconds
+  useEffect(() => {
+    const token = getAnalyticsAccessToken();
+    if (!token) return;
+
+    const fetchFleetHealth = () => {
+      fetch(`${API_BASE}/api/dashboard/analytics/fleet-health`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.lastHeartbeatAt) {
+            setFleetHealthRefresh(data.lastHeartbeatAt);
+            setFleetHealthStatus('live');
+          }
+        })
+        .catch(err => {
+          console.error('[FleetHealth] refresh error:', err);
+          setFleetHealthStatus('stale');
+        });
+    };
+
+    fetchFleetHealth();
+    const interval = setInterval(fetchFleetHealth, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch KPI data and compute activity on timeRange change
   useEffect(() => {
@@ -261,27 +290,36 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             insight={kpiData ? `Avg session: ${kpiData.gpuHours.avgSessionHours.toFixed(1)} hrs` : ""}
           />
           {/* Fleet Health */}
-          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
+          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white uppercase tracking-wider">
                 FLEET HEALTH
               </span>
-              <span className="text-xs">
-                {(() => {
-                  const text = kpiData ? formatLastHeartbeat(kpiData.fleetHealth.lastHeartbeatAt) : "";
-                  const prefix = "Last updated: ";
-                  if (text.startsWith(prefix)) {
-                    const timePart = text.slice(prefix.length);
-                    return (
-                      <>
-                        <span className="text-zinc-500">{prefix}</span>
-                        <span className="text-white font-medium">{timePart}</span>
-                      </>
-                    );
-                  }
-                  return <span className="text-zinc-500">{text}</span>;
-                })()}
-              </span>
+              <div className="flex items-center gap-2">
+                {/* Status dot */}
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  fleetHealthStatus === 'live'
+                    ? 'bg-emerald-400 animate-pulse'
+                    : 'bg-zinc-500'
+                }`} />
+                <span className="text-xs">
+                  {(() => {
+                    const rawDate = fleetHealthRefresh ?? kpiData?.fleetHealth.lastHeartbeatAt ?? null;
+                    const text = rawDate ? formatLastHeartbeat(rawDate) : "";
+                    const prefix = "Last updated: ";
+                    if (text.startsWith(prefix)) {
+                      const timePart = text.slice(prefix.length);
+                      return (
+                        <>
+                          {fleetHealthStatus === 'live' && <span className="text-zinc-500">{prefix}</span>}
+                          <span className="text-white font-medium">{timePart}</span>
+                        </>
+                      );
+                    }
+                    return <span className="text-zinc-500">{text}</span>;
+                  })()}
+                </span>
+              </div>
             </div>
             <div className="flex-1 flex items-center justify-center mt-1">
               {kpiData ? (
@@ -299,7 +337,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         </div>
 
         {/* Row 3: Revenue Trend (left) + Attention Required (right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.35fr] gap-3 mb-3">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.35fr] gap-3 mb-3 items-start">
           {/* Left: Revenue Trend Chart */}
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 pb-2 flex flex-col">
             {/* Top row: big value left, title + reset right */}

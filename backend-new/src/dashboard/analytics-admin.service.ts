@@ -422,6 +422,47 @@ export class AnalyticsAdminService {
     };
   }
 
+  async getFleetHealthData() {
+    const nodes = await this.prisma.node.findMany({
+      select: { id: true, hostname: true, status: true, lastHeartbeatAt: true },
+    });
+
+    const totalNodes = nodes.length;
+    const healthyNodes = nodes.filter((n) => n.status === 'healthy').length;
+
+    let trustScore = 850;
+    if (totalNodes > 0) {
+      const nodeMaxContribution = 850 / totalNodes;
+      const multipliers: Record<string, number> = {
+        healthy: 1.0, maintenance: 0.8, degraded: 0.7, draining: 0.6, offline: 0.0,
+      };
+      const rawScore = nodes.reduce((sum, node) => {
+        const mult = multipliers[node.status] ?? 0;
+        return sum + nodeMaxContribution * mult;
+      }, 0);
+      trustScore = Math.max(300, Math.min(850, Math.round(rawScore)));
+    }
+
+    const alertNodes = nodes
+      .filter((n) => n.status !== 'healthy')
+      .map((n) => n.hostname);
+
+    const uptimePct = totalNodes > 0 ? (healthyNodes / totalNodes) * 100 : 0;
+
+    const lastHeartbeatAt = nodes.length > 0
+      ? new Date(Math.max(...nodes.map((n) => n.lastHeartbeatAt?.getTime() ?? 0)))
+      : null;
+
+    return {
+      trustScore,
+      uptimePct: Math.round(uptimePct * 100) / 100,
+      totalNodes,
+      healthyNodes,
+      alertNodes,
+      lastHeartbeatAt,
+    };
+  }
+
   async getRevenueChartData(
     timeRange: '24H' | '7D' | '30D' | 'All',
   ): Promise<RevenueChartResponse> {

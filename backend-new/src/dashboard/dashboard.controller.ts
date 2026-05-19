@@ -91,4 +91,10 @@ export class DashboardController {
   async getAttentionRequired() {
     return this.analyticsAdminService.getAttentionRequiredData();
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/fleet-health')
+  async getFleetHealth() {
+    return this.analyticsAdminService.getFleetHealthData();
+  }
 }
