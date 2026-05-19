@@ -14,6 +14,12 @@ async function diagnoseRevenueDiscrepancy() {
   console.log('\n=== Time Reference ===');
   console.log('Current time:', now.toISOString(), '=', new Date(now.getTime() + IST_OFFSET_MS).toISOString().split('T')[1].split('.')[0], 'IST');
   console.log('IST day start (00:00 IST):', istDayStart.toISOString());
+
+  // Extend periodStart back to the start of the UTC hour (same logic as analytics service)
+  const periodStartMs = istDayStart.getTime();
+  const hourMs = 60 * 60 * 1000;
+  const periodStart = new Date(periodStartMs - (periodStartMs % hourMs));
+  console.log('Extended periodStart (aligned to UTC hour):', periodStart.toISOString());
   console.log('');
   
   // Query 1: All charges since 00:00 IST today (KPI logic)
@@ -40,17 +46,20 @@ async function diagnoseRevenueDiscrepancy() {
   console.log('');
   
   // Query 2: Hourly aggregation (Chart logic)
+  // Use AT TIME ZONE 'UTC' to ensure truncation happens in UTC timezone
+  // Use aligned periodStart (same as analytics service)
   const hourlyData = await prisma.$queryRaw<
-    Array<{ time: number; total_cents: bigint; count: bigint }>
+    Array<{ time: number; total_cents: bigint; count: bigint; trunc_hour: Date }>
   >`
     SELECT
-      EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at"))::int as time,
+      DATE_TRUNC('hour', "created_at") AT TIME ZONE 'UTC' as trunc_hour,
+      EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at") AT TIME ZONE 'UTC')::int as time,
       SUM("amount_cents")::bigint as total_cents,
       COUNT(*)::bigint as count
     FROM "billing_charges"
-    WHERE "created_at" >= ${istDayStart}
-    GROUP BY DATE_TRUNC('hour', "created_at")
-    ORDER BY 1 ASC
+    WHERE "created_at" >= ${periodStart}
+    GROUP BY DATE_TRUNC('hour', "created_at") AT TIME ZONE 'UTC'
+    ORDER BY 2 ASC
   `;
   
   console.log('=== Chart Logic: Hourly buckets since 00:00 IST today ===');
@@ -61,7 +70,7 @@ async function diagnoseRevenueDiscrepancy() {
     const istTime = new Date(utcTime.getTime() + IST_OFFSET_MS);
     const amount = Number(row.total_cents) / 100;
     chartTotal += amount;
-    console.log(`  ${i + 1}. ${utcTime.toISOString()} (${istTime.toISOString().split('T')[1].split('.')[0]} IST) | ₹${amount.toFixed(2)} | Count: ${Number(row.count)}`);
+    console.log(`  ${i + 1}. Raw: ${row.trunc_hour} | Epoch: ${Number(row.time)} (${utcTime.toISOString()}) | IST: ${istTime.toISOString().split('T')[1].split('.')[0]} | ₹${amount.toFixed(2)} | Count: ${Number(row.count)}`);
   });
   console.log('Total from hourly buckets (₹):', chartTotal.toFixed(2));
   console.log('');

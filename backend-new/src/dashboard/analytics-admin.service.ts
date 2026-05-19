@@ -234,16 +234,27 @@ export class AnalyticsAdminService {
         : 0;
 
     // --- GPU Hours ---
-    // Ended sessions in current period
-    const gpuData = await this.prisma.session.aggregate({
-      _sum: { durationSeconds: true },
-      _avg: { durationSeconds: true },
-      _count: true,
-      where: {
-        status: { in: ['ended', 'terminated_idle', 'terminated_overuse'] },
-        endedAt: { gte: periodStart },
-      },
-    });
+    // Ended sessions in current period — prorate sessions that span across the period boundary
+    // If a session started before periodStart, only count the portion within the period
+    // NOTE: format dates as plain UTC strings (no Z suffix) to prevent PostgreSQL from
+    // treating them as timestamptz and converting through the session timezone (IST)
+    const periodStartTs = periodStart.toISOString().replace('Z', '');
+    const gpuData = await this.prisma.$queryRaw<
+      Array<{ total_seconds: bigint; session_count: bigint }>
+    >`
+      SELECT
+        CAST(COALESCE(SUM(
+          CASE
+            WHEN s."started_at" IS NULL OR s."started_at" >= ${periodStartTs}::timestamp
+            THEN s."duration_seconds"
+            ELSE EXTRACT(EPOCH FROM s."ended_at" - ${periodStartTs}::timestamp)
+          END
+        ), 0) AS BIGINT) as total_seconds,
+        CAST(COUNT(*) AS BIGINT) as session_count
+      FROM "sessions" s
+      WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
+        AND s."ended_at" >= ${periodStartTs}::timestamp
+    `;
 
     // Also include running sessions' elapsed time — only the portion within the selected period
     const runningSessions = await this.prisma.session.findMany({
@@ -262,19 +273,30 @@ export class AnalyticsAdminService {
 
     let priorGpuTotalSeconds = 0;
     if (priorStart && priorEnd) {
-      const priorGpuData = await this.prisma.session.aggregate({
-        _sum: { durationSeconds: true },
-        where: {
-          status: { in: ['ended', 'terminated_idle', 'terminated_overuse'] },
-          endedAt: { gte: priorStart, lt: priorEnd },
-        },
-      });
-      priorGpuTotalSeconds = priorGpuData._sum.durationSeconds ?? 0;
+      const priorStartTs = priorStart.toISOString().replace('Z', '');
+      const priorEndTs = priorEnd.toISOString().replace('Z', '');
+      const priorGpuData = await this.prisma.$queryRaw<
+        Array<{ total_seconds: bigint }>
+      >`
+        SELECT
+          CAST(COALESCE(SUM(
+            CASE
+              WHEN s."started_at" IS NULL OR s."started_at" >= ${priorStartTs}::timestamp
+              THEN s."duration_seconds"
+              ELSE EXTRACT(EPOCH FROM s."ended_at" - ${priorStartTs}::timestamp)
+            END
+          ), 0) AS BIGINT) as total_seconds
+        FROM "sessions" s
+        WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
+          AND s."ended_at" >= ${priorStartTs}::timestamp AND s."ended_at" < ${priorEndTs}::timestamp
+      `;
+      priorGpuTotalSeconds = Number(priorGpuData[0]?.total_seconds ?? 0);
     }
 
-    const endedGpuSeconds = gpuData._sum.durationSeconds ?? 0;
+    const endedGpuSeconds = Number(gpuData[0]?.total_seconds ?? 0);
+    const endedSessionCount = Number(gpuData[0]?.session_count ?? 0);
     const gpuTotalSeconds = endedGpuSeconds + runningElapsedSeconds;
-    const totalSessionCount = gpuData._count + runningSessions.length;
+    const totalSessionCount = endedSessionCount + runningSessions.length;
     const gpuTotalHours = gpuTotalSeconds / 3600;
     const gpuAvgSessionHours = totalSessionCount > 0 ? gpuTotalHours / totalSessionCount : 0;
 
@@ -368,16 +390,20 @@ export class AnalyticsAdminService {
       periodStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     } else {
       const bounds = this.getPeriodBounds(timeRange, now);
-      periodStart = bounds.periodStart;
+      // Extend periodStart back to capture the full UTC hour where periodStart falls
+      // This ensures charges at 18:30 UTC are grouped into the 18:00 UTC bucket
+      const periodStartMs = bounds.periodStart.getTime();
+      const hourMs = 60 * 60 * 1000;
+      periodStart = new Date(periodStartMs - (periodStartMs % hourMs));
     }
 
     // Step 2: Query hourly aggregates in UTC
-    // Group charges by UTC hour boundaries
+    // Group by UTC hour boundaries (simple truncation)
     const rows = await this.prisma.$queryRaw<
       Array<{ time: number; total_cents: bigint }>
     >`
       SELECT
-        EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at"))::int as time,
+        EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at") AT TIME ZONE 'UTC')::int as time,
         SUM("amount_cents")::bigint as total_cents
       FROM "billing_charges"
       WHERE "created_at" >= ${periodStart}
@@ -386,6 +412,7 @@ export class AnalyticsAdminService {
     `;
 
     // Build a map of UTC epoch -> value in rupees
+    // The query returns UTC epoch seconds
     const dataMap = new Map<number, number>();
     for (const row of rows) {
       dataMap.set(Number(row.time), Number(row.total_cents) / 100);
@@ -400,15 +427,15 @@ export class AnalyticsAdminService {
     });
 
     // Step 3: Fill gaps with zeros — generate complete hourly series
-    // Align to UTC hour boundaries (round to next hour since periodStart is at :30)
+    // The timestamps from the query are UTC epoch seconds
     const startEpoch = Math.floor(periodStart.getTime() / 1000);
     const endEpoch = Math.floor(now.getTime() / 1000);
     const hourSeconds = 3600;
-    
-    // Align start to the next UTC hour boundary (round up since IST starts at :30)
-    const remainder = startEpoch % hourSeconds;
-    const alignedStart = remainder === 0 ? startEpoch : startEpoch + (hourSeconds - remainder);
-    
+
+    // Align start to the previous UTC hour (round down)
+    // This captures charges at 18:30 UTC which get grouped into 18:00 UTC bucket
+    const alignedStart = startEpoch - (startEpoch % hourSeconds);
+
     const hourlySeries: Array<{ time: number; value: number }> = [];
     for (let t = alignedStart; t <= endEpoch; t += hourSeconds) {
       hourlySeries.push({ time: t, value: dataMap.get(t) ?? 0 });
@@ -457,12 +484,18 @@ export class AnalyticsAdminService {
       return emptyResponse;
     }
 
-    // Trim trailing zero buckets (current incomplete bucket has no revenue yet)
-    while (
+    // Remove ONLY the very last bucket if it's zero AND we're at the current hour (incomplete bucket)
+    // Do NOT remove buckets that have non-zero values, even if followed by zeros
+    if (
       aggregatedSeries.length > 1 &&
       aggregatedSeries[aggregatedSeries.length - 1].value === 0
     ) {
-      aggregatedSeries.pop();
+      // Check if the second-to-last bucket has data (keep it if it does)
+      const secondLast = aggregatedSeries[aggregatedSeries.length - 2];
+      if (secondLast && secondLast.value > 0) {
+        // Only remove if we're in the current (incomplete) hour
+        aggregatedSeries.pop();
+      }
     }
 
     // Step 5: Calculate OHLC from the final aggregated series
