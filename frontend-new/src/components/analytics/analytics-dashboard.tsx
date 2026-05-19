@@ -339,7 +339,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         {/* Row 3: Revenue Trend (left) + Attention Required (right) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.35fr] gap-3 mb-3 items-start">
           {/* Left: Revenue Trend Chart */}
-          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 pb-2 flex flex-col">
+          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 pb-2 flex flex-col min-w-0">
             {/* Top row: big value left, title + reset right */}
             <div className="flex items-center justify-between">
               <div className="flex items-end gap-3">
@@ -397,7 +397,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           </div>
 
           {/* Right: Attention Required */}
-          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col">
+          <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col min-w-0">
             <div className="flex items-center gap-2 mb-3">
               <span className={`w-2 h-2 rounded-full ${
                 !attentionRequired ? 'bg-zinc-500' :
@@ -413,7 +413,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               }`} />
               <h2 className="text-white font-semibold text-sm">Attention Required</h2>
             </div>
-            <div className="flex flex-col gap-2.5 flex-1">
+            <div className="flex flex-col gap-2.5">
               {/* Low Balance Users */}
               <AlertItem
                 title="Low Balance Users"
