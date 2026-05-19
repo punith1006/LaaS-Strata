@@ -1354,7 +1354,7 @@ function KPICard({
 }) {
   return (
     <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col justify-between">
-      <span className="text-xs font-semibold text-white uppercase tracking-wider">
+      <span className="text-sm font-semibold text-white uppercase tracking-wider">
         {label}
       </span>
       {/* Value row: big number left, CDC capsule right */}
