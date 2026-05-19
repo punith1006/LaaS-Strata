@@ -2,6 +2,35 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+function splitDurationAcrossISTDays(
+  effectiveStartMs: number,
+  effectiveEndMs: number,
+  durationSeconds: number,
+  IST_OFFSET_MS: number,
+): Map<string, number> {
+  const split = new Map<string, number>();
+  const spanMs = effectiveEndMs - effectiveStartMs;
+  if (spanMs <= 0 || durationSeconds <= 0) return split;
+
+  let cursorMs = effectiveStartMs;
+  while (cursorMs < effectiveEndMs) {
+    const istCursor = new Date(cursorMs + IST_OFFSET_MS);
+    const dayStr = istCursor.toISOString().split('T')[0];
+
+    const nextIstMidnight = new Date(istCursor);
+    nextIstMidnight.setUTCHours(24, 0, 0, 0);
+    const nextBoundaryMs = nextIstMidnight.getTime() - IST_OFFSET_MS;
+
+    const segmentEndMs = Math.min(nextBoundaryMs, effectiveEndMs);
+    const fraction = (segmentEndMs - cursorMs) / spanMs;
+    const segmentHours = (durationSeconds * fraction) / 3600;
+
+    split.set(dayStr, (split.get(dayStr) || 0) + segmentHours);
+    cursorMs = segmentEndMs;
+  }
+  return split;
+}
+
 async function diagnoseComputeActivity() {
   const now = new Date();
   const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -18,60 +47,41 @@ async function diagnoseComputeActivity() {
 
   console.log('=== Time Reference ===');
   console.log('Now (UTC):', now.toISOString());
-  console.log(`Now (IST): ${new Date(now.getTime() + IST_OFFSET_MS).toISOString().split('T')[0]} ${new Date(now.getTime() + IST_OFFSET_MS).toISOString().split('T')[1].split('.')[0]}`);
+  const nowIst = new Date(now.getTime() + IST_OFFSET_MS);
+  console.log('Now (IST):', nowIst.toISOString().split('T')[0], nowIst.toISOString().split('T')[1].split('.')[0]);
   console.log('IST day start (00:00 IST today):', istDayStart.toISOString());
   console.log('');
 
-  // === COMPUTE ACTIVITY: OLD approach (current buggy code) ===
-  console.log('=== OLD APPROACH (UTC DATE_TRUNC, full dur, Date params) ===');
-
-  const oldData24h = await prisma.$queryRaw<Array<{ day: Date; hours: number }>>`
-    SELECT
-      DATE_TRUNC('day', "started_at")::date as day,
-      SUM("duration_seconds") / 3600.0 as hours
-    FROM "sessions"
-    WHERE status IN ('ended', 'terminated_idle', 'terminated_overuse')
-      AND "ended_at" >= ${period24h}
-    GROUP BY 1
-    ORDER BY 1
-  `;
-  console.log('24H - Ended sessions (OLD):');
-  for (const row of oldData24h) {
-    const dayUtc = row.day.toISOString().split('T')[0];
-    const dayIst = new Date(row.day.getTime() + IST_OFFSET_MS).toISOString().split('T')[0];
-    console.log(`  UTC day: ${dayUtc} (IST: ${dayIst}) => ${Number(row.hours).toFixed(2)} hrs`);
-  }
-
-  // === COMPUTE ACTIVITY: NEW approach (IST DATE_TRUNC, prorated, ::timestamp) ===
-  console.log('');
-  console.log('=== NEW APPROACH (IST DATE_TRUNC, prorated, ::timestamp) ===');
-
+  // === Per-session query (NEW approach) ===
+  console.log('=== Per-session ended data (24H period) ===');
   const period24hTs = period24h.toISOString().replace('Z', '');
-  const newData24h = await prisma.$queryRaw<Array<{ day: Date; hours: number }>>`
+  const endedSessions24h = await prisma.$queryRaw<
+    Array<{ started_at: Date | null; ended_at: Date | null; duration_seconds: bigint }>
+  >`
     SELECT
-      DATE_TRUNC('day', s."started_at" AT TIME ZONE 'Asia/Kolkata')::date as day,
-      COALESCE(SUM(
-        CASE
-          WHEN s."started_at" IS NULL OR s."started_at" >= ${period24hTs}::timestamp
-          THEN s."duration_seconds"
-          ELSE EXTRACT(EPOCH FROM s."ended_at" - ${period24hTs}::timestamp)
-        END
-      ), 0) / 3600.0 as hours
+      s.started_at,
+      s.ended_at,
+      CASE
+        WHEN s.started_at IS NULL OR s.started_at >= ${period24hTs}::timestamp
+        THEN s.duration_seconds
+        ELSE EXTRACT(EPOCH FROM s."ended_at" - ${period24hTs}::timestamp)
+      END as duration_seconds
     FROM "sessions" s
     WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
-      AND s."ended_at" >= ${period24hTs}::timestamp
-    GROUP BY 1
-    ORDER BY 1
+      AND s.ended_at >= ${period24hTs}::timestamp
+    ORDER BY s.started_at
   `;
-  console.log('24H - Ended sessions (NEW):');
-  for (const row of newData24h) {
-    const dayStr = row.day.toISOString().split('T')[0];
-    console.log(`  IST day: ${dayStr} => ${Number(row.hours).toFixed(2)} hrs`);
+
+  for (const s of endedSessions24h) {
+    const startIst = s.started_at ? new Date(s.started_at.getTime() + IST_OFFSET_MS) : null;
+    const endIst = s.ended_at ? new Date(s.ended_at.getTime() + IST_OFFSET_MS) : null;
+    const dur = Number(s.duration_seconds) / 3600;
+    console.log(`  dur=${dur.toFixed(2)}hrs | start IST: ${startIst?.toISOString().split('T')[0] ?? 'null'} ${startIst?.toISOString().split('T')[1].split('.')[0] ?? ''} | end IST: ${endIst?.toISOString().split('T')[0] ?? 'null'} ${endIst?.toISOString().split('T')[1].split('.')[0] ?? ''}`);
   }
 
   // === Running sessions ===
   console.log('');
-  console.log('=== Running Sessions (24H period) ===');
+  console.log('=== Running Sessions ===');
   const runningSessions = await prisma.session.findMany({
     where: {
       status: 'running',
@@ -84,103 +94,164 @@ async function diagnoseComputeActivity() {
     if (!s.startedAt) continue;
     const istStarted = new Date(s.startedAt.getTime() + IST_OFFSET_MS);
     const istDateStr = istStarted.toISOString().split('T')[0];
-    const utcDateStr = s.startedAt.toISOString().split('T')[0];
-    const elapsedSincePeriod = Math.max(0, Math.floor((now.getTime() - Math.max(period24h.getTime(), s.startedAt.getTime())) / 1000)) / 3600;
-    console.log(`  Started(UTC): ${utcDateStr}, Started(IST): ${istDateStr}, Elapsed since periodStart: ${elapsedSincePeriod.toFixed(2)} hrs`);
+    console.log(`  Started IST: ${istDateStr} ${istStarted.toISOString().split('T')[1].split('.')[0]}`);
   }
 
-  // === BUILD dayMap with IST dates (NEW approach) ===
+  // === 24H dayMap with IST day-boundary splitting ===
   console.log('');
-  console.log('=== Expected dayMap with IST dates (NEW) ===');
-  const dayMap = new Map<string, number>();
+  console.log('=== 24H dayMap with IST day-boundary splitting ===');
+  const period24hMs = period24h.getTime();
+  const dayMap24h = new Map<string, number>();
 
-  // Ended sessions (NEW data)
-  for (const row of newData24h) {
-    const dayStr = row.day.toISOString().split('T')[0];
-    dayMap.set(dayStr, (dayMap.get(dayStr) || 0) + Number(row.hours));
+  // Ended sessions 24H
+  for (const s of endedSessions24h) {
+    const startedAtMs = s.started_at?.getTime() ?? period24hMs;
+    const endedAtMs = s.ended_at?.getTime() ?? period24hMs;
+    const effectiveStartMs = Math.max(startedAtMs, period24hMs);
+    const durSeconds = Number(s.duration_seconds);
+
+    if (effectiveStartMs >= endedAtMs || durSeconds <= 0) continue;
+
+    const startIstDay = new Date(effectiveStartMs + IST_OFFSET_MS).toISOString().split('T')[0];
+    const endIstDay = new Date(endedAtMs + IST_OFFSET_MS).toISOString().split('T')[0];
+
+    if (startIstDay === endIstDay) {
+      dayMap24h.set(startIstDay, (dayMap24h.get(startIstDay) || 0) + durSeconds / 3600);
+    } else {
+      const split = splitDurationAcrossISTDays(effectiveStartMs, endedAtMs, durSeconds, IST_OFFSET_MS);
+      for (const [day, hours] of split) {
+        dayMap24h.set(day, (dayMap24h.get(day) || 0) + hours);
+      }
+    }
   }
 
-  // Running sessions - attribute to today (elapsed time is consumed NOW, not on start day)
+  // Running sessions 24H
   for (const s of runningSessions) {
     if (!s.startedAt) continue;
-    const countFrom = Math.max(period24h.getTime(), s.startedAt.getTime());
-    const elapsedHours = Math.max(0, Math.floor((now.getTime() - countFrom) / 1000)) / 3600;
-    const nowIst = new Date(now.getTime() + IST_OFFSET_MS);
-    const todayIstStr = nowIst.toISOString().split('T')[0];
-    dayMap.set(todayIstStr, (dayMap.get(todayIstStr) || 0) + elapsedHours);
+    const effectiveStartMs = Math.max(period24hMs, s.startedAt.getTime());
+    const effectiveEndMs = now.getTime();
+
+    if (effectiveStartMs >= effectiveEndMs) continue;
+    const elapsedSeconds = Math.floor((effectiveEndMs - effectiveStartMs) / 1000);
+    if (elapsedSeconds <= 0) continue;
+
+    const startIstDay = new Date(effectiveStartMs + IST_OFFSET_MS).toISOString().split('T')[0];
+    const endIstDay = new Date(effectiveEndMs + IST_OFFSET_MS).toISOString().split('T')[0];
+
+    if (startIstDay === endIstDay) {
+      dayMap24h.set(startIstDay, (dayMap24h.get(startIstDay) || 0) + elapsedSeconds / 3600);
+    } else {
+      const split = splitDurationAcrossISTDays(effectiveStartMs, effectiveEndMs, elapsedSeconds, IST_OFFSET_MS);
+      for (const [day, hours] of split) {
+        dayMap24h.set(day, (dayMap24h.get(day) || 0) + hours);
+      }
+    }
   }
 
-  for (const [dateStr, hours] of dayMap.entries()) {
+  for (const [dateStr, hours] of dayMap24h.entries()) {
     console.log(`  ${dateStr}: ${hours.toFixed(2)} hrs`);
   }
 
-  // === Day-of-week aggregation ===
+  // 24H day-of-week chart
   console.log('');
-  console.log('=== Day-of-week bar chart output ===');
+  console.log('=== 24H Day-of-week bar chart ===');
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const dayHours = new Array(7).fill(0);
+  const dayHours24h = new Array(7).fill(0);
 
-  const nowIst = new Date(now.getTime() + IST_OFFSET_MS);
-  const todayJsDay = nowIst.getUTCDay();
+  const nowIst2 = new Date(now.getTime() + IST_OFFSET_MS);
+  const todayJsDay = nowIst2.getUTCDay();
   const todayIndex = todayJsDay === 0 ? 6 : todayJsDay - 1;
 
-  for (const [dateStr, hours] of dayMap.entries()) {
+  for (const [dateStr, hours] of dayMap24h.entries()) {
     const date = new Date(dateStr);
     const jsDay = date.getDay();
     const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
-
-    // For 24H, all data goes into today's bucket (other days display as 0)
-    dayHours[todayIndex] += hours;
+    // For 24H, all data goes into today's bucket
+    dayHours24h[todayIndex] += hours;
   }
 
   dayNames.forEach((name, i) => {
-    console.log(`  ${name}: ${dayHours[i].toFixed(1)} hrs`);
+    console.log(`  ${name}: ${dayHours24h[i].toFixed(1)} hrs`);
   });
 
-  // === 7D comparison ===
+  // === 7D dayMap with IST day-boundary splitting ===
   console.log('');
-  console.log('=== 7D period (NEW) ===');
+  console.log('=== 7D dayMap with IST day-boundary splitting ===');
   const period7dTs = period7d.toISOString().replace('Z', '');
-  const newData7d = await prisma.$queryRaw<Array<{ day: Date; hours: number }>>`
+  const endedSessions7d = await prisma.$queryRaw<
+    Array<{ started_at: Date | null; ended_at: Date | null; duration_seconds: bigint }>
+  >`
     SELECT
-      DATE_TRUNC('day', s."started_at" AT TIME ZONE 'Asia/Kolkata')::date as day,
-      COALESCE(SUM(
-        CASE
-          WHEN s."started_at" IS NULL OR s."started_at" >= ${period7dTs}::timestamp
-          THEN s."duration_seconds"
-          ELSE EXTRACT(EPOCH FROM s."ended_at" - ${period7dTs}::timestamp)
-        END
-      ), 0) / 3600.0 as hours
+      s.started_at,
+      s.ended_at,
+      CASE
+        WHEN s.started_at IS NULL OR s.started_at >= ${period7dTs}::timestamp
+        THEN s.duration_seconds
+        ELSE EXTRACT(EPOCH FROM s."ended_at" - ${period7dTs}::timestamp)
+      END as duration_seconds
     FROM "sessions" s
     WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
-      AND s."ended_at" >= ${period7dTs}::timestamp
-    GROUP BY 1
-    ORDER BY 1
+      AND s.ended_at >= ${period7dTs}::timestamp
+    ORDER BY s.started_at
   `;
 
-  console.log('7D - Ended sessions (NEW, by IST day, prorated):');
-  for (const row of newData7d) {
-    const dayStr = row.day.toISOString().split('T')[0];
-    console.log(`  ${dayStr}: ${Number(row.hours).toFixed(2)} hrs`);
+  const period7dMs = period7d.getTime();
+  const dayMap7d = new Map<string, number>();
+
+  // Ended sessions 7D
+  for (const s of endedSessions7d) {
+    const startedAtMs = s.started_at?.getTime() ?? period7dMs;
+    const endedAtMs = s.ended_at?.getTime() ?? period7dMs;
+    const effectiveStartMs = Math.max(startedAtMs, period7dMs);
+    const durSeconds = Number(s.duration_seconds);
+
+    if (effectiveStartMs >= endedAtMs || durSeconds <= 0) continue;
+
+    const startIstDay = new Date(effectiveStartMs + IST_OFFSET_MS).toISOString().split('T')[0];
+    const endIstDay = new Date(endedAtMs + IST_OFFSET_MS).toISOString().split('T')[0];
+
+    if (startIstDay === endIstDay) {
+      dayMap7d.set(startIstDay, (dayMap7d.get(startIstDay) || 0) + durSeconds / 3600);
+    } else {
+      const split = splitDurationAcrossISTDays(effectiveStartMs, endedAtMs, durSeconds, IST_OFFSET_MS);
+      for (const [day, hours] of split) {
+        dayMap7d.set(day, (dayMap7d.get(day) || 0) + hours);
+      }
+    }
   }
 
-  // 7D day-of-week bar chart (simulates what the service code would produce)
-  const dayMap7d = new Map<string, number>();
-  for (const row of newData7d) {
-    const dayStr = row.day.toISOString().split('T')[0];
-    dayMap7d.set(dayStr, (dayMap7d.get(dayStr) || 0) + Number(row.hours));
-  }
-  // Running sessions - attributed to today's IST date (not start date)
+  // Running sessions 7D
   for (const s of runningSessions) {
     if (!s.startedAt) continue;
-    const countFrom = Math.max(period7d.getTime(), s.startedAt.getTime());
-    const elapsedHours = Math.max(0, Math.floor((now.getTime() - countFrom) / 1000)) / 3600;
-    const nowIst = new Date(now.getTime() + IST_OFFSET_MS);
-    const todayIstStr = nowIst.toISOString().split('T')[0];
-    dayMap7d.set(todayIstStr, (dayMap7d.get(todayIstStr) || 0) + elapsedHours);
+    const effectiveStartMs = Math.max(period7dMs, s.startedAt.getTime());
+    const effectiveEndMs = now.getTime();
+
+    if (effectiveStartMs >= effectiveEndMs) continue;
+    const elapsedSeconds = Math.floor((effectiveEndMs - effectiveStartMs) / 1000);
+    if (elapsedSeconds <= 0) continue;
+
+    const startIstDay = new Date(effectiveStartMs + IST_OFFSET_MS).toISOString().split('T')[0];
+    const endIstDay = new Date(effectiveEndMs + IST_OFFSET_MS).toISOString().split('T')[0];
+
+    if (startIstDay === endIstDay) {
+      dayMap7d.set(startIstDay, (dayMap7d.get(startIstDay) || 0) + elapsedSeconds / 3600);
+    } else {
+      const split = splitDurationAcrossISTDays(effectiveStartMs, effectiveEndMs, elapsedSeconds, IST_OFFSET_MS);
+      for (const [day, hours] of split) {
+        dayMap7d.set(day, (dayMap7d.get(day) || 0) + hours);
+      }
+    }
   }
 
+  for (const [dateStr, hours] of dayMap7d.entries()) {
+    console.log(`  ${dateStr}: ${hours.toFixed(2)} hrs`);
+  }
+
+  // 7D day-of-week chart (no force-to-today)
+  console.log('');
+  console.log('=== 7D Day-of-week bar chart ===');
   const dayHours7d = new Array(7).fill(0);
+
   for (const [dateStr, hours] of dayMap7d.entries()) {
     const date = new Date(dateStr);
     const jsDay = date.getDay();
@@ -188,10 +259,17 @@ async function diagnoseComputeActivity() {
     dayHours7d[dayIndex] += hours;
   }
 
-  console.log('7D - Day-of-week bar chart output:');
   dayNames.forEach((name, i) => {
     console.log(`  ${name}: ${dayHours7d[i].toFixed(1)} hrs`);
   });
+
+  console.log('');
+  console.log('=== Consistency Check ===');
+  const total24h = dayHours24h.reduce((s, v) => s + v, 0);
+  const total7d = dayHours7d.reduce((s, v) => s + v, 0);
+  console.log(`24H total: ${total24h.toFixed(1)} hrs`);
+  console.log(`7D total: ${total7d.toFixed(1)} hrs`);
+  console.log(`7D Tue (should ≈ 24H Tue): ${dayHours7d[1].toFixed(1)} hrs vs 24H Tue: ${dayHours24h[1].toFixed(1)} hrs`);
 
   await prisma.$disconnect();
 }

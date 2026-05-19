@@ -60,9 +60,10 @@ interface ActiveSessionsData {
 interface RecentTransaction {
   time: string;
   userName: string;
+  userEmail: string;
   amount: number;
   type: 'compute' | 'storage';
-  status: 'completed' | 'active';
+  status: string;
 }
 
 interface AttentionRequiredData {
@@ -570,15 +571,31 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                   {recentTransactions.length > 0 ? recentTransactions.slice(0, 5).map((tx, i) => (
                     <tr key={i} className="border-b border-zinc-800/50 last:border-0">
                       <td className="py-2 pr-2 text-xs text-zinc-400 font-mono">{tx.time}</td>
-                      <td className="py-2 pr-2 text-xs text-zinc-300 truncate max-w-[100px]">{tx.userName}</td>
+                      <td className="py-2 pr-2 text-xs text-zinc-300 truncate max-w-[140px]">{tx.userEmail}</td>
                       <td className="py-2 pr-2 text-xs text-white font-medium">₹{tx.amount.toFixed(0)}</td>
                       <td className="py-2">
-                        <span className={`text-[11px] font-medium ${
-                          tx.status === "completed" ? "text-emerald-400" :
-                          tx.status === "active" ? "text-amber-400" : "text-zinc-500"
-                        }`}>
-                          {tx.status === "completed" ? "✓" : tx.status === "active" ? "●" : tx.status}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              tx.status === "completed" || tx.status === "paid"
+                                ? "bg-emerald-500"
+                                : tx.status === "failed"
+                                  ? "bg-red-600"
+                                  : tx.status === "pending" || tx.status === "active"
+                                    ? "bg-amber-500"
+                                    : "bg-zinc-500"
+                            }`}
+                          />
+                          <span className="text-[11px] text-zinc-300">
+                            {tx.status === "completed" || tx.status === "paid"
+                              ? "Paid"
+                              : tx.status === "failed"
+                                ? "Failed"
+                                : tx.status === "pending"
+                                  ? "Pending"
+                                  : tx.status}
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   )) : (

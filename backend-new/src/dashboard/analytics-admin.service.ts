@@ -67,6 +67,7 @@ export interface ActiveSessionsResponse {
 export interface RecentTransaction {
   time: string;
   userName: string;
+  userEmail: string;
   amount: number;
   type: 'compute' | 'storage';
   status: 'completed' | 'active';
@@ -952,6 +953,7 @@ export class AnalyticsAdminService {
       return {
         time,
         userName,
+        userEmail: txn.user.email,
         amount: Number(txn.amountCents) / 100,
         type: 'compute' as const, // All are credit top-ups
         status: 'completed' as const, // Payment transactions are completed
