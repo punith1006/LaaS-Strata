@@ -11,8 +11,12 @@ import {
   getTicketDetail,
   resolveTicket,
   getTicketAttachmentUrl,
+  getRevenueGrowthData,
+  getRetentionData,
   type UnresolvedTicket,
   type TicketDetail,
+  type NrrResponse,
+  type RetentionData,
 } from "@/lib/api";
 import {
   BarChart,
@@ -25,6 +29,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  AreaChart,
+  Area,
+  ReferenceLine,
 } from "recharts";
 
 const RevenueChart = dynamic(
@@ -189,6 +196,8 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [activeSessions, setActiveSessions] = useState<ActiveSessionsData | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([]);
   const [attentionRequired, setAttentionRequired] = useState<AttentionRequiredData | null>(null);
+  const [revenueGrowthData, setRevenueGrowthData] = useState<NrrResponse | null>(null);
+  const [retentionData, setRetentionData] = useState<RetentionData | null>(null);
   const [fleetHealthRefresh, setFleetHealthRefresh] = useState<string | null>(null);
   const [fleetHealthStatus, setFleetHealthStatus] = useState<'live' | 'stale'>('stale');
   const [, setKpiLoading] = useState(true);
@@ -265,6 +274,16 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         if (data) setComputeActivity(data);
       })
       .catch(err => console.error('[ComputeActivity] fetch error:', err));
+
+    // Fetch revenue growth
+    getRevenueGrowthData(timeRange)
+      .then(data => setRevenueGrowthData(data))
+      .catch(err => console.error('[RevenueGrowth] fetch error:', err));
+
+    // Fetch user retention
+    getRetentionData(timeRange)
+      .then(data => setRetentionData(data))
+      .catch(err => console.error('[Retention] fetch error:', err));
   }, [timeRange]);
 
     // Fetch active sessions, recent transactions, and attention required on mount
@@ -897,7 +916,15 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
 
           {/* Right: Recent Transactions */}
           <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4">
-            <h2 className="text-white font-semibold text-sm mb-2">Recent Transactions</h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-white font-semibold text-sm">Recent Transactions</h2>
+              <button
+                onClick={() => {}}
+                className="text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                View All →
+              </button>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -950,6 +977,12 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               </table>
             </div>
           </div>
+        </div>
+
+        {/* Row 5: Business Insights — Revenue Growth & User Retention */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
+          <NrrCard data={revenueGrowthData} timeRange={timeRange} />
+          <RetentionCard data={retentionData} timeRange={timeRange} />
         </div>
 
       </div>
@@ -1412,6 +1445,306 @@ function AlertItem({
       
       {/* Row 2: Value (full width) */}
       <div className={`text-base font-bold ${valueColor} pl-4`}>{value}</div>
+    </div>
+  );
+}
+
+// --- Row 5: NRR & Retention helpers ---
+
+function getPeriodComparisonLabel(timeRange: "24H" | "7D" | "30D" | "All"): string {
+  switch (timeRange) {
+    case '24H': return 'Hour-over-Hour';
+    case '7D':  return 'Day-over-Day';
+    case '30D': return 'Week-over-Week';
+    default:    return 'Period-over-Period';
+  }
+}
+
+function NrrCard({
+  data,
+  timeRange,
+}: {
+  data: NrrResponse | null;
+  timeRange: "24H" | "7D" | "30D" | "All";
+}) {
+  if (!data) {
+    return (
+      <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 min-h-[340px] animate-pulse">
+        <div className="h-3 w-32 bg-zinc-800/60 rounded" />
+        <div className="mt-4 h-8 w-24 bg-zinc-800/60 rounded" />
+        <div className="mt-6 h-[220px] bg-zinc-800/30 rounded" />
+      </div>
+    );
+  }
+
+  const periods = data.periods;
+  const validPeriods = periods.filter(p => p.nrrPct !== null);
+  const hasData = validPeriods.length > 0;
+
+  const nrr = data.currentNrrPct;
+  const nrrDisplay = nrr === null ? '--' : `${nrr.toFixed(0)}%`;
+  const nrrColor =
+    nrr === null ? 'text-white' : nrr > 100 ? 'text-emerald-400' : nrr < 100 ? 'text-red-400' : 'text-white';
+  const nrrSubtitle =
+    nrr === null ? 'vs prior period' : nrr > 100 ? 'existing users spending more' : 'existing users spending less';
+
+  // Determine Y-axis domain
+  const nrrValues = validPeriods.map(p => p.nrrPct as number);
+  const maxNrr = nrrValues.length > 0 ? Math.max(...nrrValues) : 120;
+  const minNrr = nrrValues.length > 0 ? Math.min(...nrrValues) : 80;
+  const yMax = Math.min(200, Math.max(maxNrr + 20, 120));
+  const yMin = Math.max(0, Math.min(minNrr - 20, 80));
+
+  // Latest period stats
+  const latestPeriod = periods[periods.length - 1];
+
+  // Custom tooltip
+  const renderTooltip = (props: { active?: boolean; payload?: Array<{ payload: { label: string; nrrPct: number | null; cohortSize: number; expandedUsers: number; contractedUsers: number } }> }) => {
+    if (!props.active || !props.payload || props.payload.length === 0) return null;
+    const d = props.payload[0].payload;
+    return (
+      <div className="bg-[#0d0d0d] border border-zinc-800 rounded px-3 py-2 text-xs">
+        <div className="text-zinc-400 font-semibold mb-1">{d.label}</div>
+        <div className="text-white">NRR: {d.nrrPct !== null ? `${d.nrrPct.toFixed(1)}%` : '--'}</div>
+        <div className="text-zinc-400">Cohort: {d.cohortSize} users</div>
+        <div className="text-emerald-400">Expanded: {d.expandedUsers}</div>
+        <div className="text-red-400">Contracted: {d.contractedUsers}</div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col min-w-0">
+      <div className="flex items-start justify-between">
+        <span className="text-sm font-semibold text-white uppercase tracking-wider">
+          Net Revenue Retention
+        </span>
+        <span className="text-[11px] text-zinc-500 uppercase tracking-wider">
+          {getPeriodComparisonLabel(timeRange)}
+        </span>
+      </div>
+
+      <div className="mt-3">
+        <div className={`text-3xl font-semibold ${nrrColor} leading-none`}>
+          {nrrDisplay}
+        </div>
+        <div className="text-[11px] text-zinc-500 mt-1">{nrrSubtitle}</div>
+      </div>
+
+      <div className="mt-3 h-[220px]">
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={periods} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="nrrGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" vertical={false} />
+              <XAxis
+                dataKey="label"
+                stroke="#555"
+                tick={{ fill: "#71717a", fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="#555"
+                tick={{ fill: "#71717a", fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                domain={[yMin, yMax]}
+                tickFormatter={(v: number) => `${v}%`}
+                width={44}
+              />
+              <Tooltip content={renderTooltip} />
+              <ReferenceLine
+                y={100}
+                stroke="#52525b"
+                strokeDasharray="4 4"
+                label={{ value: '100%', position: 'right', fill: '#71717a', fontSize: 10 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="nrrPct"
+                stroke="#34d399"
+                strokeWidth={2}
+                fill="url(#nrrGradient)"
+                dot={{ r: 3, fill: '#34d399', strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: '#34d399', strokeWidth: 2, stroke: '#fff' }}
+                connectNulls
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
+            Insufficient data
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-xs text-zinc-500">
+          Expanded: {latestPeriod?.expandedUsers ?? 0} · Contracted: {latestPeriod?.contractedUsers ?? 0}
+        </span>
+        <span className="text-xs text-zinc-500">
+          Avg NRR:{' '}
+          <span className="text-white font-medium">{data.avgNrrPct.toFixed(1)}%</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function RetentionCard({
+  data,
+  timeRange,
+}: {
+  data: RetentionData | null;
+  timeRange: "24H" | "7D" | "30D" | "All";
+}) {
+  if (!data) {
+    return (
+      <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 min-h-[340px] animate-pulse">
+        <div className="h-3 w-32 bg-zinc-800/60 rounded" />
+        <div className="mt-4 h-8 w-24 bg-zinc-800/60 rounded" />
+        <div className="mt-6 h-[220px] bg-zinc-800/30 rounded" />
+      </div>
+    );
+  }
+
+  const periods = data.periods;
+  const hasData = periods.length > 0;
+  const latest = hasData ? periods[periods.length - 1] : null;
+
+  const retention = data.currentRetentionPct;
+  const retentionDisplay = retention === null ? '--' : `${retention.toFixed(0)}%`;
+
+  return (
+    <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col min-w-0">
+      <div className="flex items-start justify-between">
+        <span className="text-sm font-semibold text-white uppercase tracking-wider">
+          User Retention
+        </span>
+        <span className="text-[11px] text-zinc-500 uppercase tracking-wider">
+          {getPeriodComparisonLabel(timeRange)}
+        </span>
+      </div>
+
+      <div className="mt-3">
+        <div className="text-3xl font-semibold text-white leading-none">{retentionDisplay}</div>
+        <div className="text-[11px] text-zinc-500 mt-1">current retention</div>
+      </div>
+
+      <div className="mt-3 h-[220px]">
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={periods} margin={{ top: 14, right: 12, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="retentionGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" vertical={false} />
+              <XAxis
+                dataKey="label"
+                stroke="#555"
+                tick={{ fill: "#71717a", fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="#555"
+                tick={{ fill: "#71717a", fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                domain={[0, 100]}
+                tickFormatter={(v: number) => `${v}%`}
+                width={36}
+              />
+              <Tooltip
+                cursor={{ stroke: '#3f3f46', strokeWidth: 1 }}
+                contentStyle={{
+                  backgroundColor: "#0d0d0d",
+                  border: "1px solid #262626",
+                  borderRadius: 4,
+                  fontSize: 12,
+                  padding: "8px 12px",
+                }}
+                labelStyle={{ color: "#a1a1aa", fontWeight: 600, marginBottom: 4 }}
+                itemStyle={{ color: "#e4e4e7" }}
+                formatter={(value: unknown, name: unknown, item: unknown) => {
+                  const v =
+                    value === null || value === undefined
+                      ? '--'
+                      : `${Number(value).toFixed(0)}%`;
+                  const payload = (item as {
+                    payload?: {
+                      activeUsers: number;
+                      retainedUsers: number;
+                      newUsers: number;
+                      churnedUsers: number;
+                    };
+                  } | undefined)?.payload;
+                  if (payload) {
+                    return [
+                      `${v}  ·  Active ${payload.activeUsers} · Retained ${payload.retainedUsers} · New ${payload.newUsers} · Churned ${payload.churnedUsers}`,
+                      String(name),
+                    ];
+                  }
+                  return [v, String(name)];
+                }}
+              />
+              <ReferenceLine
+                y={data.avgRetentionPct}
+                stroke="#52525b"
+                strokeDasharray="4 4"
+                ifOverflow="extendDomain"
+              />
+              <Area
+                type="monotone"
+                dataKey="retentionPct"
+                name="Retention"
+                stroke="#34d399"
+                strokeWidth={2}
+                fill="url(#retentionGradient)"
+                dot={{ fill: '#34d399', r: 3, stroke: '#34d399' }}
+                activeDot={{ r: 5, fill: '#34d399', stroke: '#0a0a0a', strokeWidth: 2 }}
+                connectNulls
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex items-center justify-center h-full text-zinc-500 text-sm">
+            No data available
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-[11px] text-zinc-500">
+          {latest ? (
+            <>
+              Active:{' '}
+              <span className="text-zinc-300 font-medium">{latest.activeUsers}</span> ·
+              {' '}New:{' '}
+              <span className="text-zinc-300 font-medium">{latest.newUsers}</span> ·
+              {' '}Churned:{' '}
+              <span className="text-zinc-300 font-medium">{latest.churnedUsers}</span>
+            </>
+          ) : (
+            '—'
+          )}
+        </span>
+        <span className="text-[11px] text-zinc-500">
+          Avg retention:{' '}
+          <span className="text-zinc-300 font-medium">
+            {data.avgRetentionPct.toFixed(0)}%
+          </span>
+        </span>
+      </div>
     </div>
   );
 }

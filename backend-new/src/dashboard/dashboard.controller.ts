@@ -97,4 +97,16 @@ export class DashboardController {
   async getFleetHealth() {
     return this.analyticsAdminService.getFleetHealthData();
   }
+
+  @Get('analytics/revenue-growth')
+  @UseGuards(JwtAuthGuard)
+  async getRevenueGrowth(@Query('timeRange') timeRange: string) {
+    return this.analyticsAdminService.getNetRevenueRetention(timeRange || '7D');
+  }
+
+  @Get('analytics/retention')
+  @UseGuards(JwtAuthGuard)
+  async getRetention(@Query('timeRange') timeRange: string) {
+    return this.analyticsAdminService.getRetentionData(timeRange || '7D');
+  }
 }

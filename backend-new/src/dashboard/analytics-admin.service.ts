@@ -74,6 +74,36 @@ export interface RecentTransaction {
   status: 'completed' | 'active';
 }
 
+export interface NrrPeriod {
+  label: string;
+  nrrPct: number | null;      // null for first period
+  expandedUsers: number;       // users who spent more in next period
+  contractedUsers: number;     // users who spent less in next period
+  cohortSize: number;          // users active in this period
+  cohortRevenueCents: number;  // total revenue from cohort in this period
+}
+
+export interface NrrResponse {
+  periods: NrrPeriod[];
+  currentNrrPct: number | null;  // latest non-null NRR
+  avgNrrPct: number;             // average of all non-null NRR values
+}
+
+export interface RetentionPeriod {
+  label: string;
+  activeUsers: number;
+  retainedUsers: number;
+  retentionPct: number | null;
+  newUsers: number;
+  churnedUsers: number;
+}
+
+export interface RetentionResponse {
+  periods: RetentionPeriod[];
+  currentRetentionPct: number | null;
+  avgRetentionPct: number;
+}
+
 export interface AttentionRequiredResponse {
   lowBalanceUsers: {
     count: number;
@@ -1115,5 +1145,334 @@ export class AnalyticsAdminService {
         subtitle: `Down from <span style="color: white; font-weight: 600;">${Math.round(priorFailureRate * 10) / 10}%</span> last week`,
       },
     };
+  }
+
+  // ------------------------------------------------------------------
+  // Revenue Growth & Retention helpers
+  // ------------------------------------------------------------------
+
+  private static MONTH_SHORT = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  /**
+   * Generate the list of expected weekly buckets (IST Monday 00:00) for the
+   * last `count` weeks (oldest → newest, including the current week).
+   *
+   * Each entry exposes:
+   *  - key: "YYYY-MM-DD" matching the period_start returned by
+   *    DATE_TRUNC('week', (col AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata')
+   *  - label: e.g. "May 12"
+   *  - queryStartUtc: the actual UTC moment of that IST Monday 00:00,
+   *    suitable for a `created_at >= …` filter.
+   */
+  private computeExpectedWeeklyPeriods(
+    now: Date,
+    count: number,
+  ): Array<{ key: string; label: string; queryStartUtc: Date }> {
+    const nowIst = new Date(now.getTime() + this.IST_OFFSET_MS);
+    const dayOfWeek = nowIst.getUTCDay(); // 0=Sun..6=Sat
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+    const istMondayMs = Date.UTC(
+      nowIst.getUTCFullYear(),
+      nowIst.getUTCMonth(),
+      nowIst.getUTCDate() - daysFromMonday,
+      0, 0, 0, 0,
+    );
+
+    const periods: Array<{ key: string; label: string; queryStartUtc: Date }> = [];
+    for (let i = count - 1; i >= 0; i--) {
+      const startMs = istMondayMs - i * 7 * 24 * 60 * 60 * 1000;
+      const d = new Date(startMs);
+      const key = d.toISOString().slice(0, 10);
+      const label = `${AnalyticsAdminService.MONTH_SHORT[d.getUTCMonth()]} ${d.getUTCDate()}`;
+      periods.push({
+        key,
+        label,
+        queryStartUtc: new Date(startMs - this.IST_OFFSET_MS),
+      });
+    }
+    return periods;
+  }
+
+  /**
+   * Generate the list of expected monthly buckets (IST 1st of month 00:00)
+   * for the last `count` months (oldest → newest, including the current month).
+   */
+  private computeExpectedMonthlyPeriods(
+    now: Date,
+    count: number,
+  ): Array<{ key: string; label: string; queryStartUtc: Date }> {
+    const nowIst = new Date(now.getTime() + this.IST_OFFSET_MS);
+    const baseYear = nowIst.getUTCFullYear();
+    const baseMonth = nowIst.getUTCMonth();
+
+    const periods: Array<{ key: string; label: string; queryStartUtc: Date }> = [];
+    for (let i = count - 1; i >= 0; i--) {
+      const startMs = Date.UTC(baseYear, baseMonth - i, 1, 0, 0, 0, 0);
+      const d = new Date(startMs);
+      const key = d.toISOString().slice(0, 10);
+      const label = AnalyticsAdminService.MONTH_SHORT[d.getUTCMonth()];
+      periods.push({
+        key,
+        label,
+        queryStartUtc: new Date(startMs - this.IST_OFFSET_MS),
+      });
+    }
+    return periods;
+  }
+
+  /**
+   * Net Revenue Retention (NRR): Measures whether EXISTING users are spending
+   * more or less over time by comparing the same cohort's spend across adjacent
+   * periods. Weekly (last 6 weeks) for 24H/7D, monthly (last 6 months) for 30D/All.
+   */
+  async getNetRevenueRetention(timeRange: string): Promise<NrrResponse> {
+    const isMonthly = timeRange === '30D' || timeRange === 'All';
+    const periodCount = 6;
+
+    const now = new Date();
+    const expectedPeriods = isMonthly
+      ? this.computeExpectedMonthlyPeriods(now, periodCount)
+      : this.computeExpectedWeeklyPeriods(now, periodCount);
+
+    if (expectedPeriods.length === 0) {
+      return { periods: [], currentNrrPct: null, avgNrrPct: 0 };
+    }
+
+    // Use the same plain-UTC-string pattern as existing methods to avoid
+    // session-timezone shifts when comparing against `timestamp` columns.
+    const queryStartTs = expectedPeriods[0].queryStartUtc
+      .toISOString()
+      .replace('Z', '');
+
+    const truncFn = isMonthly ? 'month' : 'week';
+
+    type Row = {
+      period_start: Date;
+      user_id: string;
+      user_revenue: bigint | null;
+    };
+
+    const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+      SELECT
+        DATE_TRUNC(${truncFn}, ("created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+        "user_id" AS user_id,
+        SUM("amount_cents")::bigint AS user_revenue
+      FROM "billing_charges"
+      WHERE "created_at" >= ${queryStartTs}::timestamp
+      GROUP BY 1, 2
+      ORDER BY 1 ASC
+    `;
+
+    // Build Map<periodKey, Map<userId, revenueCents>>
+    const periodUserRevenue = new Map<string, Map<string, number>>();
+    for (const row of rows) {
+      if (!row.period_start || !row.user_id) continue;
+      const key = new Date(row.period_start).toISOString().slice(0, 10);
+      let userMap = periodUserRevenue.get(key);
+      if (!userMap) {
+        userMap = new Map<string, number>();
+        periodUserRevenue.set(key, userMap);
+      }
+      userMap.set(
+        row.user_id,
+        (userMap.get(row.user_id) || 0) + Number(row.user_revenue ?? 0),
+      );
+    }
+
+    // Build NRR periods by comparing adjacent periods
+    const periods: NrrPeriod[] = [];
+    for (let i = 0; i < expectedPeriods.length; i++) {
+      const exp = expectedPeriods[i];
+      const currUserMap = periodUserRevenue.get(exp.key) || new Map<string, number>();
+      const cohortSize = currUserMap.size;
+      const cohortRevenueCents = Array.from(currUserMap.values()).reduce((a, b) => a + b, 0);
+
+      if (i === 0) {
+        // First period — no prior to compare
+        periods.push({
+          label: exp.label,
+          nrrPct: null,
+          expandedUsers: 0,
+          contractedUsers: 0,
+          cohortSize,
+          cohortRevenueCents,
+        });
+        continue;
+      }
+
+      // Prior period's user map
+      const priorExp = expectedPeriods[i - 1];
+      const priorUserMap = periodUserRevenue.get(priorExp.key) || new Map<string, number>();
+
+      // The "cohort" is users who were active in the PRIOR period
+      let priorRevenueCents = 0;
+      let currentRevenueCents = 0;
+      let expandedUsers = 0;
+      let contractedUsers = 0;
+
+      for (const [userId, priorSpend] of priorUserMap) {
+        priorRevenueCents += priorSpend;
+        const currentSpend = currUserMap.get(userId) || 0;
+        currentRevenueCents += currentSpend;
+
+        if (currentSpend > priorSpend) {
+          expandedUsers++;
+        } else if (currentSpend < priorSpend) {
+          contractedUsers++;
+        }
+      }
+
+      // NRR = (same users' revenue in N+1) / (same users' revenue in N) × 100
+      let nrrPct: number | null = null;
+      if (priorRevenueCents > 0) {
+        nrrPct = Math.round((currentRevenueCents / priorRevenueCents) * 100 * 100) / 100;
+      } else {
+        nrrPct = 0;
+      }
+
+      periods.push({
+        label: exp.label,
+        nrrPct,
+        expandedUsers,
+        contractedUsers,
+        cohortSize,
+        cohortRevenueCents,
+      });
+    }
+
+    // Latest non-null NRR
+    const currentNrrPct =
+      periods.length > 0 ? periods[periods.length - 1].nrrPct : null;
+
+    // Average of all non-null NRR values
+    const validNrrs = periods
+      .map((p) => p.nrrPct)
+      .filter((n): n is number => n !== null);
+    const avgNrrPct =
+      validNrrs.length > 0
+        ? Math.round(
+            (validNrrs.reduce((a, b) => a + b, 0) / validNrrs.length) * 100,
+          ) / 100
+        : 0;
+
+    return { periods, currentNrrPct, avgNrrPct };
+  }
+
+  /**
+   * Retention: distinct non-admin users with at least one session per period,
+   * compared across adjacent periods to derive retention/new/churn counts.
+   * Weekly (last 8 weeks) for 24H/7D, monthly (last 6 months) for 30D/All.
+   */
+  async getRetentionData(timeRange: string): Promise<RetentionResponse> {
+    const isMonthly = timeRange === '30D' || timeRange === 'All';
+    const periodCount = isMonthly ? 6 : 8;
+
+    const now = new Date();
+    const expectedPeriods = isMonthly
+      ? this.computeExpectedMonthlyPeriods(now, periodCount)
+      : this.computeExpectedWeeklyPeriods(now, periodCount);
+
+    if (expectedPeriods.length === 0) {
+      return { periods: [], currentRetentionPct: null, avgRetentionPct: 0 };
+    }
+
+    const queryStartTs = expectedPeriods[0].queryStartUtc
+      .toISOString()
+      .replace('Z', '');
+
+    type Row = { period_start: Date; user_id: string };
+
+    const rows: Row[] = isMonthly
+      ? await this.prisma.$queryRaw<Row[]>`
+          SELECT DISTINCT
+            DATE_TRUNC('month', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+            s."user_id" AS user_id
+          FROM "sessions" s
+          JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+          JOIN "roles" r ON uor."role_id" = r."id"
+          WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+            AND s."started_at" >= ${queryStartTs}::timestamp
+            AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+        `
+      : await this.prisma.$queryRaw<Row[]>`
+          SELECT DISTINCT
+            DATE_TRUNC('week', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+            s."user_id" AS user_id
+          FROM "sessions" s
+          JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+          JOIN "roles" r ON uor."role_id" = r."id"
+          WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+            AND s."started_at" >= ${queryStartTs}::timestamp
+            AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+        `;
+
+    // Map: periodKey -> Set<userId>
+    const userSets = new Map<string, Set<string>>();
+    for (const row of rows) {
+      if (!row.period_start || !row.user_id) continue;
+      const key = new Date(row.period_start).toISOString().slice(0, 10);
+      let set = userSets.get(key);
+      if (!set) {
+        set = new Set<string>();
+        userSets.set(key, set);
+      }
+      set.add(row.user_id);
+    }
+
+    const periods: RetentionPeriod[] = [];
+    let prevSet: Set<string> | null = null;
+    for (const exp of expectedPeriods) {
+      const currSet = userSets.get(exp.key) || new Set<string>();
+
+      let retainedUsers = 0;
+      let newUsers = 0;
+      let churnedUsers = 0;
+      let retentionPct: number | null = null;
+
+      if (prevSet !== null) {
+        for (const u of currSet) {
+          if (prevSet.has(u)) retainedUsers++;
+          else newUsers++;
+        }
+        for (const u of prevSet) {
+          if (!currSet.has(u)) churnedUsers++;
+        }
+        retentionPct =
+          prevSet.size > 0
+            ? Math.round((retainedUsers / prevSet.size) * 100 * 100) / 100
+            : null;
+      }
+
+      periods.push({
+        label: exp.label,
+        activeUsers: currSet.size,
+        retainedUsers,
+        retentionPct,
+        newUsers,
+        churnedUsers,
+      });
+      prevSet = currSet;
+    }
+
+    const currentRetentionPct =
+      periods.length > 0 ? periods[periods.length - 1].retentionPct : null;
+
+    const validRetentions = periods
+      .map((p) => p.retentionPct)
+      .filter((r): r is number => r !== null);
+    const avgRetentionPct =
+      validRetentions.length > 0
+        ? Math.round(
+            (validRetentions.reduce((a, b) => a + b, 0) /
+              validRetentions.length) *
+              100,
+          ) / 100
+        : 0;
+
+    return { periods, currentRetentionPct, avgRetentionPct };
   }
 }

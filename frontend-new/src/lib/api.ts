@@ -1469,6 +1469,55 @@ export function getTicketAttachmentUrl(ticketId: string, attachmentId: string): 
   return `${API_BASE}/api/support/admin/tickets/${ticketId}/attachments/${attachmentId}`;
 }
 
+// ── Analytics Dashboard: NRR & Retention ─────────
+export interface NrrPeriod {
+  label: string;
+  nrrPct: number | null;
+  expandedUsers: number;
+  contractedUsers: number;
+  cohortSize: number;
+  cohortRevenueCents: number;
+}
+
+export interface NrrResponse {
+  periods: NrrPeriod[];
+  currentNrrPct: number | null;
+  avgNrrPct: number;
+}
+
+export interface RetentionPeriod {
+  label: string;
+  activeUsers: number;
+  retainedUsers: number;
+  retentionPct: number | null;
+  newUsers: number;
+  churnedUsers: number;
+}
+
+export interface RetentionData {
+  periods: RetentionPeriod[];
+  currentRetentionPct: number | null;
+  avgRetentionPct: number;
+}
+
+export async function getRevenueGrowthData(timeRange: string): Promise<NrrResponse> {
+  const token = getAnalyticsAccessToken();
+  const res = await fetch(`${API_BASE}/api/dashboard/analytics/revenue-growth?timeRange=${timeRange}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch revenue growth data');
+  return res.json();
+}
+
+export async function getRetentionData(timeRange: string): Promise<RetentionData> {
+  const token = getAnalyticsAccessToken();
+  const res = await fetch(`${API_BASE}/api/dashboard/analytics/retention?timeRange=${timeRange}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch retention data');
+  return res.json();
+}
+
 export async function updateSpendLimit(data: {
   enabled: boolean;
   limitAmountRupees?: number;
