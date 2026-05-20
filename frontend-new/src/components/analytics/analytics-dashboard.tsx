@@ -1504,7 +1504,8 @@ function NrrCard({
   const latestPeriod = periods[periods.length - 1];
 
   // Custom tooltip
-  const renderTooltip = (props: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderTooltip = (props: Record<string, any>) => {
     if (!props.active || !props.payload || props.payload.length === 0) return null;
     const d = props.payload[0].payload as { label: string; nrrPct: number | null; cohortSize: number; expandedUsers: number; contractedUsers: number };
     return (

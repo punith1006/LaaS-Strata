@@ -113,6 +113,44 @@ export interface GetAllTransactionsParams {
   endDate?: string;
 }
 
+export interface GetAnalyticsUsersParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  clientId?: string;
+  departmentId?: string;
+}
+
+export interface AnalyticsUserRow {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  clientName: string | null;
+  profession: string | null;
+  timezone: string;
+  joinDate: string;
+  isActive: boolean;
+  lastLoginAt: string | null;
+}
+
+export interface AnalyticsUsersResponse {
+  users: AnalyticsUserRow[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface AnalyticsClientsResponse {
+  clients: Array<{ id: string; name: string }>;
+}
+
+export interface AnalyticsDepartmentsResponse {
+  departments: Array<{ id: string; name: string }>;
+}
+
 export interface NrrPeriod {
   label: string;
   nrrPct: number | null;      // null for first period
@@ -1915,6 +1953,136 @@ export class AnalyticsAdminService {
         avgTransactionSize,
       },
     };
+  }
+
+  /**
+   * Admin: Get paginated users list for the analytics admin Users tab
+   * with optional search, active/inactive status, client, and department filters.
+   */
+  async getAnalyticsUsers(
+    params: GetAnalyticsUsersParams,
+  ): Promise<AnalyticsUsersResponse> {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.max(1, params.limit || 15);
+    const skip = (page - 1) * limit;
+
+    // Exclude admin roles from the users list
+    const ADMIN_ROLES = ['super_admin', 'org_admin', 'billing_admin', 'business_lead', 'it_admin'];
+    const where: Record<string, unknown> = {
+      NOT: {
+        userOrgRoles: {
+          some: {
+            role: { name: { in: ADMIN_ROLES } },
+          },
+        },
+      },
+    };
+
+    if (params.status) {
+      const normalized = params.status.toLowerCase();
+      if (normalized === 'active') where.isActive = true;
+      else if (normalized === 'inactive') where.isActive = false;
+    }
+
+    if (params.clientId) {
+      where.defaultOrgId = params.clientId;
+    }
+
+    if (params.departmentId) {
+      where.departments = { some: { departmentId: params.departmentId } };
+    }
+
+    if (params.search && params.search.trim().length > 0) {
+      const search = params.search.trim();
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: where as never,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          organization: { select: { name: true } },
+          profile: { select: { profession: true } },
+        },
+      }),
+      this.prisma.user.count({ where: where as never }),
+    ]);
+
+    const rows: AnalyticsUserRow[] = users.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      email: u.email,
+      clientName: u.organization?.name ?? null,
+      profession: u.profile?.profession ?? null,
+      timezone: u.timezone ?? 'Asia/Kolkata',
+      joinDate: u.createdAt.toISOString(),
+      isActive: u.isActive,
+      lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+    }));
+
+    return {
+      users: rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Admin: Get list of active organizations (clients) for filter dropdowns.
+   */
+  async getAnalyticsClients(): Promise<AnalyticsClientsResponse> {
+    const clients = await this.prisma.organization.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    return { clients };
+  }
+
+  /**
+   * Admin: Get list of active departments for a given client (organization)
+   * for filter dropdowns.
+   */
+  async getAnalyticsDepartments(
+    clientId: string,
+  ): Promise<AnalyticsDepartmentsResponse> {
+    // Departments link to University, not Organization directly.
+    // Look up the organization first, then find the matching university by name.
+    const org = await this.prisma.organization.findUnique({
+      where: { id: clientId },
+      select: { name: true },
+    });
+    if (!org) return { departments: [] };
+
+    // Find university whose name or shortName matches the org name
+    const university = await this.prisma.university.findFirst({
+      where: {
+        OR: [
+          { name: { contains: org.name, mode: 'insensitive' } },
+          { shortName: { equals: org.name, mode: 'insensitive' } },
+        ],
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    if (!university) return { departments: [] };
+
+    const departments = await this.prisma.department.findMany({
+      where: { universityId: university.id, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    return { departments };
   }
 
   /**

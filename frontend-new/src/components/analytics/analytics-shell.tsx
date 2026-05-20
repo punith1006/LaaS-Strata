@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Users } from "lucide-react";
 import { clearAnalyticsTokens } from "@/lib/token";
 import { SupportModal } from "@/components/support/support-modal";
+import { UsersSection } from "./users-section";
 
 /**
  * Analytics console shell — mirrors the main AppShell layout structure.
@@ -18,6 +19,7 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<'overview' | 'users'>('overview');
 
   const handleSignOutClick = () => {
     setIsSignOutModalOpen(true);
@@ -139,32 +141,34 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
         >
           {/* Navigation area */}
           <div className="flex-1 min-h-0 overflow-y-auto" style={{ paddingTop: "8px", paddingBottom: "8px" }}>
-            {/* OVERVIEW nav item — active state */}
+            {/* OVERVIEW nav item */}
             <button
+              onClick={() => setActiveSection('overview')}
               className="w-full flex items-center gap-3 relative"
               style={{
                 height: "48px",
                 padding: "0 16px",
-                color: "var(--fgColor-default)",
-                backgroundColor: "var(--bgColor-default)",
+                color: activeSection === 'overview' ? "var(--fgColor-default)" : "var(--fgColor-muted)",
+                backgroundColor: activeSection === 'overview' ? "var(--bgColor-default)" : "transparent",
                 fontWeight: 400,
                 border: "none",
                 cursor: "pointer",
               }}
             >
-              {/* Active indicator - 2px left border */}
-              <span
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: "2px",
-                  height: "28px",
-                  backgroundColor: "var(--fgColor-default)",
-                  borderRadius: "1px",
-                }}
-              />
+              {activeSection === 'overview' && (
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "2px",
+                    height: "28px",
+                    backgroundColor: "var(--fgColor-default)",
+                    borderRadius: "1px",
+                  }}
+                />
+              )}
               <span className="shrink-0">
                 <BarChart3 size={22} />
               </span>
@@ -178,6 +182,50 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
                 }}
               >
                 OVERVIEW
+              </span>
+            </button>
+
+            {/* USERS nav item */}
+            <button
+              onClick={() => setActiveSection('users')}
+              className="w-full flex items-center gap-3 relative"
+              style={{
+                height: "48px",
+                padding: "0 16px",
+                color: activeSection === 'users' ? "var(--fgColor-default)" : "var(--fgColor-muted)",
+                backgroundColor: activeSection === 'users' ? "var(--bgColor-default)" : "transparent",
+                fontWeight: 400,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              {activeSection === 'users' && (
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: "2px",
+                    height: "28px",
+                    backgroundColor: "var(--fgColor-default)",
+                    borderRadius: "1px",
+                  }}
+                />
+              )}
+              <span className="shrink-0">
+                <Users size={22} />
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "var(--text-base)",
+                  fontWeight: 400,
+                  textTransform: "uppercase",
+                  letterSpacing: "var(--tracking-label)",
+                }}
+              >
+                USERS
               </span>
             </button>
           </div>
@@ -269,7 +317,7 @@ export function AnalyticsShell({ children }: { children: React.ReactNode }) {
             backgroundColor: "var(--bgColor-default)",
           }}
         >
-          {children}
+          {activeSection === 'overview' ? children : <UsersSection />}
         </main>
       </div>
 

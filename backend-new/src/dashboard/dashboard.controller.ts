@@ -134,6 +134,38 @@ export class DashboardController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('analytics/users')
+  async getAnalyticsUsers(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('clientId') clientId?: string,
+    @Query('departmentId') departmentId?: string,
+  ) {
+    return this.analyticsAdminService.getAnalyticsUsers({
+      page: parseInt(page || '1', 10),
+      limit: parseInt(limit || '15', 10),
+      search: search || undefined,
+      status: status || undefined,
+      clientId: clientId || undefined,
+      departmentId: departmentId || undefined,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/clients')
+  async getAnalyticsClients() {
+    return this.analyticsAdminService.getAnalyticsClients();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/departments')
+  async getAnalyticsDepartments(@Query('clientId') clientId: string) {
+    return this.analyticsAdminService.getAnalyticsDepartments(clientId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('analytics/invoice/:transactionId/download')
   async downloadAdminInvoice(
     @Param('transactionId') transactionId: string,
