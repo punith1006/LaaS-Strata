@@ -18,6 +18,7 @@ import {
   type NrrResponse,
   type RetentionData,
 } from "@/lib/api";
+import { AllTransactionsModal } from "./all-transactions-modal";
 import {
   BarChart,
   Bar,
@@ -214,6 +215,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [isResolvingTicket, setIsResolvingTicket] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+    const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [attachmentBlobs, setAttachmentBlobs] = useState<Record<string, string>>({});
 
   // Auto-refresh fleet health every 60 seconds
@@ -919,7 +921,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-white font-semibold text-sm">Recent Transactions</h2>
               <button
-                onClick={() => {}}
+                onClick={() => setShowAllTransactions(true)}
                 className="text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer"
               >
                 View All →
@@ -1309,6 +1311,12 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           />
         </div>
       )}
+
+      {/* All Transactions Modal */}
+      <AllTransactionsModal
+        isOpen={showAllTransactions}
+        onClose={() => setShowAllTransactions(false)}
+      />
     </div>
   );
 }
@@ -1452,12 +1460,9 @@ function AlertItem({
 // --- Row 5: NRR & Retention helpers ---
 
 function getPeriodComparisonLabel(timeRange: "24H" | "7D" | "30D" | "All"): string {
-  switch (timeRange) {
-    case '24H': return 'Hour-over-Hour';
-    case '7D':  return 'Day-over-Day';
-    case '30D': return 'Week-over-Week';
-    default:    return 'Period-over-Period';
-  }
+  if (timeRange === '24H' || timeRange === '7D') return 'Day-over-Day';
+  if (timeRange === '30D') return 'Period-over-Period';
+  return 'Month-over-Month';
 }
 
 function NrrCard({
@@ -1499,9 +1504,9 @@ function NrrCard({
   const latestPeriod = periods[periods.length - 1];
 
   // Custom tooltip
-  const renderTooltip = (props: { active?: boolean; payload?: Array<{ payload: { label: string; nrrPct: number | null; cohortSize: number; expandedUsers: number; contractedUsers: number } }> }) => {
+  const renderTooltip = (props: any) => {
     if (!props.active || !props.payload || props.payload.length === 0) return null;
-    const d = props.payload[0].payload;
+    const d = props.payload[0].payload as { label: string; nrrPct: number | null; cohortSize: number; expandedUsers: number; contractedUsers: number };
     return (
       <div className="bg-[#0d0d0d] border border-zinc-800 rounded px-3 py-2 text-xs">
         <div className="text-zinc-400 font-semibold mb-1">{d.label}</div>

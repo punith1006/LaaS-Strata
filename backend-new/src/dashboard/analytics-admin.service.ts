@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PDFDocument = require('pdfkit');
 
 export interface RevenueChartResponse {
   series: Array<{ time: number; value: number }>;
@@ -72,6 +75,42 @@ export interface RecentTransaction {
   amount: number;
   type: 'compute' | 'storage';
   status: 'completed' | 'active';
+}
+
+export interface AllTransactionRow {
+  id: string;
+  status: string;
+  createdAt: string;
+  userEmail: string;
+  userName: string;
+  amountCents: number;
+  walletBalanceCents: number;
+  invoiceNumber: string | null;
+}
+
+export interface AllTransactionsKpiSummary {
+  totalTransactions: number;
+  totalVolume: number;
+  failedOrPending: number;
+  avgTransactionSize: number;
+}
+
+export interface AllTransactionsResponse {
+  transactions: AllTransactionRow[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  kpiSummary: AllTransactionsKpiSummary;
+}
+
+export interface GetAllTransactionsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface NrrPeriod {
@@ -1225,62 +1264,182 @@ export class AnalyticsAdminService {
   }
 
   /**
+   * Generate the list of expected daily buckets (IST calendar days) for the
+   * last `count` days (oldest → newest, including today).
+   */
+  private computeExpectedDailyPeriods(
+    now: Date,
+    count: number,
+  ): Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc: Date }> {
+    const IST_OFFSET_MS = this.IST_OFFSET_MS;
+    const periods: Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc: Date }> = [];
+    // Get today's IST midnight
+    const nowIst = new Date(now.getTime() + IST_OFFSET_MS);
+    const todayIstMidnight = new Date(Date.UTC(
+      nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate()
+    ));
+
+    for (let i = count - 1; i >= 0; i--) {
+      const istMidnight = new Date(todayIstMidnight.getTime() - i * 24 * 60 * 60 * 1000);
+      const queryStartUtc = new Date(istMidnight.getTime() - IST_OFFSET_MS);
+      const queryEndUtc = new Date(queryStartUtc.getTime() + 24 * 60 * 60 * 1000);
+      const d = new Date(istMidnight);
+      const label = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      periods.push({ key, label, queryStartUtc, queryEndUtc });
+    }
+    return periods;
+  }
+
+  /**
+   * Generate 12 equal buckets spanning last 30 days.
+   * Each bucket = 30/12 = 2.5 days = 60 hours.
+   */
+  private computeExpected30DPeriods(
+    now: Date,
+  ): Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc: Date }> {
+    const TOTAL_MS = 30 * 24 * 60 * 60 * 1000;
+    const BUCKET_MS = TOTAL_MS / 12;
+    const windowStart = new Date(now.getTime() - TOTAL_MS);
+    const periods: Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc: Date }> = [];
+
+    for (let i = 0; i < 12; i++) {
+      const queryStartUtc = new Date(windowStart.getTime() + i * BUCKET_MS);
+      const queryEndUtc = new Date(windowStart.getTime() + (i + 1) * BUCKET_MS);
+      // Label = IST date of bucket start
+      const istStart = new Date(queryStartUtc.getTime() + this.IST_OFFSET_MS);
+      const label = istStart.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      const key = `bucket_${i}_${queryStartUtc.toISOString().slice(0, 10)}`;
+      periods.push({ key, label, queryStartUtc, queryEndUtc });
+    }
+    return periods;
+  }
+
+  /**
    * Net Revenue Retention (NRR): Measures whether EXISTING users are spending
    * more or less over time by comparing the same cohort's spend across adjacent
-   * periods. Weekly (last 6 weeks) for 24H/7D, monthly (last 6 months) for 30D/All.
+   * periods. Daily (7 days) for 24H/7D, custom 2.5-day buckets (12) for 30D,
+   * monthly (12 months) for All.
    */
   async getNetRevenueRetention(timeRange: string): Promise<NrrResponse> {
-    const isMonthly = timeRange === '30D' || timeRange === 'All';
-    const periodCount = 6;
-
     const now = new Date();
-    const expectedPeriods = isMonthly
-      ? this.computeExpectedMonthlyPeriods(now, periodCount)
-      : this.computeExpectedWeeklyPeriods(now, periodCount);
+
+    const isDaily = timeRange === '24H' || timeRange === '7D';
+    const isCustom30D = timeRange === '30D';
+
+    let expectedPeriods: Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc?: Date }>;
+    if (isDaily) {
+      expectedPeriods = this.computeExpectedDailyPeriods(now, 7);
+    } else if (isCustom30D) {
+      expectedPeriods = this.computeExpected30DPeriods(now);
+    } else {
+      // 'All' → 12 months
+      expectedPeriods = this.computeExpectedMonthlyPeriods(now, 12).map(p => ({ ...p, queryEndUtc: undefined }));
+    }
 
     if (expectedPeriods.length === 0) {
       return { periods: [], currentNrrPct: null, avgNrrPct: 0 };
     }
 
-    // Use the same plain-UTC-string pattern as existing methods to avoid
-    // session-timezone shifts when comparing against `timestamp` columns.
     const queryStartTs = expectedPeriods[0].queryStartUtc
       .toISOString()
       .replace('Z', '');
 
-    const truncFn = isMonthly ? 'month' : 'week';
-
-    type Row = {
-      period_start: Date;
-      user_id: string;
-      user_revenue: bigint | null;
-    };
-
-    const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
-      SELECT
-        DATE_TRUNC(${truncFn}, ("created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
-        "user_id" AS user_id,
-        SUM("amount_cents")::bigint AS user_revenue
-      FROM "billing_charges"
-      WHERE "created_at" >= ${queryStartTs}::timestamp
-      GROUP BY 1, 2
-      ORDER BY 1 ASC
-    `;
-
     // Build Map<periodKey, Map<userId, revenueCents>>
     const periodUserRevenue = new Map<string, Map<string, number>>();
-    for (const row of rows) {
-      if (!row.period_start || !row.user_id) continue;
-      const key = new Date(row.period_start).toISOString().slice(0, 10);
-      let userMap = periodUserRevenue.get(key);
-      if (!userMap) {
-        userMap = new Map<string, number>();
-        periodUserRevenue.set(key, userMap);
+
+    if (isDaily) {
+      // Daily: use DATE_TRUNC('day') and match to period keys
+      type Row = { period_start: Date; user_id: string; user_revenue: bigint | null };
+      const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        SELECT
+          DATE_TRUNC('day', ("created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+          "user_id" AS user_id,
+          SUM("amount_cents")::bigint AS user_revenue
+        FROM "billing_charges"
+        WHERE "created_at" >= ${queryStartTs}::timestamp
+        GROUP BY 1, 2
+        ORDER BY 1 ASC
+      `;
+
+      for (const row of rows) {
+        if (!row.period_start || !row.user_id) continue;
+        const d = new Date(row.period_start);
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        let userMap = periodUserRevenue.get(key);
+        if (!userMap) {
+          userMap = new Map<string, number>();
+          periodUserRevenue.set(key, userMap);
+        }
+        userMap.set(
+          row.user_id,
+          (userMap.get(row.user_id) || 0) + Number(row.user_revenue ?? 0),
+        );
       }
-      userMap.set(
-        row.user_id,
-        (userMap.get(row.user_id) || 0) + Number(row.user_revenue ?? 0),
-      );
+    } else if (isCustom30D) {
+      // 30D custom: fetch daily data and assign to 2.5-day buckets
+      type Row = { day_start: Date; user_id: string; user_revenue: bigint | null };
+      const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        SELECT
+          DATE_TRUNC('day', ("created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS day_start,
+          "user_id" AS user_id,
+          SUM("amount_cents")::bigint AS user_revenue
+        FROM "billing_charges"
+        WHERE "created_at" >= ${queryStartTs}::timestamp
+        GROUP BY 1, 2
+        ORDER BY 1 ASC
+      `;
+
+      // Assign each daily row to the appropriate bucket
+      for (const row of rows) {
+        if (!row.day_start || !row.user_id) continue;
+        const rowDateUtc = new Date(row.day_start);
+        // Convert IST midnight to UTC for comparison
+        const rowUtcTime = new Date(rowDateUtc.getTime() - this.IST_OFFSET_MS);
+
+        // Find which bucket this row belongs to
+        for (const period of expectedPeriods) {
+          if (period.queryEndUtc && rowUtcTime.getTime() >= period.queryStartUtc.getTime() && rowUtcTime.getTime() < period.queryEndUtc.getTime()) {
+            let userMap = periodUserRevenue.get(period.key);
+            if (!userMap) {
+              userMap = new Map<string, number>();
+              periodUserRevenue.set(period.key, userMap);
+            }
+            userMap.set(
+              row.user_id,
+              (userMap.get(row.user_id) || 0) + Number(row.user_revenue ?? 0),
+            );
+            break;
+          }
+        }
+      }
+    } else {
+      // All → monthly: use DATE_TRUNC('month')
+      type Row = { period_start: Date; user_id: string; user_revenue: bigint | null };
+      const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        SELECT
+          DATE_TRUNC('month', ("created_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+          "user_id" AS user_id,
+          SUM("amount_cents")::bigint AS user_revenue
+        FROM "billing_charges"
+        WHERE "created_at" >= ${queryStartTs}::timestamp
+        GROUP BY 1, 2
+        ORDER BY 1 ASC
+      `;
+
+      for (const row of rows) {
+        if (!row.period_start || !row.user_id) continue;
+        const key = new Date(row.period_start).toISOString().slice(0, 10);
+        let userMap = periodUserRevenue.get(key);
+        if (!userMap) {
+          userMap = new Map<string, number>();
+          periodUserRevenue.set(key, userMap);
+        }
+        userMap.set(
+          row.user_id,
+          (userMap.get(row.user_id) || 0) + Number(row.user_revenue ?? 0),
+        );
+      }
     }
 
     // Build NRR periods by comparing adjacent periods
@@ -1328,10 +1487,10 @@ export class AnalyticsAdminService {
 
       // NRR = (same users' revenue in N+1) / (same users' revenue in N) × 100
       let nrrPct: number | null = null;
-      if (priorRevenueCents > 0) {
+      if (priorRevenueCents > 0 && currentRevenueCents >= 0) {
         nrrPct = Math.round((currentRevenueCents / priorRevenueCents) * 100 * 100) / 100;
       } else {
-        nrrPct = 0;
+        nrrPct = null; // No prior data — not computable
       }
 
       periods.push({
@@ -1365,16 +1524,24 @@ export class AnalyticsAdminService {
   /**
    * Retention: distinct non-admin users with at least one session per period,
    * compared across adjacent periods to derive retention/new/churn counts.
-   * Weekly (last 8 weeks) for 24H/7D, monthly (last 6 months) for 30D/All.
+   * Daily (7 days) for 24H/7D, custom 2.5-day buckets (12) for 30D,
+   * monthly (12 months) for All.
    */
   async getRetentionData(timeRange: string): Promise<RetentionResponse> {
-    const isMonthly = timeRange === '30D' || timeRange === 'All';
-    const periodCount = isMonthly ? 6 : 8;
-
     const now = new Date();
-    const expectedPeriods = isMonthly
-      ? this.computeExpectedMonthlyPeriods(now, periodCount)
-      : this.computeExpectedWeeklyPeriods(now, periodCount);
+
+    const isDaily = timeRange === '24H' || timeRange === '7D';
+    const isCustom30D = timeRange === '30D';
+
+    let expectedPeriods: Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc?: Date }>;
+    if (isDaily) {
+      expectedPeriods = this.computeExpectedDailyPeriods(now, 7);
+    } else if (isCustom30D) {
+      expectedPeriods = this.computeExpected30DPeriods(now);
+    } else {
+      // 'All' → 12 months
+      expectedPeriods = this.computeExpectedMonthlyPeriods(now, 12).map(p => ({ ...p, queryEndUtc: undefined }));
+    }
 
     if (expectedPeriods.length === 0) {
       return { periods: [], currentRetentionPct: null, avgRetentionPct: 0 };
@@ -1384,43 +1551,94 @@ export class AnalyticsAdminService {
       .toISOString()
       .replace('Z', '');
 
-    type Row = { period_start: Date; user_id: string };
-
-    const rows: Row[] = isMonthly
-      ? await this.prisma.$queryRaw<Row[]>`
-          SELECT DISTINCT
-            DATE_TRUNC('month', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
-            s."user_id" AS user_id
-          FROM "sessions" s
-          JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
-          JOIN "roles" r ON uor."role_id" = r."id"
-          WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
-            AND s."started_at" >= ${queryStartTs}::timestamp
-            AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
-        `
-      : await this.prisma.$queryRaw<Row[]>`
-          SELECT DISTINCT
-            DATE_TRUNC('week', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
-            s."user_id" AS user_id
-          FROM "sessions" s
-          JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
-          JOIN "roles" r ON uor."role_id" = r."id"
-          WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
-            AND s."started_at" >= ${queryStartTs}::timestamp
-            AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
-        `;
-
     // Map: periodKey -> Set<userId>
     const userSets = new Map<string, Set<string>>();
-    for (const row of rows) {
-      if (!row.period_start || !row.user_id) continue;
-      const key = new Date(row.period_start).toISOString().slice(0, 10);
-      let set = userSets.get(key);
-      if (!set) {
-        set = new Set<string>();
-        userSets.set(key, set);
+
+    if (isDaily) {
+      // Daily: use DATE_TRUNC('day') and match to period keys
+      type Row = { period_start: Date; user_id: string };
+      const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        SELECT DISTINCT
+          DATE_TRUNC('day', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+          s."user_id" AS user_id
+        FROM "sessions" s
+        JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+        JOIN "roles" r ON uor."role_id" = r."id"
+        WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+          AND s."started_at" >= ${queryStartTs}::timestamp
+          AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+      `;
+
+      for (const row of rows) {
+        if (!row.period_start || !row.user_id) continue;
+        const d = new Date(row.period_start);
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        let set = userSets.get(key);
+        if (!set) {
+          set = new Set<string>();
+          userSets.set(key, set);
+        }
+        set.add(row.user_id);
       }
-      set.add(row.user_id);
+    } else if (isCustom30D) {
+      // 30D custom: fetch daily data and assign to 2.5-day buckets
+      type Row = { period_start: Date; user_id: string };
+      const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        SELECT DISTINCT
+          DATE_TRUNC('day', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+          s."user_id" AS user_id
+        FROM "sessions" s
+        JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+        JOIN "roles" r ON uor."role_id" = r."id"
+        WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+          AND s."started_at" >= ${queryStartTs}::timestamp
+          AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+      `;
+
+      for (const row of rows) {
+        if (!row.period_start || !row.user_id) continue;
+        const rowDateUtc = new Date(row.period_start);
+        // Convert IST midnight to UTC for comparison
+        const rowUtcTime = new Date(rowDateUtc.getTime() - this.IST_OFFSET_MS);
+
+        // Find which bucket this row belongs to
+        for (const period of expectedPeriods) {
+          if (period.queryEndUtc && rowUtcTime.getTime() >= period.queryStartUtc.getTime() && rowUtcTime.getTime() < period.queryEndUtc.getTime()) {
+            let set = userSets.get(period.key);
+            if (!set) {
+              set = new Set<string>();
+              userSets.set(period.key, set);
+            }
+            set.add(row.user_id);
+            break;
+          }
+        }
+      }
+    } else {
+      // All → monthly: use DATE_TRUNC('month')
+      type Row = { period_start: Date; user_id: string };
+      const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        SELECT DISTINCT
+          DATE_TRUNC('month', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
+          s."user_id" AS user_id
+        FROM "sessions" s
+        JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+        JOIN "roles" r ON uor."role_id" = r."id"
+        WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+          AND s."started_at" >= ${queryStartTs}::timestamp
+          AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+      `;
+
+      for (const row of rows) {
+        if (!row.period_start || !row.user_id) continue;
+        const key = new Date(row.period_start).toISOString().slice(0, 10);
+        let set = userSets.get(key);
+        if (!set) {
+          set = new Set<string>();
+          userSets.set(key, set);
+        }
+        set.add(row.user_id);
+      }
     }
 
     const periods: RetentionPeriod[] = [];
@@ -1474,5 +1692,424 @@ export class AnalyticsAdminService {
         : 0;
 
     return { periods, currentRetentionPct, avgRetentionPct };
+  }
+
+  /**
+   * Admin: Get paginated payment transactions with search/filters and KPI summary
+   * for the analytics admin dashboard.
+   */
+  async getAllTransactions(
+    params: GetAllTransactionsParams,
+  ): Promise<AllTransactionsResponse> {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.max(1, params.limit || 15);
+    const skip = (page - 1) * limit;
+
+    // Map status filter
+    let statusFilter: string | undefined;
+    if (params.status) {
+      const normalized = params.status.toLowerCase();
+      if (normalized === 'paid') statusFilter = 'completed';
+      else if (normalized === 'pending') statusFilter = 'pending';
+      else if (normalized === 'failed') statusFilter = 'failed';
+    }
+
+    // Date range filter
+    const dateFilter: { gte?: Date; lte?: Date } = {};
+    if (params.startDate) {
+      const sd = new Date(params.startDate);
+      if (!isNaN(sd.getTime())) dateFilter.gte = sd;
+    }
+    if (params.endDate) {
+      const ed = new Date(params.endDate);
+      if (!isNaN(ed.getTime())) dateFilter.lte = ed;
+    }
+
+    // Build base where clause (without search)
+    const baseWhere: Record<string, unknown> = {};
+    if (statusFilter) baseWhere.status = statusFilter;
+    if (dateFilter.gte || dateFilter.lte) baseWhere.createdAt = dateFilter;
+
+    // Build search where clause
+    let searchWhere: Record<string, unknown> | null = null;
+    if (params.search && params.search.trim().length > 0) {
+      const search = params.search.trim();
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isUuid = uuidRegex.test(search);
+
+      // For invoice number search: find matching invoices, then their
+      // payment_transaction line items to get the txn IDs.
+      const matchingInvoices = await this.prisma.invoice.findMany({
+        where: {
+          invoiceNumber: { contains: search, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      let invoiceTxnIds: string[] = [];
+      if (matchingInvoices.length > 0) {
+        const invoiceLineItems = await this.prisma.invoiceLineItem.findMany({
+          where: {
+            referenceType: 'payment_transaction',
+            invoiceId: { in: matchingInvoices.map((i) => i.id) },
+          },
+          select: { referenceId: true },
+        });
+        invoiceTxnIds = invoiceLineItems
+          .map((li) => li.referenceId)
+          .filter((v): v is string => !!v);
+      }
+
+      const orConditions: Array<Record<string, unknown>> = [
+        {
+          user: {
+            email: { contains: search, mode: 'insensitive' },
+          },
+        },
+        {
+          user: {
+            firstName: { contains: search, mode: 'insensitive' },
+          },
+        },
+        {
+          user: {
+            lastName: { contains: search, mode: 'insensitive' },
+          },
+        },
+      ];
+      if (isUuid) {
+        orConditions.push({ id: search });
+      }
+      if (invoiceTxnIds.length > 0) {
+        orConditions.push({ id: { in: invoiceTxnIds } });
+      }
+      searchWhere = { OR: orConditions };
+    }
+
+    const where: Record<string, unknown> = searchWhere
+      ? { AND: [baseWhere, searchWhere] }
+      : baseWhere;
+
+    // Fetch paginated transactions and total count
+    const [transactions, total] = await Promise.all([
+      this.prisma.paymentTransaction.findMany({
+        where: where as never,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+        },
+      }),
+      this.prisma.paymentTransaction.count({ where: where as never }),
+    ]);
+
+    const txnIds = transactions.map((t) => t.id);
+
+    // Batch enrich: wallet balances
+    const walletByTxnId = new Map<string, number>();
+    if (txnIds.length > 0) {
+      const walletTxns = await this.prisma.walletTransaction.findMany({
+        where: {
+          referenceType: 'payment',
+          referenceId: { in: txnIds },
+        },
+        select: {
+          referenceId: true,
+          balanceAfterCents: true,
+          userId: true,
+        },
+      });
+      const userIdByTxn = new Map<string, string>();
+      for (const t of transactions) userIdByTxn.set(t.id, t.userId);
+      for (const wt of walletTxns) {
+        if (!wt.referenceId) continue;
+        // Ensure user matches the payment transaction's user
+        const expectedUserId = userIdByTxn.get(wt.referenceId);
+        if (expectedUserId && wt.userId !== expectedUserId) continue;
+        walletByTxnId.set(wt.referenceId, Number(wt.balanceAfterCents));
+      }
+    }
+
+    // Batch enrich: invoice numbers
+    const invoiceNumberByTxnId = new Map<string, string>();
+    if (txnIds.length > 0) {
+      const lineItems = await this.prisma.invoiceLineItem.findMany({
+        where: {
+          referenceType: 'payment_transaction',
+          referenceId: { in: txnIds },
+        },
+        include: {
+          invoice: { select: { invoiceNumber: true } },
+        },
+      });
+      for (const li of lineItems) {
+        if (li.referenceId && li.invoice?.invoiceNumber) {
+          invoiceNumberByTxnId.set(li.referenceId, li.invoice.invoiceNumber);
+        }
+      }
+    }
+
+    const rows: AllTransactionRow[] = transactions.map((t) => {
+      const first = t.user.firstName || '';
+      const last = t.user.lastName || '';
+      const userName = `${first} ${last}`.trim();
+      return {
+        id: t.id,
+        status: t.status,
+        createdAt: t.createdAt.toISOString(),
+        userEmail: t.user.email,
+        userName,
+        amountCents: t.amountCents,
+        walletBalanceCents: walletByTxnId.get(t.id) ?? 0,
+        invoiceNumber: invoiceNumberByTxnId.get(t.id) ?? null,
+      };
+    });
+
+    // KPI summary date range: provided dates, else month-to-date
+    let kpiStart: Date;
+    let kpiEnd: Date;
+    if (dateFilter.gte || dateFilter.lte) {
+      kpiStart = dateFilter.gte ?? new Date(0);
+      kpiEnd = dateFilter.lte ?? new Date();
+    } else {
+      const now = new Date();
+      kpiStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      kpiEnd = now;
+    }
+
+    const kpiWhere = {
+      createdAt: { gte: kpiStart, lte: kpiEnd },
+    };
+
+    const [kpiTotal, kpiSum, kpiFailedOrPending] = await Promise.all([
+      this.prisma.paymentTransaction.count({ where: kpiWhere }),
+      this.prisma.paymentTransaction.aggregate({
+        where: kpiWhere,
+        _sum: { amountCents: true },
+      }),
+      this.prisma.paymentTransaction.count({
+        where: {
+          ...kpiWhere,
+          status: { not: 'completed' },
+        },
+      }),
+    ]);
+
+    const totalVolume = Number(kpiSum._sum.amountCents ?? 0);
+    const avgTransactionSize =
+      kpiTotal > 0 ? Math.round(totalVolume / kpiTotal) : 0;
+
+    return {
+      transactions: rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      kpiSummary: {
+        totalTransactions: kpiTotal,
+        totalVolume,
+        failedOrPending: kpiFailedOrPending,
+        avgTransactionSize,
+      },
+    };
+  }
+
+  /**
+   * Generate invoice PDF for any transaction (admin access; no userId filter).
+   * Mirrors PaymentService.generateInvoicePdf logic but bypasses ownership check.
+   */
+  async generateAdminInvoicePdf(transactionId: string): Promise<Buffer> {
+    const transaction = await this.prisma.paymentTransaction.findFirst({
+      where: { id: transactionId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    const invoiceLineItem = await this.prisma.invoiceLineItem.findFirst({
+      where: {
+        referenceType: 'payment_transaction',
+        referenceId: transactionId,
+      },
+      include: {
+        invoice: {
+          include: {
+            invoiceLineItems: true,
+          },
+        },
+      },
+    });
+
+    if (!invoiceLineItem || !invoiceLineItem.invoice) {
+      throw new NotFoundException('Invoice not found for this transaction');
+    }
+
+    const invoice = invoiceLineItem.invoice;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: transaction.userId },
+      select: {
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    return new Promise<Buffer>((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ margin: 50 });
+        const chunks: Buffer[] = [];
+
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Header
+        doc
+          .fontSize(24)
+          .font('Helvetica-Bold')
+          .text('LaaS - Lab as a Service', { align: 'center' });
+        doc.moveDown(0.5);
+        doc
+          .fontSize(10)
+          .font('Helvetica')
+          .fillColor('#666666')
+          .text('AI/ML Computing Platform', { align: 'center' });
+        doc.moveDown(2);
+
+        // Invoice title
+        doc
+          .fontSize(18)
+          .font('Helvetica-Bold')
+          .fillColor('#000000')
+          .text('INVOICE', { align: 'center' });
+        doc.moveDown(1);
+
+        // Invoice details box
+        const invoiceInfoY = doc.y;
+        doc.fontSize(10).font('Helvetica');
+
+        // Left side - Invoice info
+        doc.text(`Invoice Number: ${invoice.invoiceNumber}`, 50, invoiceInfoY);
+        doc.text(
+          `Date: ${new Date(invoice.issuedAt || invoice.periodStart).toLocaleDateString('en-IN')}`,
+          50,
+          invoiceInfoY + 15,
+        );
+        doc.text(`Status: ${invoice.status.toUpperCase()}`, 50, invoiceInfoY + 30);
+
+        // Right side - Customer info
+        const customerName =
+          user?.firstName && user?.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : user?.email || 'Customer';
+        doc.text('Bill To:', 350, invoiceInfoY);
+        doc.text(customerName, 350, invoiceInfoY + 15);
+        doc.text(user?.email || '', 350, invoiceInfoY + 30);
+
+        doc.moveDown(4);
+
+        // Table header
+        const tableTop = doc.y + 10;
+        const col1 = 50;
+        const col2 = 280;
+        const col3 = 350;
+        const col4 = 450;
+
+        // Draw table header background
+        doc.rect(col1 - 5, tableTop - 5, 510, 20).fill('#f0f0f0');
+
+        doc
+          .fontSize(10)
+          .font('Helvetica-Bold')
+          .fillColor('#000000')
+          .text('Description', col1, tableTop)
+          .text('Qty', col2, tableTop)
+          .text('Unit Price', col3, tableTop)
+          .text('Total', col4, tableTop);
+
+        // Table rows
+        let rowY = tableTop + 25;
+        doc.font('Helvetica');
+
+        for (const item of invoice.invoiceLineItems) {
+          doc.text(item.description, col1, rowY);
+          doc.text(item.quantity.toString(), col2, rowY);
+          doc.text(`₹${(item.unitPriceCents / 100).toFixed(2)}`, col3, rowY);
+          doc.text(`₹${(Number(item.totalCents) / 100).toFixed(2)}`, col4, rowY);
+          rowY += 20;
+        }
+
+        // Summary
+        rowY += 20;
+        doc.moveTo(350, rowY).lineTo(560, rowY).stroke();
+        rowY += 10;
+
+        doc.text('Subtotal:', 350, rowY);
+        doc.text(
+          `₹${(Number(invoice.subtotalCents) / 100).toFixed(2)}`,
+          col4,
+          rowY,
+        );
+        rowY += 15;
+
+        doc.text('Tax (GST):', 350, rowY);
+        doc.text(`₹${(Number(invoice.taxCents) / 100).toFixed(2)}`, col4, rowY);
+        rowY += 15;
+
+        doc.moveTo(350, rowY).lineTo(560, rowY).stroke();
+        rowY += 10;
+
+        doc.font('Helvetica-Bold');
+        doc.text('Total:', 350, rowY);
+        doc.text(`₹${(Number(invoice.totalCents) / 100).toFixed(2)}`, col4, rowY);
+
+        // Payment status
+        rowY += 30;
+        if (invoice.paidAt) {
+          doc
+            .font('Helvetica')
+            .fontSize(10)
+            .fillColor('#28a745')
+            .text(
+              `Payment received on ${new Date(invoice.paidAt).toLocaleDateString('en-IN')}`,
+              50,
+              rowY,
+            );
+        }
+
+        // Footer
+        doc
+          .fontSize(8)
+          .font('Helvetica')
+          .fillColor('#999999')
+          .text(
+            'Thank you for using LaaS!',
+            50,
+            doc.page.height - 80,
+            { align: 'center', width: 500 },
+          );
+        doc.text(
+          'For support, contact: support@laas.edu',
+          50,
+          doc.page.height - 65,
+          { align: 'center', width: 500 },
+        );
+        doc.text(
+          `Generated on ${new Date().toLocaleString('en-IN')}`,
+          50,
+          doc.page.height - 50,
+          { align: 'center', width: 500 },
+        );
+
+        doc.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 }

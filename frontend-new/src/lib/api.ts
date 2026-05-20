@@ -1807,3 +1807,63 @@ export async function checkWaitlistStatus(): Promise<WaitlistStatusResponse> {
   }
   return { enrolled: false };
 }
+
+// --- Analytics Admin: All Transactions ---
+
+export interface AllTransactionsRow {
+  id: string;
+  status: string;
+  createdAt: string;
+  userEmail: string;
+  userName: string;
+  amountCents: number;
+  walletBalanceCents: number;
+  invoiceNumber: string | null;
+}
+
+export interface AllTransactionsKpiSummary {
+  totalTransactions: number;
+  totalVolume: number;
+  failedOrPending: number;
+  avgTransactionSize: number;
+}
+
+export interface AllTransactionsResponse {
+  transactions: AllTransactionsRow[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  kpiSummary: AllTransactionsKpiSummary;
+}
+
+export async function getAllAnalyticsTransactions(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<AllTransactionsResponse | null> {
+  const token = getAnalyticsAccessToken();
+  if (!token || !API_BASE) return null;
+
+  const searchParams = new URLSearchParams();
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.limit) searchParams.set('limit', String(params.limit));
+  if (params.search) searchParams.set('search', params.search);
+  if (params.status) searchParams.set('status', params.status);
+  if (params.startDate) searchParams.set('startDate', params.startDate);
+  if (params.endDate) searchParams.set('endDate', params.endDate);
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/dashboard/analytics/all-transactions?${searchParams.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}

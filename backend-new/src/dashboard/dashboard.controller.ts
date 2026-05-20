@@ -1,10 +1,13 @@
 import {
   Controller,
   Get,
+  Param,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DashboardService, HomeDashboardData, BillingData } from './dashboard.service';
 import { AnalyticsAdminService } from './analytics-admin.service';
@@ -108,5 +111,54 @@ export class DashboardController {
   @UseGuards(JwtAuthGuard)
   async getRetention(@Query('timeRange') timeRange: string) {
     return this.analyticsAdminService.getRetentionData(timeRange || '7D');
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/all-transactions')
+  async getAllTransactions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.analyticsAdminService.getAllTransactions({
+      page: parseInt(page || '1', 10),
+      limit: parseInt(limit || '15', 10),
+      search: search || undefined,
+      status: status || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('analytics/invoice/:transactionId/download')
+  async downloadAdminInvoice(
+    @Param('transactionId') transactionId: string,
+    @Res() res: FastifyReply,
+  ): Promise<void> {
+    try {
+      const pdfBuffer =
+        await this.analyticsAdminService.generateAdminInvoicePdf(transactionId);
+
+      res
+        .header('Content-Type', 'application/pdf')
+        .header(
+          'Content-Disposition',
+          `attachment; filename="invoice-${transactionId.slice(0, 8)}.pdf"`,
+        )
+        .header('Content-Length', pdfBuffer.length)
+        .send(pdfBuffer);
+    } catch (error) {
+      res
+        .status(500)
+        .send({
+          message:
+            (error as { message?: string })?.message ||
+            'Failed to generate invoice',
+        });
+    }
   }
 }
