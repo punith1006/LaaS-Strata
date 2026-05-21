@@ -1336,18 +1336,42 @@ export class AnalyticsAdminService {
   private computeExpected30DPeriods(
     now: Date,
   ): Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc: Date }> {
-    const TOTAL_MS = 30 * 24 * 60 * 60 * 1000;
-    const BUCKET_MS = TOTAL_MS / 12;
-    const windowStart = new Date(now.getTime() - TOTAL_MS);
+    const IST_OFFSET_MS = this.IST_OFFSET_MS;
+    const nowIst = new Date(now.getTime() + IST_OFFSET_MS);
+
+    // Find the Monday of the current IST week (ISO week: Mon=1 ... Sun=0)
+    const dayOfWeek = nowIst.getUTCDay(); // 0=Sun, 1=Mon ... 6=Sat
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    // Monday midnight IST (as UTC-epoch of IST midnight)
+    const thisMondayIstMidnightUtcEpoch =
+      Date.UTC(nowIst.getUTCFullYear(), nowIst.getUTCMonth(), nowIst.getUTCDate())
+      - daysToMonday * 24 * 60 * 60 * 1000;
+
+    // Generate 5 weeks back to ensure coverage of 30 days
+    const NUM_WEEKS = 5;
+    const windowCutoffUtc = now.getTime() - 30 * 24 * 60 * 60 * 1000;
     const periods: Array<{ key: string; label: string; queryStartUtc: Date; queryEndUtc: Date }> = [];
 
-    for (let i = 0; i < 12; i++) {
-      const queryStartUtc = new Date(windowStart.getTime() + i * BUCKET_MS);
-      const queryEndUtc = new Date(windowStart.getTime() + (i + 1) * BUCKET_MS);
-      // Label = IST date of bucket start
-      const istStart = new Date(queryStartUtc.getTime() + this.IST_OFFSET_MS);
-      const label = istStart.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-      const key = `bucket_${i}_${queryStartUtc.toISOString().slice(0, 10)}`;
+    for (let i = NUM_WEEKS - 1; i >= 0; i--) {
+      // Monday of week (i weeks back), expressed as IST midnight UTC-epoch
+      const weekMondayIstEpoch = thisMondayIstMidnightUtcEpoch - i * 7 * 24 * 60 * 60 * 1000;
+      const weekSundayIstEpoch  = weekMondayIstEpoch + 7 * 24 * 60 * 60 * 1000;
+
+      // Real UTC bounds: IST midnight = IST epoch - IST_OFFSET_MS
+      const queryStartUtc = new Date(weekMondayIstEpoch - IST_OFFSET_MS);
+      const queryEndUtc   = new Date(weekSundayIstEpoch  - IST_OFFSET_MS);
+
+      // Skip weeks entirely before the 30-day window
+      if (queryEndUtc.getTime() <= windowCutoffUtc) continue;
+
+      // Label = "May 12" style (week-start date in IST)
+      const labelDate = new Date(weekMondayIstEpoch);
+      const label = labelDate.toLocaleDateString('en-IN', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      });
+      const key = `week_${labelDate.toISOString().slice(0, 10)}`;
       periods.push({ key, label, queryStartUtc, queryEndUtc });
     }
     return periods;
@@ -1536,14 +1560,14 @@ export class AnalyticsAdminService {
         nrrPct,
         expandedUsers,
         contractedUsers,
-        cohortSize,
+        cohortSize: priorUserMap.size,  // prior period's user count — matches the loop that iterates priorUserMap
         cohortRevenueCents,
       });
     }
 
     // Latest non-null NRR
     const currentNrrPct =
-      periods.length > 0 ? periods[periods.length - 1].nrrPct : null;
+      [...periods].reverse().find((p) => p.nrrPct !== null)?.nrrPct ?? null;
 
     // Average of all non-null NRR values
     const validNrrs = periods
@@ -1596,15 +1620,39 @@ export class AnalyticsAdminService {
       // Daily: use DATE_TRUNC('day') and match to period keys
       type Row = { period_start: Date; user_id: string };
       const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        WITH session_spans AS (
+          SELECT 
+            s."user_id",
+            s."status" AS session_status,
+            s."ended_at",
+            DATE_TRUNC('day', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata')::date AS start_day,
+            DATE_TRUNC('day', (COALESCE(s."ended_at", now()) AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata')::date AS end_day
+          FROM "sessions" s
+          JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+          JOIN "roles" r ON uor."role_id" = r."id"
+          WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+            AND s."started_at" >= ${queryStartTs}::timestamp
+            AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+        ),
+        expanded AS (
+          SELECT 
+            user_id,
+            session_status,
+            ended_at,
+            (start_day + gs.n * interval '1 day')::date AS active_day
+          FROM session_spans
+          CROSS JOIN LATERAL generate_series(0, end_day - start_day) AS gs(n)
+        )
         SELECT DISTINCT
-          DATE_TRUNC('day', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
-          s."user_id" AS user_id
-        FROM "sessions" s
-        JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
-        JOIN "roles" r ON uor."role_id" = r."id"
-        WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
-          AND s."started_at" >= ${queryStartTs}::timestamp
-          AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+          active_day::timestamp AS period_start,
+          user_id
+        FROM expanded
+        WHERE 
+          active_day < DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Kolkata')::date
+          OR
+          (active_day = DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Kolkata')::date
+           AND session_status = 'running' 
+           AND ended_at IS NULL)
       `;
 
       for (const row of rows) {
@@ -1622,15 +1670,39 @@ export class AnalyticsAdminService {
       // 30D custom: fetch daily data and assign to 2.5-day buckets
       type Row = { period_start: Date; user_id: string };
       const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        WITH session_spans AS (
+          SELECT 
+            s."user_id",
+            s."status" AS session_status,
+            s."ended_at",
+            DATE_TRUNC('day', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata')::date AS start_day,
+            DATE_TRUNC('day', (COALESCE(s."ended_at", now()) AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata')::date AS end_day
+          FROM "sessions" s
+          JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+          JOIN "roles" r ON uor."role_id" = r."id"
+          WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+            AND s."started_at" >= ${queryStartTs}::timestamp
+            AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+        ),
+        expanded AS (
+          SELECT 
+            user_id,
+            session_status,
+            ended_at,
+            (start_day + gs.n * interval '1 day')::date AS active_day
+          FROM session_spans
+          CROSS JOIN LATERAL generate_series(0, end_day - start_day) AS gs(n)
+        )
         SELECT DISTINCT
-          DATE_TRUNC('day', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
-          s."user_id" AS user_id
-        FROM "sessions" s
-        JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
-        JOIN "roles" r ON uor."role_id" = r."id"
-        WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
-          AND s."started_at" >= ${queryStartTs}::timestamp
-          AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+          active_day::timestamp AS period_start,
+          user_id
+        FROM expanded
+        WHERE 
+          active_day < DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Kolkata')::date
+          OR
+          (active_day = DATE_TRUNC('day', now() AT TIME ZONE 'Asia/Kolkata')::date
+           AND session_status = 'running' 
+           AND ended_at IS NULL)
       `;
 
       for (const row of rows) {
@@ -1656,15 +1728,42 @@ export class AnalyticsAdminService {
       // All → monthly: use DATE_TRUNC('month')
       type Row = { period_start: Date; user_id: string };
       const rows: Row[] = await this.prisma.$queryRaw<Row[]>`
+        WITH session_spans AS (
+          SELECT 
+            s."user_id",
+            s."status" AS session_status,
+            s."ended_at",
+            DATE_TRUNC('month', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata')::date AS start_month,
+            DATE_TRUNC('month', (COALESCE(s."ended_at", now()) AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata')::date AS end_month
+          FROM "sessions" s
+          JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
+          JOIN "roles" r ON uor."role_id" = r."id"
+          WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
+            AND s."started_at" >= ${queryStartTs}::timestamp
+            AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+        ),
+        expanded AS (
+          SELECT 
+            user_id,
+            session_status,
+            ended_at,
+            (start_month + gs.n * interval '1 month')::date AS active_month
+          FROM session_spans
+          CROSS JOIN LATERAL generate_series(0, (
+            EXTRACT(YEAR FROM end_month)::int * 12 + EXTRACT(MONTH FROM end_month)::int
+            - EXTRACT(YEAR FROM start_month)::int * 12 - EXTRACT(MONTH FROM start_month)::int
+          )) AS gs(n)
+        )
         SELECT DISTINCT
-          DATE_TRUNC('month', (s."started_at" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Kolkata') AS period_start,
-          s."user_id" AS user_id
-        FROM "sessions" s
-        JOIN "user_org_roles" uor ON s."user_id" = uor."user_id"
-        JOIN "roles" r ON uor."role_id" = r."id"
-        WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
-          AND s."started_at" >= ${queryStartTs}::timestamp
-          AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+          active_month::timestamp AS period_start,
+          user_id
+        FROM expanded
+        WHERE 
+          active_month < DATE_TRUNC('month', now() AT TIME ZONE 'Asia/Kolkata')::date
+          OR
+          (active_month = DATE_TRUNC('month', now() AT TIME ZONE 'Asia/Kolkata')::date
+           AND session_status = 'running' 
+           AND ended_at IS NULL)
       `;
 
       for (const row of rows) {
@@ -1715,7 +1814,7 @@ export class AnalyticsAdminService {
     }
 
     const currentRetentionPct =
-      periods.length > 0 ? periods[periods.length - 1].retentionPct : null;
+      [...periods].reverse().find((p) => p.retentionPct !== null)?.retentionPct ?? null;
 
     const validRetentions = periods
       .map((p) => p.retentionPct)

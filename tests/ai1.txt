@@ -1,715 +1,225 @@
-ai1@aiserver1:~$ who -b
-         system boot  2026-05-13 09:30
-ai1@aiserver1:~$ last reboot | head -5
-reboot   system boot  6.8.0-111-generi Wed May 13 09:30   still running
-reboot   system boot  6.8.0-111-generi Wed May 13 07:33 - 09:30  (01:56)
-reboot   system boot  5.15.0-177-gener Mon May 11 03:35 - 07:32 (2+03:57)
-reboot   system boot  5.15.0-177-gener Sat May  9 04:26 - 17:21  (12:54)
-reboot   system boot  5.15.0-177-gener Sat May  9 04:01 - 04:25  (00:24)
-ai1@aiserver1:~$ journalctl -b -1 -k --no-pager | tail -200
-May 13 07:33:36 aiserver1 systemd[1]: Finished Create List of Static Device Nodes.
-May 13 07:33:36 aiserver1 systemd[1]: modprobe@configfs.service: Deactivated successfully.
-May 13 07:33:36 aiserver1 systemd[1]: Finished Load Kernel Module configfs.
-May 13 07:33:36 aiserver1 systemd[1]: modprobe@drm.service: Deactivated successfully.
-May 13 07:33:36 aiserver1 systemd[1]: Finished Load Kernel Module drm.
-May 13 07:33:36 aiserver1 systemd[1]: modprobe@fuse.service: Deactivated successfully.
-May 13 07:33:36 aiserver1 systemd[1]: Finished Load Kernel Module fuse.
-May 13 07:33:36 aiserver1 kernel: pstore: Registered efi_pstore as persistent store backend
-May 13 07:33:36 aiserver1 systemd[1]: Mounting FUSE Control File System...
-May 13 07:33:36 aiserver1 systemd[1]: Mounting Kernel Configuration File System...
-May 13 07:33:36 aiserver1 systemd[1]: modprobe@efi_pstore.service: Deactivated successfully.
-May 13 07:33:36 aiserver1 systemd[1]: Finished Load Kernel Module efi_pstore.
-May 13 07:33:36 aiserver1 systemd[1]: Mounted FUSE Control File System.
-May 13 07:33:36 aiserver1 systemd[1]: Mounted Kernel Configuration File System.
-May 13 07:33:36 aiserver1 systemd[1]: Finished Set the console keyboard layout.
-May 13 07:33:36 aiserver1 kernel: RPC: Registered named UNIX socket transport module.
-May 13 07:33:36 aiserver1 kernel: RPC: Registered udp transport module.
-May 13 07:33:36 aiserver1 kernel: RPC: Registered tcp transport module.
-May 13 07:33:36 aiserver1 kernel: RPC: Registered tcp-with-tls transport module.
-May 13 07:33:36 aiserver1 kernel: RPC: Registered tcp NFSv4.1 backchannel transport module.
-May 13 07:33:36 aiserver1 kernel: Key type psk registered
-May 13 07:33:36 aiserver1 kernel: EXT4-fs (nvme0n1p6): re-mounted e731fb81-3b65-4bb2-aa68-5a362673e843 r/w.
-May 13 07:33:36 aiserver1 systemd[1]: Finished Remount Root and Kernel File Systems.
-May 13 07:33:36 aiserver1 systemd[1]: Activating swap /swap.img...
-May 13 07:33:36 aiserver1 systemd[1]: Starting Device-Mapper Multipath Device Controller...
-May 13 07:33:36 aiserver1 systemd[1]: Condition check resulted in Platform Persistent Storage Archival being skipped.
-May 13 07:33:36 aiserver1 systemd[1]: Starting Load/Save Random Seed...
-May 13 07:33:36 aiserver1 systemd[1]: Starting Create System Users...
-May 13 07:33:36 aiserver1 systemd[1]: Finished Load Kernel Modules.
-May 13 07:33:36 aiserver1 systemd[1]: Starting Apply Kernel Variables...
-May 13 07:33:36 aiserver1 kernel: Adding 8388604k swap on /swap.img.  Priority:-2 extents:55 across:872423420k SS
-May 13 07:33:36 aiserver1 systemd[1]: Activated swap /swap.img.
-May 13 07:33:36 aiserver1 kernel: alua: device handler registered
-May 13 07:33:36 aiserver1 systemd[1]: Reached target Swaps.
-May 13 07:33:36 aiserver1 kernel: emc: device handler registered
-May 13 07:33:36 aiserver1 kernel: rdac: device handler registered
-May 13 07:33:36 aiserver1 systemd[1]: Finished Create System Users.
-May 13 07:33:36 aiserver1 systemd[1]: Starting Create Static Device Nodes in /dev...
-May 13 07:33:36 aiserver1 systemd[1]: Started Journal Service.
-May 13 07:33:36 aiserver1 kernel: ccp 0000:79:00.2: enabling device (0000 -> 0002)
-May 13 07:33:36 aiserver1 kernel: ccp 0000:79:00.2: tee enabled
-May 13 07:33:36 aiserver1 kernel: ccp 0000:79:00.2: psp enabled
-May 13 07:33:36 aiserver1 kernel: Bluetooth: Core ver 2.22
-May 13 07:33:36 aiserver1 kernel: asus_wmi: Initialization: 0x0
-May 13 07:33:36 aiserver1 kernel: asus_wmi: BIOS WMI version: 0.0
-May 13 07:33:36 aiserver1 kernel: asus_wmi: SFUN value: 0x0
-May 13 07:33:36 aiserver1 kernel: eeepc-wmi eeepc-wmi: Detected AsusMbSwInterface, not ASUSWMI, use DSTS
-May 13 07:33:36 aiserver1 kernel: input: Eee PC WMI hotkeys as /devices/platform/eeepc-wmi/input/input9
-May 13 07:33:36 aiserver1 kernel: RAPL PMU: API unit is 2^-32 Joules, 1 fixed counters, 163840 ms ovfl timer
-May 13 07:33:36 aiserver1 kernel: RAPL PMU: hw unit of domain package 2^-16 Joules
-May 13 07:33:36 aiserver1 kernel: NET: Registered PF_BLUETOOTH protocol family
-May 13 07:33:36 aiserver1 kernel: Bluetooth: HCI device and connection manager initialized
-May 13 07:33:36 aiserver1 kernel: Bluetooth: HCI socket layer initialized
-May 13 07:33:36 aiserver1 kernel: Bluetooth: L2CAP socket layer initialized
-May 13 07:33:36 aiserver1 kernel: Bluetooth: SCO socket layer initialized
-May 13 07:33:36 aiserver1 kernel: snd_hda_intel 0000:01:00.1: enabling device (0000 -> 0002)
-May 13 07:33:36 aiserver1 kernel: snd_hda_intel 0000:01:00.1: Disabling MSI
-May 13 07:33:36 aiserver1 kernel: snd_hda_intel 0000:01:00.1: Handle vga_switcheroo audio client
-May 13 07:33:36 aiserver1 kernel: snd_hda_intel 0000:79:00.1: enabling device (0000 -> 0002)
-May 13 07:33:36 aiserver1 kernel: snd_hda_intel 0000:79:00.1: Handle vga_switcheroo audio client
-May 13 07:33:36 aiserver1 kernel: snd_hda_intel 0000:79:00.6: enabling device (0000 -> 0002)
-May 13 07:33:36 aiserver1 kernel: usbcore: registered new interface driver btusb
-May 13 07:33:36 aiserver1 kernel: Bluetooth: hci0: Opcode 0x0c03 failed: -16
-May 13 07:33:37 aiserver1 kernel: snd_hda_intel 0000:79:00.1: bound 0000:79:00.0 (ops amdgpu_dm_audio_component_bind_ops [amdgpu])
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0: autoconfig for ALC1220: line_outs=1 (0x14/0x0/0x0/0x0/0x0) type:line
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0:    speaker_outs=0 (0x0/0x0/0x0/0x0/0x0)
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0:    hp_outs=1 (0x1b/0x0/0x0/0x0/0x0)
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0:    mono: mono_out=0x0
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0:    inputs:
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0:      Rear Mic=0x18
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0:      Front Mic=0x19
-May 13 07:33:37 aiserver1 kernel: snd_hda_codec_realtek hdaudioC2D0:      Line=0x1a
-May 13 07:33:37 aiserver1 kernel: kvm_amd: TSC scaling supported
-May 13 07:33:37 aiserver1 kernel: kvm_amd: Nested Virtualization enabled
-May 13 07:33:37 aiserver1 kernel: kvm_amd: Nested Paging enabled
-May 13 07:33:37 aiserver1 kernel: kvm_amd: LBR virtualization supported
-May 13 07:33:37 aiserver1 kernel: kvm_amd: Virtual VMLOAD VMSAVE supported
-May 13 07:33:37 aiserver1 kernel: kvm_amd: Virtual GIF supported
-May 13 07:33:37 aiserver1 kernel: kvm_amd: Virtual NMI enabled
-May 13 07:33:37 aiserver1 kernel: MCE: In-kernel MCE decoding enabled.
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic Rear Mic as /devices/pci0000:00/0000:00:08.1/0000:79:00.6/sound/card2/input17
-May 13 07:33:37 aiserver1 kernel: input: HDA NVidia HDMI/DP,pcm=3 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card0/input13
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic Front Mic as /devices/pci0000:00/0000:00:08.1/0000:79:00.6/sound/card2/input18
-May 13 07:33:37 aiserver1 kernel: input: HDA NVidia HDMI/DP,pcm=7 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card0/input14
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic Line as /devices/pci0000:00/0000:00:08.1/0000:79:00.6/sound/card2/input19
-May 13 07:33:37 aiserver1 kernel: input: HDA NVidia HDMI/DP,pcm=8 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card0/input15
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic HDMI/DP,pcm=3 as /devices/pci0000:00/0000:00:08.1/0000:79:00.1/sound/card1/input10
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic Line Out as /devices/pci0000:00/0000:00:08.1/0000:79:00.6/sound/card2/input20
-May 13 07:33:37 aiserver1 kernel: input: HDA NVidia HDMI/DP,pcm=9 as /devices/pci0000:00/0000:00:01.1/0000:01:00.1/sound/card0/input16
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic Front Headphone as /devices/pci0000:00/0000:00:08.1/0000:79:00.6/sound/card2/input21
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic HDMI/DP,pcm=7 as /devices/pci0000:00/0000:00:08.1/0000:79:00.1/sound/card1/input11
-May 13 07:33:37 aiserver1 kernel: input: HD-Audio Generic HDMI/DP,pcm=8 as /devices/pci0000:00/0000:00:08.1/0000:79:00.1/sound/card1/input12
-May 13 07:33:37 aiserver1 kernel: intel_rapl_common: Found RAPL domain package
-May 13 07:33:37 aiserver1 kernel: intel_rapl_common: Found RAPL domain core
-May 13 07:33:37 aiserver1 kernel: zfs: module license 'CDDL' taints kernel.
-May 13 07:33:37 aiserver1 kernel: Disabling lock debugging due to kernel taint
-May 13 07:33:37 aiserver1 kernel: zfs: module license taints kernel.
-May 13 07:33:38 aiserver1 kernel: ZFS: Loaded module v2.2.2-0ubuntu9.4, ZFS pool version 5000, ZFS filesystem version 5
-May 13 07:33:38 aiserver1 kernel: loop0: detected capacity change from 0 to 130960
-May 13 07:33:38 aiserver1 kernel: loop1: detected capacity change from 0 to 130616
-May 13 07:33:38 aiserver1 kernel: loop2: detected capacity change from 0 to 178256
-May 13 07:33:38 aiserver1 kernel: loop3: detected capacity change from 0 to 187752
-May 13 07:33:38 aiserver1 kernel: loop4: detected capacity change from 0 to 79520
-May 13 07:33:38 aiserver1 kernel: loop5: detected capacity change from 0 to 100888
-May 13 07:33:38 aiserver1 kernel: EXT4-fs (zd32): mounted filesystem e927d99a-b76b-4e09-b440-e916f2170965 r/w with ordered data mode. Quota mode: none.
-May 13 07:33:38 aiserver1 kernel: EXT4-fs (zd0): mounted filesystem 2481aaf2-59a8-45a6-ae32-b76d2a96ace7 r/w with ordered data mode. Quota mode: none.
-May 13 07:33:38 aiserver1 kernel: EXT4-fs (zd16): mounted filesystem e30e48cc-df1c-432b-a1bd-867f57edb031 r/w with ordered data mode. Quota mode: none.
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.167:2): apparmor="STATUS" operation="profile_load" profile="unconfined" name="lsb_release" pid=1405 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.169:3): apparmor="STATUS" operation="profile_load" profile="unconfined" name="nvidia_modprobe" pid=1406 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.169:4): apparmor="STATUS" operation="profile_load" profile="unconfined" name="nvidia_modprobe//kmod" pid=1406 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.177:5): apparmor="STATUS" operation="profile_load" profile="unconfined" name="/usr/bin/man" pid=1410 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.177:6): apparmor="STATUS" operation="profile_load" profile="unconfined" name="man_filter" pid=1410 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.178:7): apparmor="STATUS" operation="profile_load" profile="unconfined" name="man_groff" pid=1410 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.190:8): apparmor="STATUS" operation="profile_load" profile="unconfined" name="ubuntu_pro_apt_news" pid=1408 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.205:9): apparmor="STATUS" operation="profile_load" profile="unconfined" name="tcpdump" pid=1411 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.210:10): apparmor="STATUS" operation="profile_load" profile="unconfined" name="/usr/lib/NetworkManager/nm-dhcp-client.action" pid=1407 comm="apparmor_parser"
-May 13 07:33:38 aiserver1 kernel: audit: type=1400 audit(1778657618.210:11): apparmor="STATUS" operation="profile_load" profile="unconfined" name="/usr/lib/NetworkManager/nm-dhcp-helper" pid=1407 comm="apparmor_parser"
-May 13 07:33:41 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX
-May 13 07:33:46 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 0 new 10000
-May 13 07:34:01 aiserver1 kernel: sctp: Hash tables configured (bind 1024/1024)
-May 13 07:34:01 aiserver1 kernel: NFSD: Using nfsdcld client tracking operations.
-May 13 07:34:01 aiserver1 kernel: NFSD: no clients to reclaim, skipping NFSv4 grace period (net f0000000)
-May 13 07:34:01 aiserver1 kernel: evm: overlay not supported
-May 13 07:34:01 aiserver1 kernel: kauditd_printk_skb: 30 callbacks suppressed
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.391:42): apparmor="STATUS" operation="profile_load" profile="unconfined" name="docker-default" pid=2227 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: loop6: detected capacity change from 0 to 8
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.875:43): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="/snap/snapd/26865/usr/lib/snapd/snap-confine" pid=2422 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.878:44): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap-update-ns.lxd" pid=2426 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.879:45): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap.lxd.hook.install" pid=2433 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.879:46): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap.lxd.activate" pid=2427 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.879:47): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap.lxd.benchmark" pid=2428 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.879:48): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap.lxd.buginfo" pid=2429 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.879:49): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap.lxd.check-kernel" pid=2430 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.880:50): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap.lxd.hook.remove" pid=2434 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.880:51): apparmor="STATUS" operation="profile_replace" info="same as current profile, skipping" profile="unconfined" name="snap.lxd.lxc-to-lxd" pid=2436 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: Initializing XFRM netlink socket
-May 13 07:34:01 aiserver1 kernel: bridge: filtering via arp/ip/ip6tables is no longer available by default. Update your scripts to load br_netfilter if you need this.
-May 13 07:34:02 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 10000 new 0
-May 13 07:34:02 aiserver1 kernel: Bridge firewalling registered
-May 13 07:34:03 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered blocking state
-May 13 07:34:03 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered disabled state
-May 13 07:34:03 aiserver1 kernel: vethe571deb: entered allmulticast mode
-May 13 07:34:03 aiserver1 kernel: vethe571deb: entered promiscuous mode
-May 13 07:34:03 aiserver1 kernel: eth0: renamed from veth367b271
-May 13 07:34:03 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered blocking state
-May 13 07:34:03 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered forwarding state
-May 13 07:34:10 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 0 new 10000
-May 13 07:37:11 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/compat3079840370/lower1' does not support file handles, falling back to xino=off.
-May 13 07:37:11 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/metacopy-check418668155/l1' does not support file handles, falling back to xino=off.
-May 13 07:37:11 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/opaque-bug-check4091527579/l2' does not support file handles, falling back to xino=off.
-May 13 07:59:19 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: PCIe link lost, device now detached
-May 13 07:59:19 aiserver1 kernel: ------------[ cut here ]------------
-May 13 07:59:19 aiserver1 kernel: igc: Failed to read reg 0xc030!
-May 13 07:59:19 aiserver1 kernel: WARNING: CPU: 13 PID: 97 at drivers/net/ethernet/intel/igc/igc_main.c:6652 igc_rd32+0xa4/0xc0 [igc]
-May 13 07:59:19 aiserver1 kernel: Modules linked in: nf_conntrack_netlink veth br_netfilter bridge stp llc xfrm_user xfrm_algo xt_set ip_set sctp ip6_udp_tunnel udp_tunnel nvme_fabrics overlay nft_chain_nat xt_nat xt_MASQUERADE nf_nat xt_addrtype xt_tcpudp xt_mark xt_connmark xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nft_compat nf_tables nfnetlink binfmt_misc zfs(PO) spl(O) intel_rapl_msr intel_rapl_common nls_iso8859_1 edac_mce_amd kvm_amd snd_hda_codec_realtek snd_hda_codec_generic snd_hda_codec_hdmi snd_hda_intel kvm btusb snd_intel_dspcfg btrtl snd_intel_sdw_acpi btintel snd_hda_codec btbcm btmtk irqbypass snd_hda_core snd_hwdep rapl eeepc_wmi snd_pcm wmi_bmof input_leds joydev bluetooth snd_timer snd k10temp ccp ecdh_generic soundcore nvidia_uvm(OE) mac_hid acpi_pad sch_fq_codel dm_multipath scsi_dh_rdac nfsd scsi_dh_emc scsi_dh_alua nvmet_tcp auth_rpcgss nvmet nfs_acl nvme_keyring lockd grace msr sunrpc efi_pstore ip_tables x_tables autofs4 btrfs blake2b_generic raid10 raid456 async_raid6_recov async_memcpy async_pq
-May 13 07:59:19 aiserver1 kernel:  async_xor async_tx xor raid6_pq libcrc32c raid1 raid0 hid_generic amdgpu usbhid hid nvidia_drm(OE) amdxcp drm_exec gpu_sched drm_buddy i2c_algo_bit drm_suballoc_helper nvidia_modeset(OE) drm_ttm_helper crct10dif_pclmul crc32_pclmul ttm polyval_clmulni polyval_generic mfd_aaeon asus_wmi ghash_clmulni_intel ledtrig_audio drm_display_helper sha256_ssse3 sparse_keymap nvidia(OE) platform_profile sha1_ssse3 nvme cec atlantic thunderbolt ahci rc_core i2c_piix4 igc xhci_pci macsec libahci nvme_core xhci_pci_renesas ecc nvme_auth video ucsi_acpi typec_ucsi wmi gpio_amdpt typec aesni_intel crypto_simd cryptd
-May 13 07:59:19 aiserver1 kernel: CPU: 13 PID: 97 Comm: kworker/13:0 Tainted: P           OE      6.8.0-111-generic #111~22.04.1-Ubuntu
-May 13 07:59:19 aiserver1 kernel: Hardware name: ASUS System Product Name/ProArt X870E-CREATOR WIFI, BIOS 1512 06/05/2025
-May 13 07:59:19 aiserver1 kernel: Workqueue: events igc_watchdog_task [igc]
-May 13 07:59:19 aiserver1 kernel: RIP: 0010:igc_rd32+0xa4/0xc0 [igc]
-May 13 07:59:19 aiserver1 kernel: Code: c7 c6 68 07 70 c0 e8 9b 80 61 e7 48 8b bb 28 ff ff ff e8 3f 3e 08 e7 84 c0 74 b4 44 89 e6 48 c7 c7 90 07 70 c0 e8 dc c4 82 e6 <0f> 0b eb a1 b8 ff ff ff ff 31 d2 31 f6 31 ff c3 cc cc cc cc 0f 1f
-May 13 07:59:19 aiserver1 kernel: RSP: 0018:ffffcbd800543d88 EFLAGS: 00010246
-May 13 07:59:19 aiserver1 kernel: RAX: 0000000000000000 RBX: ffff8a8833f10cd8 RCX: 0000000000000000
-May 13 07:59:19 aiserver1 kernel: RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
-May 13 07:59:19 aiserver1 kernel: RBP: ffffcbd800543da0 R08: 0000000000000000 R09: 0000000000000000
-May 13 07:59:19 aiserver1 kernel: R10: 0000000000000000 R11: 0000000000000000 R12: 000000000000c030
-May 13 07:59:19 aiserver1 kernel: R13: ffff8a8833f10000 R14: 0000000000000000 R15: ffff8a883be6cd80
-May 13 07:59:19 aiserver1 kernel: FS:  0000000000000000(0000) GS:ffff8a96fd280000(0000) knlGS:0000000000000000
-May 13 07:59:19 aiserver1 kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-May 13 07:59:19 aiserver1 kernel: CR2: 000075dc83c74180 CR3: 0000000fe503c000 CR4: 0000000000f50ef0
-May 13 07:59:19 aiserver1 kernel: PKRU: 55555554
-May 13 07:59:19 aiserver1 kernel: Call Trace:
-May 13 07:59:19 aiserver1 kernel:  <TASK>
-May 13 07:59:19 aiserver1 kernel:  igc_update_stats+0xab/0x770 [igc]
-May 13 07:59:19 aiserver1 kernel:  igc_watchdog_task+0xa4/0x540 [igc]
-May 13 07:59:19 aiserver1 kernel:  ? __schedule+0x284/0x6a0
-May 13 07:59:19 aiserver1 kernel:  process_one_work+0x181/0x3a0
-May 13 07:59:19 aiserver1 kernel:  worker_thread+0x306/0x440
-May 13 07:59:19 aiserver1 kernel:  ? __pfx_worker_thread+0x10/0x10
-May 13 07:59:19 aiserver1 kernel:  kthread+0xef/0x120
-May 13 07:59:19 aiserver1 kernel:  ? __pfx_kthread+0x10/0x10
-May 13 07:59:19 aiserver1 kernel:  ret_from_fork+0x44/0x70
-May 13 07:59:19 aiserver1 kernel:  ? __pfx_kthread+0x10/0x10
-May 13 07:59:19 aiserver1 kernel:  ret_from_fork_asm+0x1b/0x30
-May 13 07:59:19 aiserver1 kernel:  </TASK>
-May 13 07:59:19 aiserver1 kernel: ---[ end trace 0000000000000000 ]---
-May 13 09:20:35 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/compat1056773895/lower1' does not support file handles, falling back to xino=off.
-May 13 09:20:35 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/metacopy-check568008009/l1' does not support file handles, falling back to xino=off.
-May 13 09:20:35 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/opaque-bug-check4925954/l2' does not support file handles, falling back to xino=off.
-May 13 09:29:56 aiserver1 kernel: EXT4-fs (zd32): unmounting filesystem e927d99a-b76b-4e09-b440-e916f2170965.
-May 13 09:29:56 aiserver1 kernel: EXT4-fs (zd16): unmounting filesystem e30e48cc-df1c-432b-a1bd-867f57edb031.
-May 13 09:30:01 aiserver1 kernel: EXT4-fs (zd0): unmounting filesystem 2481aaf2-59a8-45a6-ae32-b76d2a96ace7.
-May 13 09:30:01 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered disabled state
-May 13 09:30:01 aiserver1 kernel: veth367b271: renamed from eth0
-May 13 09:30:01 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered disabled state
-May 13 09:30:01 aiserver1 kernel: vethe571deb (unregistering): left allmulticast mode
-May 13 09:30:01 aiserver1 kernel: vethe571deb (unregistering): left promiscuous mode
-May 13 09:30:01 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered disabled state
-May 13 09:30:07 aiserver1 systemd-shutdown[1]: Syncing filesystems and block devices.
-May 13 09:30:07 aiserver1 systemd-shutdown[1]: Sending SIGTERM to remaining processes...
-ai1@aiserver1:~$ journalctl -b -1 --no-pager | tail -300
-May 13 09:29:56 aiserver1 systemd[41205]: Stopped podman-pause-4202783752368329090.scope.
-May 13 09:29:56 aiserver1 systemd[1]: apport.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[41205]: Removed slice Slice /user.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped LSB: automatic crash report generation.
-May 13 09:29:56 aiserver1 systemd[1]: Received SIGRTMIN+20 from PID 44727 (plymouthd).
-May 13 09:29:56 aiserver1 systemd-logind[1591]: Removed session 16.
-May 13 09:29:56 aiserver1 systemd[41205]: Stopped D-Bus User Message Bus.
-May 13 09:29:56 aiserver1 systemd[41205]: Stopped target Basic System.
-May 13 09:29:56 aiserver1 systemd[41205]: Stopped target Paths.
-May 13 09:29:56 aiserver1 systemd[41205]: Stopped target Sockets.
-May 13 09:29:56 aiserver1 systemd[41205]: Stopped target Timers.
-May 13 09:29:56 aiserver1 systemd[41205]: Closed D-Bus User Message Bus Socket.
-May 13 09:29:56 aiserver1 systemd[41205]: Closed GnuPG network certificate management daemon.
-May 13 09:29:56 aiserver1 systemd[41205]: Closed GnuPG cryptographic agent and passphrase cache (access for web browsers).
-May 13 09:29:56 aiserver1 systemd[41205]: Closed GnuPG cryptographic agent and passphrase cache (restricted).
-May 13 09:29:56 aiserver1 systemd[41205]: Closed GnuPG cryptographic agent (ssh-agent emulation).
-May 13 09:29:56 aiserver1 systemd[41205]: Closed GnuPG cryptographic agent and passphrase cache.
-May 13 09:29:56 aiserver1 systemd[41205]: Closed debconf communication socket.
-May 13 09:29:56 aiserver1 systemd[41205]: Closed Podman API Socket.
-May 13 09:29:56 aiserver1 systemd[41205]: Closed REST API socket for snapd user session agent.
-May 13 09:29:56 aiserver1 systemd[41205]: Removed slice User Application Slice.
-May 13 09:29:56 aiserver1 systemd[41205]: Reached target Shutdown.
-May 13 09:29:56 aiserver1 systemd[41205]: Finished Exit the Session.
-May 13 09:29:56 aiserver1 systemd[41205]: Reached target Exit the Session.
-May 13 09:29:56 aiserver1 systemd-tmpfiles[44770]: /run/finalrd-libs.conf:48: Duplicate line for path "/run/initramfs/lib64", ignoring.
-May 13 09:29:56 aiserver1 systemd[1]: polkit.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped Authorization Manager.
-May 13 09:29:56 aiserver1 systemd[1]: Started Show Plymouth Reboot Screen.
-May 13 09:29:56 aiserver1 finalrd[44774]: run-parts: executing /usr/share/finalrd/mdadm.finalrd setup
-May 13 09:29:56 aiserver1 systemd[1]: Starting Tell Plymouth To Jump To initramfs...
-May 13 09:29:56 aiserver1 systemd[1]: user@1000.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped User Manager for UID 1000.
-May 13 09:29:56 aiserver1 systemd[1]: Stopping User Runtime Directory /run/user/1000...
-May 13 09:29:56 aiserver1 systemd[1]: run-user-1000.mount: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Unmounted /run/user/1000.
-May 13 09:29:56 aiserver1 finalrd[44774]: run-parts: executing /usr/share/finalrd/open-iscsi.finalrd setup
-May 13 09:29:56 aiserver1 systemd[1]: Finished Tell Plymouth To Jump To initramfs.
-May 13 09:29:56 aiserver1 systemd[1]: user-runtime-dir@1000.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped User Runtime Directory /run/user/1000.
-May 13 09:29:56 aiserver1 systemd[1]: Removed slice User Slice of UID 1000.
-May 13 09:29:56 aiserver1 systemd[1]: Stopping Permit User Sessions...
-May 13 09:29:56 aiserver1 systemd[1]: systemd-user-sessions.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped Permit User Sessions.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped target Remote File Systems.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped target Preparation for Remote File Systems.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped target NFS client services.
-May 13 09:29:56 aiserver1 systemd[1]: systemd-logind.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped User Login Management.
-May 13 09:29:56 aiserver1 systemd-networkd[1521]: tailscale0: Link DOWN
-May 13 09:29:56 aiserver1 systemd-networkd[1521]: tailscale0: Lost carrier
-May 13 09:29:56 aiserver1 tailscaled[1592]: monitor: RTM_DELROUTE: src=, dst=fe80::/64, gw=, outif=4, table=254
-May 13 09:29:56 aiserver1 tailscaled[1592]: monitor: RTM_DELROUTE: src=, dst=fe80::3284:4ce8:e0dd:2c7d/128, gw=, outif=4, table=255
-May 13 09:29:56 aiserver1 tailscaled[1592]: monitor: RTM_DELROUTE: src=, dst=ff00::/8, gw=, outif=4, table=255
-May 13 09:29:56 aiserver1 systemd-timesyncd[1417]: Network configuration changed, trying to establish connection.
-May 13 09:29:56 aiserver1 tailscaled[1592]: monitor: ip rule deleted: {Family:2 DstLength:0 SrcLength:0 Tos:0 Table:254 Protocol:0 Scope:0 Type:1 Flags:0 Attributes:{Dst:<nil> Src:<nil> Gateway:<nil> OutIface:0 Priority:5210 Table:254 Mark:16711680 Pref:<nil> Expires:<nil> Metrics:<nil> Multipath:[]}}
-May 13 09:29:56 aiserver1 tailscaled[1592]: monitor: ip rule deleted: {Family:2 DstLength:0 SrcLength:0 Tos:0 Table:253 Protocol:0 Scope:0 Type:1 Flags:0 Attributes:{Dst:<nil> Src:<nil> Gateway:<nil> OutIface:0 Priority:5230 Table:253 Mark:16711680 Pref:<nil> Expires:<nil> Metrics:<nil> Multipath:[]}}
-May 13 09:29:56 aiserver1 tailscaled[1592]: monitor: ip rule deleted: {Family:2 DstLength:0 SrcLength:0 Tos:0 Table:0 Protocol:0 Scope:0 Type:7 Flags:0 Attributes:{Dst:<nil> Src:<nil> Gateway:<nil> OutIface:0 Priority:5250 Table:0 Mark:16711680 Pref:<nil> Expires:<nil> Metrics:<nil> Multipath:[]}}
-May 13 09:29:56 aiserver1 tailscaled[1592]: monitor: ip rule deleted: {Family:2 DstLength:0 SrcLength:0 Tos:0 Table:52 Protocol:0 Scope:0 Type:1 Flags:0 Attributes:{Dst:<nil> Src:<nil> Gateway:<nil> OutIface:0 Priority:5270 Table:52 Mark:0 Pref:<nil> Expires:<nil> Metrics:<nil> Multipath:[]}}
-May 13 09:29:56 aiserver1 systemd[1]: cuda-mps.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped CUDA MPS Control Daemon — Static SM Partitioning.
-May 13 09:29:56 aiserver1 systemd[1]: cuda-mps.service: Consumed 4.945s CPU time.
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: Received signal 15
-May 13 09:29:56 aiserver1 systemd[1]: Stopping NVIDIA Persistence Daemon...
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: Socket closed.
-May 13 09:29:56 aiserver1 systemd[1]: nfs-server.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped NFS server and services.
-May 13 09:29:56 aiserver1 systemd[1]: Stopping NFSv4 ID-name mapping service...
-May 13 09:29:56 aiserver1 rpc.idmapd[1426]: exiting on signal 15
-May 13 09:29:56 aiserver1 systemd[1]: Stopping NFS Mount Daemon...
-May 13 09:29:56 aiserver1 systemd[1]: Stopping NFSv4 Client Tracking Daemon...
-May 13 09:29:56 aiserver1 systemd[1]: Stopping NFS status monitor for NFSv2/3 locking....
-May 13 09:29:56 aiserver1 rpc.mountd[1559]: Caught signal 15, un-registering and exiting.
-May 13 09:29:56 aiserver1 systemd[1]: nfs-idmapd.service: Main process exited, code=exited, status=1/FAILURE
-May 13 09:29:56 aiserver1 systemd[1]: nfs-idmapd.service: Failed with result 'exit-code'.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped NFSv4 ID-name mapping service.
-May 13 09:29:56 aiserver1 systemd[1]: rpc-statd.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped NFS status monitor for NFSv2/3 locking..
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: device 0000:01:00.0 - persistence mode disabled.
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: device 0000:01:00.0 - NUMA memory offlined.
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: PID file unlocked.
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: PID file closed.
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: The daemon no longer has permission to remove its runtime data directory /var/run/nvidia-persistenced
-May 13 09:29:56 aiserver1 nvidia-persistenced[1577]: Shutdown (1577)
-May 13 09:29:56 aiserver1 systemd[1]: nvidia-persistenced.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped NVIDIA Persistence Daemon.
-May 13 09:29:56 aiserver1 systemd[1]: nfs-mountd.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped NFS Mount Daemon.
-May 13 09:29:56 aiserver1 systemd[1]: nfsdcld.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped NFSv4 Client Tracking Daemon.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped target rpc_pipefs.target.
-May 13 09:29:56 aiserver1 systemd[1]: Unmounting RPC Pipe File System...
-May 13 09:29:56 aiserver1 systemd[1]: postgresql@14-main.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped PostgreSQL Cluster 14-main.
-May 13 09:29:56 aiserver1 systemd[1]: postgresql@14-main.service: Consumed 1.759s CPU time.
-May 13 09:29:56 aiserver1 systemd[1]: Removed slice Slice /system/postgresql.
-May 13 09:29:56 aiserver1 systemd[1]: system-postgresql.slice: Consumed 1.759s CPU time.
-May 13 09:29:56 aiserver1 systemd[1]: run-rpc_pipefs.mount: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Unmounted RPC Pipe File System.
-May 13 09:29:56 aiserver1 systemd[1]: finalrd.service: Deactivated successfully.
-May 13 09:29:56 aiserver1 systemd[1]: Stopped Create final runtime dir for shutdown pivot root.
-May 13 09:29:56 aiserver1 tailscaled[1592]: flushing log.
-May 13 09:29:56 aiserver1 tailscaled[1592]: logger closing down
-May 13 09:29:57 aiserver1 tailscaled[45225]: TPM: successfully read all properties
-May 13 09:29:57 aiserver1 tailscaled[45225]: logtail started
-May 13 09:29:57 aiserver1 tailscaled[45225]: Program starting: v1.96.4-t8cf541dfd-g62bc84ce7, Go 1.26.1: []string{"/usr/sbin/tailscaled", "--cleanup"}
-May 13 09:29:57 aiserver1 tailscaled[45225]: LogID: 9c46d9a2fdb928eeb69acb57a808d23bca06b36addbf151127da1b8662e0e510
-May 13 09:29:57 aiserver1 tailscaled[45225]: logpolicy: using $STATE_DIRECTORY, "/var/lib/tailscale"
-May 13 09:29:57 aiserver1 tailscaled[45225]: dns: [resolved-ping=yes rc=resolved resolved=file nm=no resolv-conf-mode=stub ret=systemd-resolved]
-May 13 09:29:57 aiserver1 tailscaled[45225]: dns: using "systemd-resolved" mode
-May 13 09:29:57 aiserver1 tailscaled[45225]: creating dns cleanup: route ip+net: no such network interface
-May 13 09:29:57 aiserver1 tailscaled[45225]: flushing log.
-May 13 09:29:57 aiserver1 tailscaled[45225]: logger closing down
-May 13 09:29:58 aiserver1 tailscaled[45225]: logtail: upload: log upload of 26298 bytes compressed failed: Post "https://log.tailscale.com/c/tailnode.log.tailscale.io/e00760afe5003e1af79edd730b69917d91e77f290219e4e12b3c49626f07515b": context canceled
-May 13 09:29:58 aiserver1 tailscaled[45225]: logtail: dial "log.tailscale.com:443" failed: dial tcp: lookup log.tailscale.com: operation was canceled (in 1.068s), trying bootstrap...
-May 13 09:29:58 aiserver1 systemd[1]: tailscaled.service: Deactivated successfully.
-May 13 09:29:58 aiserver1 systemd[1]: Stopped Tailscale node agent.
-May 13 09:29:58 aiserver1 systemd[1]: tailscaled.service: Consumed 16.422s CPU time.
-May 13 09:29:59 aiserver1 snapd[1586]: standby.go:121: standby monitoring stop requested
-May 13 09:29:59 aiserver1 snapd[1586]: overlord.go:558: Released state lock file
-May 13 09:29:59 aiserver1 systemd[1]: snapd.service: Deactivated successfully.
-May 13 09:29:59 aiserver1 systemd[1]: Stopped Snap Daemon.
-May 13 09:29:59 aiserver1 systemd[1]: snapd.service: Consumed 1.271s CPU time.
-May 13 09:30:01 aiserver1 kernel: EXT4-fs (zd0): unmounting filesystem 2481aaf2-59a8-45a6-ae32-b76d2a96ace7.
-May 13 09:30:01 aiserver1 systemd[1]: docker-989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4.scope: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: docker-989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4.scope: Consumed 6min 47.869s CPU time.
-May 13 09:30:01 aiserver1 dockerd[2068]: time="2026-05-13T09:30:01.819458744Z" level=info msg="received task-delete event from containerd" container=989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4 module=libcontainerd namespace=moby topic=/tasks/delete type="*events.TaskDelete"
-May 13 09:30:01 aiserver1 containerd[1598]: time="2026-05-13T09:30:01.819755526Z" level=info msg="shim disconnected" id=989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4 namespace=moby
-May 13 09:30:01 aiserver1 containerd[1598]: time="2026-05-13T09:30:01.819775083Z" level=info msg="cleaning up after shim disconnected" id=989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4 namespace=moby
-May 13 09:30:01 aiserver1 containerd[1598]: time="2026-05-13T09:30:01.819778790Z" level=info msg="cleaning up dead shim" id=989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4 namespace=moby
-May 13 09:30:01 aiserver1 systemd-networkd[1521]: vethe571deb: Lost carrier
-May 13 09:30:01 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered disabled state
-May 13 09:30:01 aiserver1 kernel: veth367b271: renamed from eth0
-May 13 09:30:01 aiserver1 systemd-udevd[45262]: Using default interface naming scheme 'v249'.
-May 13 09:30:01 aiserver1 systemd-networkd[1521]: vethe571deb: Link DOWN
-May 13 09:30:01 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered disabled state
-May 13 09:30:01 aiserver1 kernel: vethe571deb (unregistering): left allmulticast mode
-May 13 09:30:01 aiserver1 kernel: vethe571deb (unregistering): left promiscuous mode
-May 13 09:30:01 aiserver1 kernel: br-7591385cbd35: port 1(vethe571deb) entered disabled state
-May 13 09:30:01 aiserver1 systemd[1]: run-docker-netns-1a48a60b274a.mount: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Unmounted /run/docker/netns/1a48a60b274a.
-May 13 09:30:01 aiserver1 systemd[1]: var-lib-docker-rootfs-overlayfs-989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4.mount: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Unmounted /var/lib/docker/rootfs/overlayfs/989ce9a0f8262e585f5dbb8595788b356f35077c2092cde058438f6047834bb4.
-May 13 09:30:01 aiserver1 dockerd[2068]: time="2026-05-13T09:30:01.971267229Z" level=info msg="stopping event stream following graceful shutdown" error="<nil>" module=libcontainerd namespace=moby
-May 13 09:30:01 aiserver1 dockerd[2068]: time="2026-05-13T09:30:01.971430619Z" level=info msg="Daemon shutdown complete"
-May 13 09:30:01 aiserver1 systemd[1]: docker.service: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped Docker Application Container Engine.
-May 13 09:30:01 aiserver1 systemd[1]: docker.service: Consumed 1.525s CPU time.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Network is Online.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Host and Network Name Lookups.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target System Time Set.
-May 13 09:30:01 aiserver1 systemd[1]: Stopping containerd container runtime...
-May 13 09:30:01 aiserver1 systemd[1]: containerd.service: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped containerd container runtime.
-May 13 09:30:01 aiserver1 systemd[1]: containerd.service: Consumed 6.076s CPU time.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Basic System.
-May 13 09:30:01 aiserver1 systemd[1]: systemd-ask-password-plymouth.path: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped Forward Password Requests to Plymouth Directory Watch.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Network.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Path Units.
-May 13 09:30:01 aiserver1 systemd[1]: nvidia-cdi-refresh.path: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped Trigger CDI refresh on NVIDIA driver or toolkit install / upgrade events.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Slice Units.
-May 13 09:30:01 aiserver1 systemd[1]: Removed slice User and Session Slice.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Socket Units.
-May 13 09:30:01 aiserver1 systemd[1]: docker.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed Docker Socket for the API.
-May 13 09:30:01 aiserver1 systemd[1]: iscsid.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed Open-iSCSI iscsid Socket.
-May 13 09:30:01 aiserver1 systemd[1]: podman.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed Podman API Socket.
-May 13 09:30:01 aiserver1 systemd[1]: snap.lxd.daemon.unix.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed Socket unix for snap application lxd.daemon.
-May 13 09:30:01 aiserver1 systemd[1]: snap.lxd.user-daemon.unix.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed Socket unix for snap application lxd.user-daemon.
-May 13 09:30:01 aiserver1 systemd[1]: snapd.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed Socket activation for snappy daemon.
-May 13 09:30:01 aiserver1 systemd[1]: syslog.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed Syslog Socket.
-May 13 09:30:01 aiserver1 systemd[1]: uuidd.socket: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Closed UUID daemon activation socket.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target System Initialization.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Local Encrypted Volumes.
-May 13 09:30:01 aiserver1 systemd[1]: systemd-ask-password-wall.path: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped Forward Password Requests to Wall Directory Watch.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped target Local Verity Protected Volumes.
-May 13 09:30:01 aiserver1 systemd[1]: cloud-init.service: Deactivated successfully.
-May 13 09:30:01 aiserver1 systemd[1]: Stopped Cloud-init: Network Stage.
-May 13 09:30:02 aiserver1 systemd[1]: Stopping Set Up Additional Binary Formats...
-May 13 09:30:02 aiserver1 systemd[1]: systemd-networkd-wait-online.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Wait for Network to be Configured.
-May 13 09:30:02 aiserver1 systemd[1]: Stopping Network Name Resolution...
-May 13 09:30:02 aiserver1 systemd-resolved[1523]: Failed to create graveyard IO source: Stale file handle
-May 13 09:30:02 aiserver1 systemd[1]: Stopping Network Time Synchronization...
-May 13 09:30:02 aiserver1 systemd-resolved[1523]: Failed to create graveyard IO source: Stale file handle
-May 13 09:30:02 aiserver1 systemd[1]: Stopping Record System Boot/Shutdown in UTMP...
-May 13 09:30:02 aiserver1 systemd[1]: systemd-binfmt.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Set Up Additional Binary Formats.
-May 13 09:30:02 aiserver1 systemd[1]: proc-sys-fs-binfmt_misc.automount: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Unset automount Arbitrary Executable File Formats File System Automount Point.
-May 13 09:30:02 aiserver1 systemd[1]: proc-sys-fs-binfmt_misc.mount: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: systemd-resolved.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Network Name Resolution.
-May 13 09:30:02 aiserver1 systemd[1]: Stopping Network Configuration...
-May 13 09:30:02 aiserver1 systemd[1]: systemd-update-utmp.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Record System Boot/Shutdown in UTMP.
-May 13 09:30:02 aiserver1 systemd-networkd[1521]: enp11s0: DHCPv6 lease lost
-May 13 09:30:02 aiserver1 systemd-networkd[1521]: enp10s0: DHCPv6 lease lost
-May 13 09:30:02 aiserver1 systemd[1]: systemd-networkd.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Network Configuration.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped target Preparation for Network.
-May 13 09:30:02 aiserver1 systemd[1]: systemd-networkd.socket: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Closed Network Service Netlink Socket.
-May 13 09:30:02 aiserver1 systemd[1]: cloud-init-local.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Cloud-init: Local Stage (pre-network).
-May 13 09:30:02 aiserver1 systemd[1]: Stopping netfilter persistent configuration...
-May 13 09:30:02 aiserver1 systemd[1]: systemd-sysctl.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Apply Kernel Variables.
-May 13 09:30:02 aiserver1 netfilter-persistent[45322]: Automatic flush disabled; use '/usr/sbin/netfilter-persistent flush'
-May 13 09:30:02 aiserver1 systemd[1]: netfilter-persistent.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped netfilter persistent configuration.
-May 13 09:30:02 aiserver1 systemd[1]: systemd-modules-load.service: Deactivated successfully.
-May 13 09:30:02 aiserver1 systemd[1]: Stopped Load Kernel Modules.
-May 13 09:30:07 aiserver1 systemd[1]: systemd-timesyncd.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped Network Time Synchronization.
-May 13 09:30:07 aiserver1 systemd[1]: systemd-tmpfiles-setup.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped Create Volatile Files and Directories.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped target Local File Systems.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped target Mounted snaps.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting /boot/efi...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting /datapool/ephemeral...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting /datapool/users...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting /run/credentials/systemd-sysusers.service...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting /run/snapd/ns/lxd.mnt...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting Mount unit for core20, revision 2318...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting Mount unit for core20, revision 2769...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting Mount unit for lxd, revision 29351...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting Mount unit for lxd, revision 38800...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting Mount unit for snapd, revision 21759...
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting Mount unit for snapd, revision 26865...
-May 13 09:30:07 aiserver1 systemd[1]: datapool-ephemeral.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted /datapool/ephemeral.
-May 13 09:30:07 aiserver1 systemd[1]: datapool-users.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted /datapool/users.
-May 13 09:30:07 aiserver1 systemd[1]: run-credentials-systemd\x2dsysusers.service.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted /run/credentials/systemd-sysusers.service.
-May 13 09:30:07 aiserver1 systemd[1]: snap-core20-2318.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted Mount unit for core20, revision 2318.
-May 13 09:30:07 aiserver1 systemd[1]: snap-core20-2769.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted Mount unit for core20, revision 2769.
-May 13 09:30:07 aiserver1 systemd[1]: snap-lxd-29351.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted Mount unit for lxd, revision 29351.
-May 13 09:30:07 aiserver1 systemd[1]: snap-lxd-38800.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted Mount unit for lxd, revision 38800.
-May 13 09:30:07 aiserver1 systemd[1]: snap-snapd-21759.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted Mount unit for snapd, revision 21759.
-May 13 09:30:07 aiserver1 systemd[1]: snap-snapd-26865.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted Mount unit for snapd, revision 26865.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped target Mounting snaps.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting /datapool...
-May 13 09:30:07 aiserver1 systemd[1]: run-snapd-ns-lxd.mnt.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted /run/snapd/ns/lxd.mnt.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounting /run/snapd/ns...
-May 13 09:30:07 aiserver1 systemd[1]: datapool.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted /datapool.
-May 13 09:30:07 aiserver1 systemd[1]: run-snapd-ns.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted /run/snapd/ns.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped target Swaps.
-May 13 09:30:07 aiserver1 systemd[1]: Deactivating swap /swap.img...
-May 13 09:30:07 aiserver1 systemd[1]: boot-efi.mount: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Unmounted /boot/efi.
-May 13 09:30:07 aiserver1 systemd[1]: systemd-fsck@dev-disk-by\x2duuid-7AC8\x2dDA44.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped File System Check on /dev/disk/by-uuid/7AC8-DA44.
-May 13 09:30:07 aiserver1 systemd[1]: Removed slice Slice /system/systemd-fsck.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped target Preparation for Local File Systems.
-May 13 09:30:07 aiserver1 systemd[1]: Stopping Monitoring of LVM2 mirrors, snapshots etc. using dmeventd or progress polling...
-May 13 09:30:07 aiserver1 multipathd[756]: exit (signal)
-May 13 09:30:07 aiserver1 multipathd[756]: --------shut down-------
-May 13 09:30:07 aiserver1 systemd[1]: Stopping Device-Mapper Multipath Device Controller...
-May 13 09:30:07 aiserver1 systemd[1]: systemd-tmpfiles-setup-dev.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped Create Static Device Nodes in /dev.
-May 13 09:30:07 aiserver1 systemd[1]: systemd-sysusers.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped Create System Users.
-May 13 09:30:07 aiserver1 systemd[1]: swap.img.swap: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Deactivated swap /swap.img.
-May 13 09:30:07 aiserver1 systemd[1]: Reached target Unmount All Filesystems.
-May 13 09:30:07 aiserver1 systemd[1]: multipathd.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped Device-Mapper Multipath Device Controller.
-May 13 09:30:07 aiserver1 systemd[1]: systemd-remount-fs.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped Remount Root and Kernel File Systems.
-May 13 09:30:07 aiserver1 systemd[1]: lvm2-monitor.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Stopped Monitoring of LVM2 mirrors, snapshots etc. using dmeventd or progress polling.
-May 13 09:30:07 aiserver1 systemd[1]: Reached target System Shutdown.
-May 13 09:30:07 aiserver1 systemd[1]: Reached target Late Shutdown Services.
-May 13 09:30:07 aiserver1 systemd[1]: systemd-reboot.service: Deactivated successfully.
-May 13 09:30:07 aiserver1 systemd[1]: Finished System Reboot.
-May 13 09:30:07 aiserver1 systemd[1]: Reached target System Reboot.
-May 13 09:30:07 aiserver1 systemd[1]: Shutting down.
-May 13 09:30:07 aiserver1 systemd-shutdown[1]: Syncing filesystems and block devices.
-May 13 09:30:07 aiserver1 systemd-shutdown[1]: Sending SIGTERM to remaining processes...
-May 13 09:30:07 aiserver1 systemd-journald[707]: Journal stopped
-ai1@aiserver1:~$ journalctl -b -1 -k | grep -i -E "igc|pcie|link|error|fault|panic|oom"
-May 13 07:33:36 aiserver1 kernel: Command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-111-generic root=UUID=e731fb81-3b65-4bb2-aa68-5a362673e843 ro quiet splash amd_iommu=on iommu=pt pcie_aspm=off pcie_port_pm=off vt.handoff=7
-May 13 07:33:36 aiserver1 kernel: Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-111-generic root=UUID=e731fb81-3b65-4bb2-aa68-5a362673e843 ro quiet splash amd_iommu=on iommu=pt pcie_aspm=off pcie_port_pm=off vt.handoff=7
-May 13 07:33:36 aiserver1 kernel: PCIe ASPM is disabled
-May 13 07:33:36 aiserver1 kernel: pid_max: default: 32768 minimum: 301
-May 13 07:33:36 aiserver1 kernel: NET: Registered PF_NETLINK/PF_ROUTE protocol family
-May 13 07:33:36 aiserver1 kernel: audit: initializing netlink subsys (disabled)
-May 13 07:33:36 aiserver1 kernel: ACPI: USB4 _OSC: OS supports USB3+ DisplayPort+ PCIe+ XDomain+
-May 13 07:33:36 aiserver1 kernel: ACPI: USB4 _OSC: OS controls USB3+ DisplayPort+ PCIe+ XDomain+
-May 13 07:33:36 aiserver1 kernel: pci 0000:00:01.1: [1022:14db] type 01 class 0x060400 PCIe Root Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:00:01.2: [1022:14db] type 01 class 0x060400 PCIe Root Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:00:02.1: [1022:14db] type 01 class 0x060400 PCIe Root Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:00:02.2: [1022:14db] type 01 class 0x060400 PCIe Root Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:00:08.1: [1022:14dd] type 01 class 0x060400 PCIe Root Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:00:08.3: [1022:14dd] type 01 class 0x060400 PCIe Root Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:01:00.0: [10de:2b85] type 00 class 0x030000 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:01:00.1: [10de:22e8] type 00 class 0x040300 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:02:00.0: [144d:a80d] type 00 class 0x010802 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:02:00.0: 63.014 Gb/s available PCIe bandwidth, limited by 32.0 GT/s PCIe x2 link at 0000:00:01.2 (capable of 126.028 Gb/s with 32.0 GT/s PCIe x4 link)
-May 13 07:33:36 aiserver1 kernel: pci 0000:03:00.0: [1022:43f4] type 01 class 0x060400 PCIe Switch Upstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:04:00.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:04:08.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:04:0c.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:04:0d.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:06:00.0: [1022:43f4] type 01 class 0x060400 PCIe Switch Upstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:07:00.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:07:04.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:07:05.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:07:06.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:07:08.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:07:0c.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:07:0d.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:09:00.0: [14c3:6639] type 00 class 0x028000 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:0a:00.0: [8086:125c] type 00 class 0x020000 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:0b:00.0: [1d6a:04c0] type 00 class 0x020000 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:0b:00.0: 15.752 Gb/s available PCIe bandwidth, limited by 8.0 GT/s PCIe x2 link at 0000:07:06.0 (capable of 63.012 Gb/s with 16.0 GT/s PCIe x4 link)
-May 13 07:33:36 aiserver1 kernel: pci 0000:0d:00.0: [1022:43fd] type 00 class 0x0c0330 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:0e:00.0: [1022:43f6] type 00 class 0x010601 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:0f:00.0: [1022:43fd] type 00 class 0x0c0330 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:10:00.0: [1022:43f6] type 00 class 0x010601 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:11:00.0: [1b21:2421] type 01 class 0x060400 PCIe Switch Upstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:12:00.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:12:01.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:12:02.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:12:03.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-May 13 07:33:36 aiserver1 kernel: pci 0000:77:00.0: [1b21:2426] type 00 class 0x0c0330 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:78:00.0: [1b21:2425] type 00 class 0x0c0340 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:79:00.0: [1002:13c0] type 00 class 0x030000 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:79:00.1: [1002:1640] type 00 class 0x040300 PCIe Legacy Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:79:00.2: [1022:1649] type 00 class 0x108000 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:79:00.3: [1022:15b6] type 00 class 0x0c0330 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:79:00.4: [1022:15b7] type 00 class 0x0c0330 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:79:00.6: [1022:15e3] type 00 class 0x040300 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: pci 0000:7a:00.0: [1022:15b8] type 00 class 0x0c0330 PCIe Endpoint
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKA configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKB configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKC configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKD configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKE configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKF configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKG configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: ACPI: PCI: Interrupt link LNKH configured for IRQ 0
-May 13 07:33:36 aiserver1 kernel: iommu: Default domain type: Passthrough (set via kernel command line)
-May 13 07:33:36 aiserver1 kernel: NetLabel:  unlabeled traffic allowed by default
-May 13 07:33:36 aiserver1 kernel: PCI: CLS 64 bytes, default 64
-May 13 07:33:36 aiserver1 kernel: RAS: Correctable Errors collector initialized.
-May 13 07:33:36 aiserver1 kernel: igc 0000:0a:00.0: PCIe PTM not supported by PCIe bus/controller
-May 13 07:33:36 aiserver1 kernel: igc 0000:0a:00.0 (unnamed net_device) (uninitialized): PHC added
-May 13 07:33:36 aiserver1 kernel: nvme nvme0: 16/0/0 default/read/poll queues
-May 13 07:33:36 aiserver1 kernel: nvidia-nvlink: Nvlink Core is being initialized, major device number 235
-May 13 07:33:36 aiserver1 kernel: igc 0000:0a:00.0: 4.000 Gb/s available PCIe bandwidth (5.0 GT/s PCIe x1 link)
-May 13 07:33:36 aiserver1 kernel: igc 0000:0a:00.0 eth1: MAC: a0:ad:9f:23:e5:30
-May 13 07:33:36 aiserver1 kernel: ata7: SATA link down (SStatus 0 SControl 300)
-May 13 07:33:36 aiserver1 kernel: ata1: SATA link down (SStatus 0 SControl 330)
-May 13 07:33:36 aiserver1 kernel: ata2: SATA link down (SStatus 0 SControl 330)
-May 13 07:33:36 aiserver1 kernel: ata3: SATA link down (SStatus 0 SControl 330)
-May 13 07:33:36 aiserver1 kernel: ata4: SATA link down (SStatus 0 SControl 330)
-May 13 07:33:36 aiserver1 kernel: ata8: SATA link down (SStatus 0 SControl 300)
-May 13 07:33:36 aiserver1 kernel: ata9: SATA link down (SStatus 0 SControl 300)
-May 13 07:33:36 aiserver1 kernel: ata10: SATA link down (SStatus 0 SControl 300)
-May 13 07:33:36 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: renamed from eth1
-May 13 07:33:36 aiserver1 kernel: amdgpu 0000:79:00.0: amdgpu: Trusted Memory Zone (TMZ) feature disabled as experimental (default)
-May 13 07:33:36 aiserver1 kernel: [drm] PCIE GART of 1024M enabled (table at 0x000000F47FC00000).
-May 13 07:33:36 aiserver1 systemd[1]: systemd 249.11-0ubuntu3.20 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
-May 13 07:33:36 aiserver1 systemd[1]: Queued start job for default target Graphical Interface.
-May 13 07:33:36 aiserver1 systemd[1]: Listening on Network Service Netlink Socket.
-May 13 07:33:41 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX
-May 13 07:33:46 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 0 new 10000
-May 13 07:34:01 aiserver1 kernel: audit: type=1400 audit(1778657641.391:42): apparmor="STATUS" operation="profile_load" profile="unconfined" name="docker-default" pid=2227 comm="apparmor_parser"
-May 13 07:34:01 aiserver1 kernel: Initializing XFRM netlink socket
-May 13 07:34:01 aiserver1 kernel: bridge: filtering via arp/ip/ip6tables is no longer available by default. Update your scripts to load br_netfilter if you need this.
-May 13 07:34:02 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 10000 new 0
-May 13 07:34:10 aiserver1 kernel: atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 0 new 10000
-May 13 07:59:19 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: PCIe link lost, device now detached
-May 13 07:59:19 aiserver1 kernel: igc: Failed to read reg 0xc030!
-May 13 07:59:19 aiserver1 kernel: WARNING: CPU: 13 PID: 97 at drivers/net/ethernet/intel/igc/igc_main.c:6652 igc_rd32+0xa4/0xc0 [igc]
-May 13 07:59:19 aiserver1 kernel: Modules linked in: nf_conntrack_netlink veth br_netfilter bridge stp llc xfrm_user xfrm_algo xt_set ip_set sctp ip6_udp_tunnel udp_tunnel nvme_fabrics overlay nft_chain_nat xt_nat xt_MASQUERADE nf_nat xt_addrtype xt_tcpudp xt_mark xt_connmark xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nft_compat nf_tables nfnetlink binfmt_misc zfs(PO) spl(O) intel_rapl_msr intel_rapl_common nls_iso8859_1 edac_mce_amd kvm_amd snd_hda_codec_realtek snd_hda_codec_generic snd_hda_codec_hdmi snd_hda_intel kvm btusb snd_intel_dspcfg btrtl snd_intel_sdw_acpi btintel snd_hda_codec btbcm btmtk irqbypass snd_hda_core snd_hwdep rapl eeepc_wmi snd_pcm wmi_bmof input_leds joydev bluetooth snd_timer snd k10temp ccp ecdh_generic soundcore nvidia_uvm(OE) mac_hid acpi_pad sch_fq_codel dm_multipath scsi_dh_rdac nfsd scsi_dh_emc scsi_dh_alua nvmet_tcp auth_rpcgss nvmet nfs_acl nvme_keyring lockd grace msr sunrpc efi_pstore ip_tables x_tables autofs4 btrfs blake2b_generic raid10 raid456 async_raid6_recov async_memcpy async_pq
-May 13 07:59:19 aiserver1 kernel:  async_xor async_tx xor raid6_pq libcrc32c raid1 raid0 hid_generic amdgpu usbhid hid nvidia_drm(OE) amdxcp drm_exec gpu_sched drm_buddy i2c_algo_bit drm_suballoc_helper nvidia_modeset(OE) drm_ttm_helper crct10dif_pclmul crc32_pclmul ttm polyval_clmulni polyval_generic mfd_aaeon asus_wmi ghash_clmulni_intel ledtrig_audio drm_display_helper sha256_ssse3 sparse_keymap nvidia(OE) platform_profile sha1_ssse3 nvme cec atlantic thunderbolt ahci rc_core i2c_piix4 igc xhci_pci macsec libahci nvme_core xhci_pci_renesas ecc nvme_auth video ucsi_acpi typec_ucsi wmi gpio_amdpt typec aesni_intel crypto_simd cryptd
-May 13 07:59:19 aiserver1 kernel: Workqueue: events igc_watchdog_task [igc]
-May 13 07:59:19 aiserver1 kernel: RIP: 0010:igc_rd32+0xa4/0xc0 [igc]
-May 13 07:59:19 aiserver1 kernel:  igc_update_stats+0xab/0x770 [igc]
-May 13 07:59:19 aiserver1 kernel:  igc_watchdog_task+0xa4/0x540 [igc]
-ai1@aiserver1:~$ journalctl -b -1 | grep -i "oom\|out of memory\|killed process"
-May 13 07:34:01 aiserver1 containerd[1598]: time="2026-05-13T07:34:01.169201728Z" level=info msg="starting cri plugin" config="{\"containerd\":{\"defaultRuntimeName\":\"runc\",\"runtimes\":{\"runc\":{\"runtimeType\":\"io.containerd.runc.v2\",\"runtimePath\":\"\",\"PodAnnotations\":null,\"ContainerAnnotations\":null,\"options\":{\"BinaryName\":\"\",\"CriuImagePath\":\"\",\"CriuWorkPath\":\"\",\"IoGid\":0,\"IoUid\":0,\"NoNewKeyring\":false,\"Root\":\"\",\"ShimCgroup\":\"\",\"SystemdCgroup\":false},\"privileged_without_host_devices\":false,\"privileged_without_host_devices_all_devices_allowed\":false,\"cgroupWritable\":false,\"baseRuntimeSpec\":\"\",\"cniConfDir\":\"\",\"cniMaxConfNum\":0,\"snapshotter\":\"\",\"sandboxer\":\"podsandbox\",\"io_type\":\"\"}},\"ignoreBlockIONotEnabledErrors\":false,\"ignoreRdtNotEnabledErrors\":false},\"cni\":{\"binDir\":\"\",\"binDirs\":[\"/opt/cni/bin\"],\"confDir\":\"/etc/cni/net.d\",\"maxConfNum\":1,\"setupSerially\":false,\"confTemplate\":\"\",\"ipPref\":\"\",\"useInternalLoopback\":false},\"enableSelinux\":false,\"selinuxCategoryRange\":1024,\"maxContainerLogLineSize\":16384,\"disableApparmor\":false,\"restrictOOMScoreAdj\":false,\"disableProcMount\":false,\"unsetSeccompProfile\":\"\",\"tolerateMissingHugetlbController\":true,\"disableHugetlbController\":true,\"device_ownership_from_security_context\":false,\"ignoreImageDefinedVolumes\":false,\"netnsMountsUnderStateDir\":false,\"enableUnprivilegedPorts\":true,\"enableUnprivilegedICMP\":true,\"enableCDI\":true,\"cdiSpecDirs\":[\"/etc/cdi\",\"/var/run/cdi\"],\"drainExecSyncIOTimeout\":\"0s\",\"ignoreDeprecationWarnings\":null,\"containerdRootDir\":\"/var/lib/containerd\",\"containerdEndpoint\":\"/run/containerd/containerd.sock\",\"rootDir\":\"/var/lib/containerd/io.containerd.grpc.v1.cri\",\"stateDir\":\"/run/containerd/io.containerd.grpc.v1.cri\"}"
-ai1@aiserver1:~$ dmesg | grep -i -E "error|fault|igc|pcie|link"
-dmesg: read kernel buffer failed: Operation not permitted
-ai1@aiserver1:~$ sudo dmesg | grep -i -E "error|fault|igc|pcie|link"
-[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-111-generic root=UUID=e731fb81-3b65-4bb2-aa68-5a362673e843 ro quiet splash amd_iommu=on iommu=pt pcie_aspm=off pcie_port_pm=off vt.handoff=7
-[    0.046371] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-111-generic root=UUID=e731fb81-3b65-4bb2-aa68-5a362673e843 ro quiet splash amd_iommu=on iommu=pt pcie_aspm=off pcie_port_pm=off vt.handoff=7
-[    0.046418] PCIe ASPM is disabled
-[    0.143254] pid_max: default: 32768 minimum: 301
-[    0.259620] NET: Registered PF_NETLINK/PF_ROUTE protocol family
-[    0.260368] audit: initializing netlink subsys (disabled)
-[    0.295256] ACPI: USB4 _OSC: OS supports USB3+ DisplayPort+ PCIe+ XDomain+
-[    0.295257] ACPI: USB4 _OSC: OS controls USB3+ DisplayPort+ PCIe+ XDomain+
-[    0.366670] pci 0000:00:01.1: [1022:14db] type 01 class 0x060400 PCIe Root Port
-[    0.366934] pci 0000:00:01.2: [1022:14db] type 01 class 0x060400 PCIe Root Port
-[    0.367110] pci 0000:00:02.1: [1022:14db] type 01 class 0x060400 PCIe Root Port
-[    0.367346] pci 0000:00:02.2: [1022:14db] type 01 class 0x060400 PCIe Root Port
-[    0.369644] pci 0000:00:08.1: [1022:14dd] type 01 class 0x060400 PCIe Root Port
-[    0.369744] pci 0000:00:08.3: [1022:14dd] type 01 class 0x060400 PCIe Root Port
-[    0.370175] pci 0000:01:00.0: [10de:2b85] type 00 class 0x030000 PCIe Legacy Endpoint
-[    0.370367] pci 0000:01:00.1: [10de:22e8] type 00 class 0x040300 PCIe Endpoint
-[    0.370644] pci 0000:02:00.0: [144d:a80d] type 00 class 0x010802 PCIe Endpoint
-[    0.370744] pci 0000:02:00.0: 63.014 Gb/s available PCIe bandwidth, limited by 32.0 GT/s PCIe x2 link at 0000:00:01.2 (capable of 126.028 Gb/s with 32.0 GT/s PCIe x4 link)
-[    0.370827] pci 0000:03:00.0: [1022:43f4] type 01 class 0x060400 PCIe Switch Upstream Port
-[    0.371083] pci 0000:04:00.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.371240] pci 0000:04:08.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.371411] pci 0000:04:0c.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.371521] pci 0000:04:0d.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.371691] pci 0000:06:00.0: [1022:43f4] type 01 class 0x060400 PCIe Switch Upstream Port
-[    0.372036] pci 0000:07:00.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.372287] pci 0000:07:04.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.372533] pci 0000:07:05.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.372777] pci 0000:07:06.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.373023] pci 0000:07:08.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.373271] pci 0000:07:0c.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.373436] pci 0000:07:0d.0: [1022:43f5] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.373699] pci 0000:09:00.0: [14c3:6639] type 00 class 0x028000 PCIe Endpoint
-[    0.374140] pci 0000:0a:00.0: [8086:125c] type 00 class 0x020000 PCIe Endpoint
-[    0.374567] pci 0000:0b:00.0: [1d6a:04c0] type 00 class 0x020000 PCIe Endpoint
-[    0.374950] pci 0000:0b:00.0: 15.752 Gb/s available PCIe bandwidth, limited by 8.0 GT/s PCIe x2 link at 0000:07:06.0 (capable of 63.012 Gb/s with 16.0 GT/s PCIe x4 link)
-[    0.375233] pci 0000:0d:00.0: [1022:43fd] type 00 class 0x0c0330 PCIe Legacy Endpoint
-[    0.375469] pci 0000:0e:00.0: [1022:43f6] type 00 class 0x010601 PCIe Legacy Endpoint
-[    0.375678] pci 0000:0f:00.0: [1022:43fd] type 00 class 0x0c0330 PCIe Legacy Endpoint
-[    0.375825] pci 0000:10:00.0: [1022:43f6] type 00 class 0x010601 PCIe Legacy Endpoint
-[    0.375982] pci 0000:11:00.0: [1b21:2421] type 01 class 0x060400 PCIe Switch Upstream Port
-[    0.378283] pci 0000:12:00.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.380760] pci 0000:12:01.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.383280] pci 0000:12:02.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.385493] pci 0000:12:03.0: [1b21:2423] type 01 class 0x060400 PCIe Switch Downstream Port
-[    0.387836] pci 0000:77:00.0: [1b21:2426] type 00 class 0x0c0330 PCIe Legacy Endpoint
-[    0.390154] pci 0000:78:00.0: [1b21:2425] type 00 class 0x0c0340 PCIe Legacy Endpoint
-[    0.392580] pci 0000:79:00.0: [1002:13c0] type 00 class 0x030000 PCIe Legacy Endpoint
-[    0.392695] pci 0000:79:00.1: [1002:1640] type 00 class 0x040300 PCIe Legacy Endpoint
-[    0.392768] pci 0000:79:00.2: [1022:1649] type 00 class 0x108000 PCIe Endpoint
-[    0.392858] pci 0000:79:00.3: [1022:15b6] type 00 class 0x0c0330 PCIe Endpoint
-[    0.392935] pci 0000:79:00.4: [1022:15b7] type 00 class 0x0c0330 PCIe Endpoint
-[    0.393012] pci 0000:79:00.6: [1022:15e3] type 00 class 0x040300 PCIe Endpoint
-[    0.393104] pci 0000:7a:00.0: [1022:15b8] type 00 class 0x0c0330 PCIe Endpoint
-[    0.412364] ACPI: PCI: Interrupt link LNKA configured for IRQ 0
-[    0.412385] ACPI: PCI: Interrupt link LNKB configured for IRQ 0
-[    0.412403] ACPI: PCI: Interrupt link LNKC configured for IRQ 0
-[    0.412425] ACPI: PCI: Interrupt link LNKD configured for IRQ 0
-[    0.412445] ACPI: PCI: Interrupt link LNKE configured for IRQ 0
-[    0.412461] ACPI: PCI: Interrupt link LNKF configured for IRQ 0
-[    0.412477] ACPI: PCI: Interrupt link LNKG configured for IRQ 0
-[    0.412493] ACPI: PCI: Interrupt link LNKH configured for IRQ 0
-[    0.413173] iommu: Default domain type: Passthrough (set via kernel command line)
-[    0.415592] NetLabel:  unlabeled traffic allowed by default
-[    0.439231] PCI: CLS 64 bytes, default 64
-[    0.771271] RAS: Correctable Errors collector initialized.
-[    0.837132] igc 0000:0a:00.0: PCIe PTM not supported by PCIe bus/controller
-[    0.889625] igc 0000:0a:00.0 (unnamed net_device) (uninitialized): PHC added
-[    0.912535] nvidia-nvlink: Nvlink Core is being initialized, major device number 236
-[    0.917619] igc 0000:0a:00.0: 4.000 Gb/s available PCIe bandwidth (5.0 GT/s PCIe x1 link)
-[    0.917621] igc 0000:0a:00.0 eth1: MAC: a0:ad:9f:23:e5:30
-[    1.141601] ata1: SATA link down (SStatus 0 SControl 300)
-[    1.149614] ata7: SATA link down (SStatus 0 SControl 300)
-[    1.445609] ata2: SATA link down (SStatus 0 SControl 300)
-[    1.749607] ata3: SATA link down (SStatus 0 SControl 300)
-[    2.053610] ata4: SATA link down (SStatus 0 SControl 300)
-[    2.357589] ata8: SATA link down (SStatus 0 SControl 300)
-[    2.661595] ata9: SATA link down (SStatus 0 SControl 300)
-[    2.965598] ata10: SATA link down (SStatus 0 SControl 300)
-[    3.009315] igc 0000:0a:00.0 enp10s0: renamed from eth1
-[    3.031887] nvme nvme0: 16/0/0 default/read/poll queues
-[    3.968074] amdgpu 0000:79:00.0: amdgpu: Trusted Memory Zone (TMZ) feature disabled as experimental (default)
-[    3.968294] [drm] PCIE GART of 1024M enabled (table at 0x000000F47FC00000).
-[    6.403701] systemd[1]: systemd 249.11-0ubuntu3.20 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified)
-[    6.494611] systemd[1]: Queued start job for default target Graphical Interface.
-[    6.511951] systemd[1]: Listening on Network Service Netlink Socket.
-[   10.902796] igc 0000:0a:00.0 enp10s0: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX
-[   12.984751] igc 0000:0a:00.0 enp10s0: exceed max 2 second
-[   12.985066] igc 0000:0a:00.0 enp10s0: NIC Link is Down
-[   13.767812] igc 0000:0a:00.0 enp10s0: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX
-[   16.344659] atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 0 new 10000
-[   30.937804] audit: type=1400 audit(1778664675.293:42): apparmor="STATUS" operation="profile_load" profile="unconfined" name="docker-default" pid=2217 comm="apparmor_parser"
-[   31.498451] Initializing XFRM netlink socket
-[   31.506543] bridge: filtering via arp/ip/ip6tables is no longer available by default. Update your scripts to load br_netfilter if you need this.
-[   31.584421] atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 10000 new 0
-[   39.768315] atlantic 0000:0b:00.0 enp11s0: atlantic: link change old 0 new 10000
-ai1@aiserver1:~$ uptime
- 09:43:19 up 12 min,  1 user,  load average: 0.09, 0.09, 0.03
+ai1@aiserver1:~$ sudo journalctl -b -1 | grep -A20 "May 19 05:24"
+May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: usage: realm=<selkies>, username=<>, rp=277, rb=5540, sp=277, sb=25484
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: peer usage: realm=<selkies>, username=<>, rp=0, rb=0, sp=0, sb=0
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: closed (2nd stage), user <> realm <selkies> origin <>, local 0.0.0.0:3478, remote 57.131.35.132:46448, reason: allocation watchdog determined stale session state
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503548: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503548: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503548: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503565: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503565: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503565: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
+May 19 05:24:28 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: PCIe link lost, device now detached
+May 19 05:24:28 aiserver1 kernel: ------------[ cut here ]------------
+May 19 05:24:28 aiserver1 kernel: igc: Failed to read reg 0xc030!
+May 19 05:24:28 aiserver1 kernel: WARNING: CPU: 13 PID: 2556497 at drivers/net/ethernet/intel/igc/igc_main.c:6652 igc_rd32+0xa4/0xc0 [igc]
+May 19 05:24:28 aiserver1 kernel: Modules linked in: xt_recent tls nf_conntrack_netlink veth br_netfilter bridge stp llc xfrm_user xfrm_algo xt_set ip_set sctp ip6_udp_tunnel udp_tunnel nvme_fabrics overlay nft_chain_nat xt_nat xt_MASQUERADE nf_nat xt_addrtype xt_tcpudp xt_mark xt_connmark xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nft_compat nf_tables nfnetlink binfmt_misc zfs(PO) spl(O) intel_rapl_msr intel_rapl_common nls_iso8859_1 edac_mce_amd kvm_amd snd_hda_codec_realtek btusb snd_hda_codec_generic snd_hda_codec_hdmi btrtl btintel btbcm kvm btmtk snd_hda_intel snd_intel_dspcfg snd_intel_sdw_acpi irqbypass snd_hda_codec snd_hda_core snd_hwdep rapl snd_pcm bluetooth snd_timer snd eeepc_wmi wmi_bmof joydev k10temp input_leds ccp ecdh_generic soundcore nvidia_uvm(OE) mac_hid acpi_pad sch_fq_codel nfsd nvmet_tcp dm_multipath scsi_dh_rdac nvmet scsi_dh_emc auth_rpcgss scsi_dh_alua nvme_keyring nfs_acl lockd grace msr efi_pstore sunrpc ip_tables x_tables autofs4 btrfs blake2b_generic raid10 raid456 async_raid6_recov
+May 19 05:24:28 aiserver1 kernel:  async_memcpy async_pq async_xor async_tx xor raid6_pq libcrc32c raid1 raid0 hid_generic amdgpu amdxcp drm_exec gpu_sched drm_buddy i2c_algo_bit drm_suballoc_helper drm_ttm_helper mfd_aaeon crct10dif_pclmul crc32_pclmul ttm nvidia_drm(OE) asus_wmi usbhid polyval_clmulni hid nvidia_modeset(OE) drm_display_helper polyval_generic ledtrig_audio ghash_clmulni_intel cec nvme sparse_keymap sha256_ssse3 nvidia(OE) platform_profile sha1_ssse3 atlantic thunderbolt ahci xhci_pci i2c_piix4 rc_core igc nvme_core macsec xhci_pci_renesas libahci ecc nvme_auth video ucsi_acpi typec_ucsi wmi gpio_amdpt typec aesni_intel crypto_simd cryptd
+May 19 05:24:28 aiserver1 kernel: CPU: 13 PID: 2556497 Comm: kworker/13:2 Tainted: P           OE      6.8.0-111-generic #111~22.04.1-Ubuntu
+May 19 05:24:28 aiserver1 kernel: Hardware name: ASUS System Product Name/ProArt X870E-CREATOR WIFI, BIOS 1512 06/05/2025
+May 19 05:24:28 aiserver1 kernel: Workqueue: events igc_watchdog_task [igc]
+May 19 05:24:28 aiserver1 kernel: RIP: 0010:igc_rd32+0xa4/0xc0 [igc]
+May 19 05:24:28 aiserver1 kernel: Code: c7 c6 68 47 44 c0 e8 9b 40 ad c9 48 8b bb 28 ff ff ff e8 3f fe 53 c9 84 c0 74 b4 44 89 e6 48 c7 c7 90 47 44 c0 e8 dc 84 ce c8 <0f> 0b eb a1 b8 ff ff ff ff 31 d2 31 f6 31 ff c3 cc cc cc cc 0f 1f
+May 19 05:24:28 aiserver1 kernel: RSP: 0018:ffffd1ce392dfd88 EFLAGS: 00010246
+May 19 05:24:28 aiserver1 kernel: RAX: 0000000000000000 RBX: ffff8aa233314cd8 RCX: 0000000000000000
+May 19 05:24:28 aiserver1 kernel: RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+May 19 05:24:28 aiserver1 kernel: RBP: ffffd1ce392dfda0 R08: 0000000000000000 R09: 0000000000000000
+May 19 05:24:28 aiserver1 kernel: R10: 0000000000000000 R11: 0000000000000000 R12: 000000000000c030
+May 19 05:24:28 aiserver1 kernel: R13: ffff8aa233314000 R14: 0000000000000000 R15: ffff8aa2332f0d80
+May 19 05:24:28 aiserver1 kernel: FS:  0000000000000000(0000) GS:ffff8ab0bf480000(0000) knlGS:0000000000000000
+May 19 05:24:28 aiserver1 kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+May 19 05:24:28 aiserver1 kernel: CR2: 000071b7441991a0 CR3: 00000002e7a3c000 CR4: 0000000000f50ef0
+May 19 05:24:28 aiserver1 kernel: PKRU: 55555554
+May 19 05:24:28 aiserver1 kernel: Call Trace:
+May 19 05:24:28 aiserver1 kernel:  <TASK>
+May 19 05:24:28 aiserver1 kernel:  igc_update_stats+0xab/0x770 [igc]
+May 19 05:24:28 aiserver1 kernel:  igc_watchdog_task+0xa4/0x540 [igc]
+May 19 05:24:28 aiserver1 kernel:  ? __schedule+0x284/0x6a0
+May 19 05:24:28 aiserver1 kernel:  process_one_work+0x181/0x3a0
+May 19 05:24:28 aiserver1 kernel:  worker_thread+0x306/0x440
+May 19 05:24:28 aiserver1 kernel:  ? __pfx_worker_thread+0x10/0x10
+May 19 05:24:28 aiserver1 kernel:  kthread+0xef/0x120
+May 19 05:24:28 aiserver1 kernel:  ? __pfx_kthread+0x10/0x10
+May 19 05:24:28 aiserver1 kernel:  ret_from_fork+0x44/0x70
+May 19 05:24:28 aiserver1 kernel:  ? __pfx_kthread+0x10/0x10
+May 19 05:24:28 aiserver1 kernel:  ret_from_fork_asm+0x1b/0x30
+May 19 05:24:28 aiserver1 kernel:  </TASK>
+May 19 05:24:28 aiserver1 kernel: ---[ end trace 0000000000000000 ]---
+May 19 05:25:01 aiserver1 CRON[3571861]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+May 19 05:25:01 aiserver1 CRON[3571862]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+May 19 05:25:01 aiserver1 CRON[3571861]: pam_unix(cron:session): session closed for user root
+May 19 05:25:27 aiserver1 dockerd[2026]: time="2026-05-19T05:25:27.774353127Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:49831" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:49831->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
+May 19 05:25:27 aiserver1 dockerd[2026]: time="2026-05-19T05:25:27.774381570Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:39493" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:39493->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:27 aiserver1 dockerd[2026]: time="2026-05-19T05:25:27.787875891Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:60442" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:60442->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:31 aiserver1 dockerd[2026]: time="2026-05-19T05:25:31.775059515Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:52487" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:52487->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
+May 19 05:25:31 aiserver1 dockerd[2026]: time="2026-05-19T05:25:31.775085925Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:51868" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:51868->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:31 aiserver1 dockerd[2026]: time="2026-05-19T05:25:31.788019863Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:47266" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:47266->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:32 aiserver1 dockerd[2026]: time="2026-05-19T05:25:32.779477814Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:39693" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:39693->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:32 aiserver1 dockerd[2026]: time="2026-05-19T05:25:32.779509393Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:54110" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:54110->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
+May 19 05:25:32 aiserver1 dockerd[2026]: time="2026-05-19T05:25:32.794342571Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:40251" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:40251->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:35 aiserver1 dockerd[2026]: time="2026-05-19T05:25:35.777309242Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:56646" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:56646->8.8.8.8:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
+May 19 05:25:35 aiserver1 dockerd[2026]: time="2026-05-19T05:25:35.788649946Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:47100" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:47100->8.8.8.8:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
+May 19 05:25:36 aiserver1 dockerd[2026]: time="2026-05-19T05:25:36.780168481Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:43228" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:43228->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:36 aiserver1 dockerd[2026]: time="2026-05-19T05:25:36.780199159Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:33306" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:33306->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
+May 19 05:25:36 aiserver1 dockerd[2026]: time="2026-05-19T05:25:36.795192797Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:51012" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:51012->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
+May 19 05:25:39 aiserver1 dockerd[2026]: time="2026-05-19T05:25:39.778151933Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:50826" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:50826->8.8.4.4:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
+May 19 05:25:39 aiserver1 dockerd[2026]: time="2026-05-19T05:25:39.788789786Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:56261" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:56261->8.8.4.4:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
+May 19 05:25:40 aiserver1 dockerd[2026]: time="2026-05-19T05:25:40.781065051Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:33916" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:33916->8.8.8.8:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
+ai1@aiserver1:~$ grep "linux-image" /var/log/dpkg.log | grep "install " | tail -10
+2026-05-04 07:58:16 install linux-image-5.15.0-177-generic:amd64 <none> 5.15.0-177.187
+2026-05-11 04:40:34 install linux-image-6.8.0-111-generic:amd64 <none> 6.8.0-111.111~22.04.1
+2026-05-11 04:40:36 install linux-image-generic-hwe-22.04:amd64 <none> 6.8.0-111.111~22.04.1
+2026-05-20 06:15:27 install linux-image-5.15.0-179-generic:amd64 <none> 5.15.0-179.189
+ai1@aiserver1:~$ sudo journalctl -b -1 -k | grep -i "panic\|oops\|bug\|error\|call trace"
+May 13 09:30:51 aiserver1 kernel: PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+May 13 09:30:51 aiserver1 kernel: RAS: Correctable Errors collector initialized.
+May 13 09:30:51 aiserver1 systemd[1]: Mounting Kernel Debug File System...
+May 13 09:30:51 aiserver1 systemd[1]: Mounted Kernel Debug File System.
+May 13 09:30:51 aiserver1 kernel: Disabling lock debugging due to kernel taint
+May 13 09:32:54 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/opaque-bug-check282439539/l2' does not support file handles, falling back to xino=off.
+May 13 16:35:08 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/opaque-bug-check3280208271/l2' does not support file handles, falling back to xino=off.
+May 19 05:24:28 aiserver1 kernel: Call Trace:
 ai1@aiserver1:~$

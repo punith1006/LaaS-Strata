@@ -981,7 +981,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           </div>
         </div>
 
-        {/* Row 5: Business Insights — Revenue Growth & User Retention */}
+        {/* Row 5: Business Insights — Revenue Growth & User-Session Retention */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
           <NrrCard data={revenueGrowthData} timeRange={timeRange} />
           <RetentionCard data={retentionData} timeRange={timeRange} />
@@ -1590,13 +1590,13 @@ function NrrCard({
         )}
       </div>
 
-      <div className="flex items-center justify-between mt-2">
-        <span className="text-xs text-zinc-500">
-          Expanded: {latestPeriod?.expandedUsers ?? 0} · Contracted: {latestPeriod?.contractedUsers ?? 0}
+      <div className="flex items-center justify-between mt-1.5">
+        <span className="text-[13px] text-zinc-400">
+          Expanded:{' '}<span className="text-white font-bold">{latestPeriod?.expandedUsers ?? 0}</span> · Contracted:{' '}<span className="text-white font-bold">{latestPeriod?.contractedUsers ?? 0}</span>
         </span>
-        <span className="text-xs text-zinc-500">
+        <span className="text-[13px] text-zinc-400">
           Avg NRR:{' '}
-          <span className="text-white font-medium">{data.avgNrrPct.toFixed(1)}%</span>
+          <span className="text-white font-bold">{data.avgNrrPct.toFixed(1)}%</span>
         </span>
       </div>
     </div>
@@ -1631,7 +1631,7 @@ function RetentionCard({
     <div className="bg-[#141414] border border-zinc-800 rounded-xl p-4 flex flex-col min-w-0">
       <div className="flex items-start justify-between">
         <span className="text-sm font-semibold text-white uppercase tracking-wider">
-          User Retention
+          User-Session Retention
         </span>
         <span className="text-[11px] text-zinc-500 uppercase tracking-wider">
           {getPeriodComparisonLabel(timeRange)}
@@ -1729,24 +1729,24 @@ function RetentionCard({
         )}
       </div>
 
-      <div className="flex items-center justify-between mt-2">
-        <span className="text-[11px] text-zinc-500">
+      <div className="flex items-center justify-between mt-1.5">
+        <span className="text-[13px] text-zinc-400">
           {latest ? (
             <>
               Active:{' '}
-              <span className="text-zinc-300 font-medium">{latest.activeUsers}</span> ·
+              <span className="text-white font-bold">{latest.activeUsers}</span> ·
               {' '}New:{' '}
-              <span className="text-zinc-300 font-medium">{latest.newUsers}</span> ·
+              <span className="text-white font-bold">{latest.newUsers}</span> ·
               {' '}Churned:{' '}
-              <span className="text-zinc-300 font-medium">{latest.churnedUsers}</span>
+              <span className="text-white font-bold">{latest.churnedUsers}</span>
             </>
           ) : (
             '—'
           )}
         </span>
-        <span className="text-[11px] text-zinc-500">
+        <span className="text-[13px] text-zinc-400">
           Avg retention:{' '}
-          <span className="text-zinc-300 font-medium">
+          <span className="text-white font-bold">
             {data.avgRetentionPct.toFixed(0)}%
           </span>
         </span>
