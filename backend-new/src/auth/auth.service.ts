@@ -290,6 +290,22 @@ export class AuthService {
       },
     });
 
+    // Create a zero-balance wallet for the new user so downstream flows
+    // (compute launch, top-ups, mentor booking credits) always have a record
+    // to read/write against. Students remain billing-exempt for compute, but
+    // still need a wallet for future credit grants.
+    await this.prisma.wallet.upsert({
+      where: { userId: user.id },
+      update: {},
+      create: {
+        userId: user.id,
+        balanceCents: BigInt(0),
+        lifetimeCreditsCents: BigInt(0),
+        lifetimeSpentCents: BigInt(0),
+        currency: 'INR',
+      },
+    });
+
     for (const slug of payload.agreedPolicies) {
       await this.prisma.userPolicyConsent.create({
         data: {
@@ -303,6 +319,10 @@ export class AuthService {
 
     await this.mail.sendWelcomeEmail(user.email, user.firstName);
 
+    // [DISABLED] Auto-storage provisioning for institutional signup removed.
+    // Students can still manually provision storage via File Store page.
+    // Disabled as part of student billing exemption — see plan: Student_Billing_Exemption
+    /*
     // --- Storage provisioning for institution signup (10GB) ---
     if (isInstitutionSignup && storageUid) {
       const INSTITUTION_QUOTA_GB = 10;
@@ -356,8 +376,12 @@ export class AuthService {
           },
         });
       }
+    }
+    */
 
-      // Auto-set college name in UserProfile
+    // Auto-set college name in UserProfile (preserved from institutional signup flow;
+    // unrelated to storage provisioning, kept active so student profiles still get college metadata)
+    if (isInstitutionSignup) {
       await this.prisma.userProfile.upsert({
         where: { userId: user.id },
         update: { collegeName: matchedUniversity!.name },
@@ -647,6 +671,21 @@ export class AuthService {
         data: {
           userId: user.id,
           isOnboardingComplete: false,
+        },
+      });
+
+      // Create a zero-balance wallet for the new OAuth user so downstream flows
+      // (compute launch, top-ups, mentor booking credits) always have a record
+      // to read/write against.
+      await this.prisma.wallet.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          balanceCents: BigInt(0),
+          lifetimeCreditsCents: BigInt(0),
+          lifetimeSpentCents: BigInt(0),
+          currency: 'INR',
         },
       });
 

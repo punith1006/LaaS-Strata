@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { isStudentRole } from '../common/role.helper';
 
 @Injectable()
 export class BillingService {
@@ -128,6 +129,10 @@ export class BillingService {
       return 'skipped';
     }
 
+    // Check whether this user is a student — students get CapEx tracking only,
+    // no wallet deduction and never skipped for insufficient balance.
+    const isStudent = await isStudentRole(this.prisma, userId);
+
     // Atomic transaction: charge + deduct wallet + record transaction
     return await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency check: has this user already been charged for this hour?
@@ -147,6 +152,50 @@ export class BillingService {
           `User ${userId} already charged for ${billingHour.toISOString()}, skipping`,
         );
         return 'skipped';
+      }
+
+      // STUDENT PATH: track charges as CapEx, never deduct wallet, never skip
+      if (isStudent) {
+        for (const detail of volumeDetails) {
+          await tx.billingCharge.create({
+            data: {
+              userId,
+              chargeType: 'storage',
+              storageVolumeId: detail.volumeId,
+              quotaGb: detail.quotaGb,
+              durationSeconds: 3600, // 1 hour
+              rateCentsPerHour: detail.chargeCents,
+              amountCents: BigInt(detail.chargeCents),
+              currency: 'INR',
+              costClassification: 'capex',
+              createdAt: billingHour,
+            },
+          });
+        }
+
+        this.logger.log(
+          `Tracked CapEx storage for student ${userId}: ${totalChargeCents} paise for ${volumeDetails.length} volume(s) (no wallet deduction)`,
+        );
+
+        try {
+          await this.auditService.log({
+            userId,
+            action: 'billing.charge',
+            category: 'billing',
+            status: 'success',
+            details: {
+              totalChargeCents,
+              volumeCount: volumeDetails.length,
+              period: 'hourly',
+              costClassification: 'capex',
+              studentExempt: true,
+            },
+          });
+        } catch {
+          // Don't let audit logging failures break billing
+        }
+
+        return 'charged';
       }
 
       // 2. Get user's wallet

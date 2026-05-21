@@ -1403,6 +1403,7 @@ model BillingCharge {
   rateCentsPerHour    Int      @map("rate_cents_per_hour")
   amountCents         BigInt   @map("amount_cents")
   currency            String   @default("INR")
+  costClassification  String   @default("revenue") @map("cost_classification") // 'revenue' (paying users) | 'capex' (student compute/storage)
   walletTransactionId String?  @map("wallet_transaction_id") @db.Uuid
   createdAt           DateTime @default(now()) @map("created_at")
   createdBy           String?  @map("created_by") @db.Uuid

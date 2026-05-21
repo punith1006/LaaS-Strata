@@ -314,7 +314,7 @@ export class AnalyticsAdminService {
     // --- Revenue ---
     const currentRevenue = await this.prisma.billingCharge.aggregate({
       _sum: { amountCents: true },
-      where: { createdAt: { gte: periodStart } },
+      where: { createdAt: { gte: periodStart }, costClassification: 'revenue' },
     });
     const currentTotal = Number(currentRevenue._sum.amountCents ?? 0);
 
@@ -322,7 +322,7 @@ export class AnalyticsAdminService {
     if (priorStart && priorEnd) {
       const priorRevenue = await this.prisma.billingCharge.aggregate({
         _sum: { amountCents: true },
-        where: { createdAt: { gte: priorStart, lt: priorEnd } },
+        where: { createdAt: { gte: priorStart, lt: priorEnd }, costClassification: 'revenue' },
       });
       priorTotal = Number(priorRevenue._sum.amountCents ?? 0);
     }
@@ -606,6 +606,7 @@ export class AnalyticsAdminService {
         SUM("amount_cents")::bigint as total_cents
       FROM "billing_charges"
       WHERE "created_at" >= ${periodStart}
+        AND "cost_classification" = 'revenue'
       GROUP BY 1
       ORDER BY 1 ASC
     `;
@@ -737,6 +738,7 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint as total_cents
         FROM "billing_charges"
         WHERE "created_at" >= ${previousPeriodStart} AND "created_at" < ${previousPeriodEnd}
+          AND "cost_classification" = 'revenue'
         GROUP BY DATE_TRUNC('hour', "created_at")
       `;
 
@@ -1420,6 +1422,7 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint AS user_revenue
         FROM "billing_charges"
         WHERE "created_at" >= ${queryStartTs}::timestamp
+          AND "cost_classification" = 'revenue'
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;
@@ -1448,6 +1451,7 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint AS user_revenue
         FROM "billing_charges"
         WHERE "created_at" >= ${queryStartTs}::timestamp
+          AND "cost_classification" = 'revenue'
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;
@@ -1485,6 +1489,7 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint AS user_revenue
         FROM "billing_charges"
         WHERE "created_at" >= ${queryStartTs}::timestamp
+          AND "cost_classification" = 'revenue'
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;

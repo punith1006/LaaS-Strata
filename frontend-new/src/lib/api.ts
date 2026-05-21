@@ -471,6 +471,8 @@ export interface BillingData {
   // Storage billing fields (from backend Task 13)
   storageBurnRateCentsPerHour?: number;
   storageMonthlyEstimateCents?: number;
+  // Student exemption flag (Task 18 - bypass compute/storage credit blocks)
+  isComputeStorageExempt: boolean;
 }
 
 export interface HourlySpendData {

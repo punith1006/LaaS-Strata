@@ -130,7 +130,7 @@ export default function HomePage() {
       </h1>
 
       {/* Zero Credits Warning Banner - Horizontal layout with CTA on right */}
-      {billingData && billingData.creditBalance === 0 && (
+      {billingData && billingData.creditBalance === 0 && !billingData.isComputeStorageExempt && (
         <div
           style={{
             display: "flex",

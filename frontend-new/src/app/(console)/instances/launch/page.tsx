@@ -11,6 +11,7 @@ import {
   launchComputeSession,
   type ComputeConfigResponse,
   type StorageStatus,
+  type BillingData,
 } from "@/lib/api";
 import { ComputeRecommendation } from "@/components/compute/compute-recommendation";
 
@@ -254,6 +255,7 @@ export default function LaunchInstancePage() {
   const [configsError, setConfigsError] = useState<string | null>(null);
   const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [billingData, setBillingData] = useState<BillingData | null>(null);
   
   // Form state
   const [selectedConfig, setSelectedConfig] = useState<string>("");
@@ -324,6 +326,7 @@ export default function LaunchInstancePage() {
         const billing = await getBillingData();
         if (billing) {
           setWalletBalance(billing.creditBalance || 0);
+          setBillingData(billing);
         }
       } catch (err) {
         console.error("Failed to fetch wallet balance:", err);
@@ -383,7 +386,7 @@ export default function LaunchInstancePage() {
 
   // Wallet balance validation
   const pricePerHour = getPricePerHour(currentConfig);
-  const hasInsufficientBalance = walletBalance < pricePerHour;
+  const hasInsufficientBalance = walletBalance < pricePerHour && !billingData?.isComputeStorageExempt;
   
   // Check if selected config is available
   const isConfigAvailable = currentConfig?.available ?? false;

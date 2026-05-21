@@ -108,6 +108,7 @@ export default function StoragePage() {
   const [liveUsedGb, setLiveUsedGb] = useState<number | null>(null);
   const [liveUsagePercent, setLiveUsagePercent] = useState<number | null>(null);
   const [creditBalance, setCreditBalance] = useState<number>(0);
+  const [isComputeStorageExempt, setIsComputeStorageExempt] = useState<boolean>(false);
 
   // Calculate totals - prefer live ZFS data over DB-cached values
   const totalAllocated = storages.reduce((sum, s) => sum + s.quotaGb, 0);
@@ -133,6 +134,7 @@ export default function StoragePage() {
           setLiveUsedGb(billing.storageUsedGb);
           setLiveUsagePercent(billing.storageUsagePercent);
           setCreditBalance(billing.creditBalance);
+          setIsComputeStorageExempt(billing.isComputeStorageExempt === true);
         }
       } catch (error) {
         console.error("Failed to fetch live storage usage:", error);
@@ -261,6 +263,7 @@ export default function StoragePage() {
         setLiveUsedGb(billing.storageUsedGb);
         setLiveUsagePercent(billing.storageUsagePercent);
         setCreditBalance(billing.creditBalance);
+        setIsComputeStorageExempt(billing.isComputeStorageExempt === true);
       }
     } catch (error) {
       console.error('Failed to refresh usage:', error);
@@ -1249,6 +1252,7 @@ export default function StoragePage() {
           onClose={() => setIsCreateModalOpen(false)}
           onSuccess={handleStorageCreated}
           creditBalance={creditBalance}
+          isComputeStorageExempt={isComputeStorageExempt}
         />
       )}
 
@@ -1823,10 +1827,12 @@ function CreateStorageModal({
   onClose,
   onSuccess,
   creditBalance,
+  isComputeStorageExempt,
 }: {
   onClose: () => void;
   onSuccess: (volume: StorageVolume) => void;
   creditBalance: number;
+  isComputeStorageExempt: boolean;
 }) {
   const [name, setName] = useState("");
   const [sizeGb, setSizeGb] = useState(5);
@@ -1909,7 +1915,7 @@ function CreateStorageModal({
   // Storage cost: Rs.7 per GB per month
   const STORAGE_COST_PER_GB_PER_MONTH = 7;
   const estimatedMonthlyCost = sizeGb * STORAGE_COST_PER_GB_PER_MONTH;
-  const hasEnoughCredits = creditBalance >= estimatedMonthlyCost;
+  const hasEnoughCredits = creditBalance >= estimatedMonthlyCost || isComputeStorageExempt === true;
 
   const isValid =
     name.trim().length > 0 &&

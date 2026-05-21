@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { isStudentRole } from '../common/role.helper';
 import { MailService } from '../mail/mail.service';
 import { AuditService } from '../audit/audit.service';
 import { NodeService } from '../node/node.service';
@@ -378,7 +379,30 @@ export class ComputeService {
         }
 
         // 5. Check wallet balance (minimum 1 hour)
-        const wallet = await tx.wallet.findUnique({ where: { userId } });
+        // Students (@ksrce.in institutional users) are exempt from compute billing —
+        // skip the balance check and WalletHold creation entirely. Their compute
+        // costs are still tracked as BillingCharge with costClassification='capex'.
+        const studentUser = await isStudentRole(this.prisma, userId);
+
+        let wallet = await tx.wallet.findUnique({ where: { userId } });
+        if (!wallet && studentUser) {
+          // Students may not have a wallet yet (no top-up performed). Auto-create
+          // a zero-balance wallet so future credits/mentor-booking flows have a
+          // record to write against. Compute billing for students is exempt and
+          // tracked as capex via BillingCharge — wallet remains untouched here.
+          wallet = await tx.wallet.create({
+            data: {
+              userId,
+              balanceCents: BigInt(0),
+              lifetimeCreditsCents: BigInt(0),
+              lifetimeSpentCents: BigInt(0),
+              currency: 'INR',
+            },
+          });
+          this.logger.log(
+            `Auto-created wallet for student user ${userId} during session launch`,
+          );
+        }
         if (!wallet) {
           throw new BadRequestException(
             'Wallet not found. Please contact support.',
@@ -390,24 +414,27 @@ export class ComputeService {
           );
         }
 
-        const activeHolds = await tx.walletHold.aggregate({
-          where: { walletId: wallet.id, status: 'active' },
-          _sum: { amountCents: true },
-        });
-        const holdTotal = Number(activeHolds._sum.amountCents ?? 0n);
-        const availableBalance = Number(wallet.balanceCents) - holdTotal;
         const requiredBalance = config.basePricePerHourCents;
 
-        if (availableBalance < requiredBalance) {
-          throw new HttpException(
-            {
-              statusCode: 402,
-              message: `Insufficient wallet balance. Need ₹${(requiredBalance / 100).toFixed(2)}, available ₹${(availableBalance / 100).toFixed(2)}.`,
-              requiredCents: requiredBalance,
-              availableCents: availableBalance,
-            },
-            402,
-          );
+        if (!studentUser) {
+          const activeHolds = await tx.walletHold.aggregate({
+            where: { walletId: wallet.id, status: 'active' },
+            _sum: { amountCents: true },
+          });
+          const holdTotal = Number(activeHolds._sum.amountCents ?? 0n);
+          const availableBalance = Number(wallet.balanceCents) - holdTotal;
+
+          if (availableBalance < requiredBalance) {
+            throw new HttpException(
+              {
+                statusCode: 402,
+                message: `Insufficient wallet balance. Need ₹${(requiredBalance / 100).toFixed(2)}, available ₹${(availableBalance / 100).toFixed(2)}.`,
+                requiredCents: requiredBalance,
+                availableCents: availableBalance,
+              },
+              402,
+            );
+          }
         }
 
         // 6. Get user for email and storage UID
@@ -533,18 +560,20 @@ export class ComputeService {
           },
         });
 
-        // 12. Create wallet hold for 1 hour
-        await tx.walletHold.create({
-          data: {
-            walletId: wallet.id,
-            userId,
-            sessionId: session.id,
-            amountCents: BigInt(requiredBalance),
-            holdReason: 'compute_session_hold',
-            status: 'active',
-            expiresAt: new Date(Date.now() + 3600000),
-          },
-        });
+        // 12. Create wallet hold for 1 hour (skip for students — they are not charged)
+        if (!studentUser) {
+          await tx.walletHold.create({
+            data: {
+              walletId: wallet.id,
+              userId,
+              sessionId: session.id,
+              amountCents: BigInt(requiredBalance),
+              holdReason: 'compute_session_hold',
+              status: 'active',
+              expiresAt: new Date(Date.now() + 3600000),
+            },
+          });
+        }
 
         // Create session_created event
         await tx.sessionEvent.create({
@@ -952,11 +981,31 @@ export class ComputeService {
     }
 
     try {
+      // Students are exempt from compute billing — their charges are recorded as
+      // capex (capital expenditure tracking) without touching the wallet.
+      const studentUser = await isStudentRole(this.prisma, session.userId);
+
       await this.prisma.$transaction(async (tx) => {
-        // Get wallet
-        const wallet = await tx.wallet.findUnique({
+        // Get wallet (auto-create for students if somehow missing — defensive,
+        // launchSession should have created it already).
+        let wallet = await tx.wallet.findUnique({
           where: { userId: session.userId },
         });
+
+        if (!wallet && studentUser) {
+          wallet = await tx.wallet.create({
+            data: {
+              userId: session.userId,
+              balanceCents: BigInt(0),
+              lifetimeCreditsCents: BigInt(0),
+              lifetimeSpentCents: BigInt(0),
+              currency: 'INR',
+            },
+          });
+          this.logger.log(
+            `Auto-created wallet for student user ${session.userId} during prepaid charge`,
+          );
+        }
 
         if (!wallet) {
           this.logger.warn(
@@ -965,69 +1014,78 @@ export class ComputeService {
           return;
         }
 
-        const currentBalance = Number(wallet.balanceCents);
-        if (currentBalance < chargeCents) {
-          this.logger.warn(
-            `Session ${sessionId}: Insufficient balance for prepaid hour (${currentBalance} < ${chargeCents})`,
-          );
-          // Note: Pre-launch validation should have caught this, but log as warning
-          return;
-        }
-
-        // Spend limit pre-check: Check if adding 1 hour would exceed spend limit
-        if (wallet.spendLimitEnabled && wallet.spendLimitCents) {
-          const periodStart = this.getSpendLimitPeriodStart(
-            wallet.spendLimitPeriod,
-            wallet.spendLimitStartDate,
-          );
-          // For date_range, check if within range
-          let withinRange = true;
-          if (wallet.spendLimitPeriod === 'date_range') {
-            const now = new Date();
-            if (wallet.spendLimitStartDate && now < wallet.spendLimitStartDate) withinRange = false;
-            if (wallet.spendLimitEndDate && now > wallet.spendLimitEndDate) withinRange = false;
+        if (!studentUser) {
+          const currentBalance = Number(wallet.balanceCents);
+          if (currentBalance < chargeCents) {
+            this.logger.warn(
+              `Session ${sessionId}: Insufficient balance for prepaid hour (${currentBalance} < ${chargeCents})`,
+            );
+            // Note: Pre-launch validation should have caught this, but log as warning
+            return;
           }
-          if (withinRange) {
-            const periodSpent = await tx.billingCharge.aggregate({
-              where: { userId: session.userId, createdAt: { gte: periodStart } },
-              _sum: { amountCents: true },
-            });
-            const totalSpent = Number(periodSpent._sum.amountCents || 0);
-            if (totalSpent + chargeCents > Number(wallet.spendLimitCents)) {
-              this.logger.warn(
-                `Session ${sessionId}: would exceed spend limit (${totalSpent} + ${chargeCents} > ${wallet.spendLimitCents}), skipping initial charge`,
-              );
-              return; // Don't charge — the session will be caught by enforcement
+
+          // Spend limit pre-check: Check if adding 1 hour would exceed spend limit
+          if (wallet.spendLimitEnabled && wallet.spendLimitCents) {
+            const periodStart = this.getSpendLimitPeriodStart(
+              wallet.spendLimitPeriod,
+              wallet.spendLimitStartDate,
+            );
+            // For date_range, check if within range
+            let withinRange = true;
+            if (wallet.spendLimitPeriod === 'date_range') {
+              const now = new Date();
+              if (wallet.spendLimitStartDate && now < wallet.spendLimitStartDate) withinRange = false;
+              if (wallet.spendLimitEndDate && now > wallet.spendLimitEndDate) withinRange = false;
+            }
+            if (withinRange) {
+              const periodSpent = await tx.billingCharge.aggregate({
+                where: { userId: session.userId, createdAt: { gte: periodStart } },
+                _sum: { amountCents: true },
+              });
+              const totalSpent = Number(periodSpent._sum.amountCents || 0);
+              if (totalSpent + chargeCents > Number(wallet.spendLimitCents)) {
+                this.logger.warn(
+                  `Session ${sessionId}: would exceed spend limit (${totalSpent} + ${chargeCents} > ${wallet.spendLimitCents}), skipping initial charge`,
+                );
+                return; // Don't charge — the session will be caught by enforcement
+              }
             }
           }
         }
 
-        const newBalance = BigInt(wallet.balanceCents) - BigInt(chargeCents);
+        let walletTxnId: string | null = null;
 
-        // 1. Create WalletTransaction (debit)
-        const walletTxn = await tx.walletTransaction.create({
-          data: {
-            walletId: wallet.id,
-            userId: session.userId,
-            txnType: 'debit',
-            amountCents: BigInt(chargeCents),
-            balanceAfterCents: newBalance,
-            referenceType: 'compute_billing',
-            referenceId: session.id,
-            description: `Compute charge - session launch (prepaid hour 1)`,
-          },
-        });
+        if (!studentUser) {
+          const newBalance = BigInt(wallet.balanceCents) - BigInt(chargeCents);
 
-        // 2. Debit wallet
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: {
-            balanceCents: newBalance,
-            lifetimeSpentCents: { increment: chargeCents },
-          },
-        });
+          // 1. Create WalletTransaction (debit)
+          const walletTxn = await tx.walletTransaction.create({
+            data: {
+              walletId: wallet.id,
+              userId: session.userId,
+              txnType: 'debit',
+              amountCents: BigInt(chargeCents),
+              balanceAfterCents: newBalance,
+              referenceType: 'compute_billing',
+              referenceId: session.id,
+              description: `Compute charge - session launch (prepaid hour 1)`,
+            },
+          });
+          walletTxnId = walletTxn.id;
+
+          // 2. Debit wallet
+          await tx.wallet.update({
+            where: { id: wallet.id },
+            data: {
+              balanceCents: newBalance,
+              lifetimeSpentCents: { increment: chargeCents },
+            },
+          });
+        }
 
         // 3. Create BillingCharge record
+        // For students this is tracked as 'capex' (institutional cost) and is NOT
+        // linked to a WalletTransaction since the wallet was never debited.
         await tx.billingCharge.create({
           data: {
             userId: session.userId,
@@ -1038,7 +1096,8 @@ export class ComputeService {
             rateCentsPerHour: session.computeConfig.basePricePerHourCents,
             amountCents: BigInt(chargeCents),
             currency: 'INR',
-            walletTransactionId: walletTxn.id,
+            walletTransactionId: walletTxnId,
+            costClassification: studentUser ? 'capex' : 'revenue',
           },
         });
 
@@ -1051,19 +1110,21 @@ export class ComputeService {
           },
         });
 
-        // 5. Capture the WalletHold (convert hold to actual charge)
-        await tx.walletHold.updateMany({
-          where: { sessionId: session.id, status: 'active' },
-          data: {
-            status: 'captured',
-            releasedAt: new Date(),
-            releaseReason: 'prepaid_hour_charged',
-            capturedAmount: BigInt(chargeCents),
-          },
-        });
+        // 5. Capture/release the WalletHold (only present for non-student users)
+        if (!studentUser) {
+          await tx.walletHold.updateMany({
+            where: { sessionId: session.id, status: 'active' },
+            data: {
+              status: 'captured',
+              releasedAt: new Date(),
+              releaseReason: 'prepaid_hour_charged',
+              capturedAmount: BigInt(chargeCents),
+            },
+          });
+        }
 
         this.logger.log(
-          `Prepaid hour 1 charged: session=${sessionId} amount=${chargeCents} paise (₹${(chargeCents / 100).toFixed(2)})`,
+          `Prepaid hour 1 ${studentUser ? 'tracked (capex, student exempt)' : 'charged'}: session=${sessionId} amount=${chargeCents} paise (₹${(chargeCents / 100).toFixed(2)})`,
         );
       });
     } catch (error: unknown) {
@@ -2131,6 +2192,10 @@ export class ComputeService {
       return 'skipped';
     }
 
+    // Check student role outside the transaction — students get CapEx tracking only,
+    // no wallet deduction and never skipped/terminated for insufficient balance.
+    const isStudent = await isStudentRole(this.prisma, session.userId);
+
     return await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency check: has this session already been charged for this hour?
       const existingCharge = await tx.billingCharge.findFirst({
@@ -2162,6 +2227,38 @@ export class ComputeService {
 
       // 3. PREPAID: Always charge 1 full hour in advance
       const chargeCents = rateCentsPerHour;
+
+      // STUDENT PATH: record CapEx charge only, no wallet deduction, no skip
+      if (isStudent) {
+        await tx.billingCharge.create({
+          data: {
+            userId: session.userId,
+            chargeType: 'compute',
+            sessionId: session.id,
+            computeConfigId: session.computeConfigId,
+            durationSeconds: 3600, // Prepaid for 1 hour
+            rateCentsPerHour: rateCentsPerHour,
+            amountCents: BigInt(chargeCents),
+            currency: 'INR',
+            costClassification: 'capex',
+          },
+        });
+
+        // Still update session's cumulative cost so traceability metrics stay aligned
+        await tx.session.update({
+          where: { id: session.id },
+          data: {
+            cumulativeCostCents: { increment: chargeCents },
+            costLastUpdatedAt: new Date(),
+          },
+        });
+
+        this.logger.log(
+          `Prepaid hour ${hourNumber} tracked as CapEx for student session=${session.id} amount=${chargeCents} paise (no wallet deduction)`,
+        );
+
+        return 'charged';
+      }
 
       // 4. Get user's wallet
       const wallet = await tx.wallet.findFirst({
@@ -2663,6 +2760,10 @@ export class ComputeService {
   }
 
   private async enforceRunwayForUser(userId: string): Promise<void> {
+    // Student-role users are exempt from runway enforcement (billing exempt for compute/storage)
+    const isStudent = await isStudentRole(this.prisma, userId);
+    if (isStudent) return;
+
     // 1. Fetch wallet with user info
     const wallet = await this.prisma.wallet.findUnique({
       where: { userId },

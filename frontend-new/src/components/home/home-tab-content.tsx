@@ -434,8 +434,8 @@ export function HomeTabContent({ user }: HomeTabContentProps) {
         </div>
       </div>
 
-      {/* Low Runway Warning */}
-      {billingData?.runway !== null && billingData?.runway !== undefined && billingData.runway <= 1 && (
+      {/* Low Runway Warning - hidden for compute/storage exempt users (e.g., students) */}
+      {billingData?.runway !== null && billingData?.runway !== undefined && billingData.runway <= 1 && !billingData?.isComputeStorageExempt && (
         <div style={{
           backgroundColor: "rgba(245, 158, 11, 0.08)",
           border: "1px solid rgba(245, 158, 11, 0.3)",

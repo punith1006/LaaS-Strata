@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { isStudentRole } from '../common/role.helper';
 
 export interface HomeDashboardData {
   user: {
@@ -75,6 +76,7 @@ export interface BillingData {
   storageUsedGb: number;
   storageUsagePercent: number; // Live usage % from ZFS via Python service
   hourlyData: HourlySpendData[]; // Today's hourly spend data for the chart
+  isComputeStorageExempt: boolean; // True if requesting user has 'student' role (compute/storage billing exempt)
 }
 
 export interface BillingHistoryItem {
@@ -499,6 +501,10 @@ export class DashboardService {
 
     const isInstitution = user.authType === 'university_sso';
 
+    // Defense-in-depth: surface the student-role exemption flag so the frontend can
+    // confirm compute/storage billing should be hidden for student users.
+    const isComputeStorageExempt = await isStudentRole(this.prisma, userId);
+
     return {
       plan: {
         type: isInstitution ? 'institution' : 'free',
@@ -575,10 +581,22 @@ export class DashboardService {
           // Spend limit IS enabled:
           // Calculate remaining budget in the current period
           const remainingBudget = spendLimitCentsVal - dailySpendCents;
-          // Runway is limited by both remaining budget AND wallet balance
-          effectiveRemainingCents = Math.min(remainingBudget, balanceCents);
+          // For student-role users (billing exempt), runway is bounded only by
+          // the spend limit remaining — not by wallet balance (which may be
+          // negative from pre-exemption charges).
+          if (isComputeStorageExempt) {
+            effectiveRemainingCents = remainingBudget;
+          } else {
+            // Runway is limited by both remaining budget AND wallet balance
+            effectiveRemainingCents = Math.min(remainingBudget, balanceCents);
+          }
         } else {
           // Spend limit NOT enabled:
+          // Student-role users are exempt from credit-based runway enforcement,
+          // so they have effectively infinite runway when no spend limit is set.
+          if (isComputeStorageExempt) {
+            return null;
+          }
           // Runway = how long current balance lasts at current burn rate
           // Note: balanceCents is the CURRENT balance (already reduced by past spending)
           // Do NOT subtract dailySpendCents again (that would double-count)
@@ -609,6 +627,7 @@ export class DashboardService {
       storageUsedGb: storageUsedGb,
       storageUsagePercent,
       hourlyData, // Today's hourly spend data for the chart
+      isComputeStorageExempt,
     };
   }
 
