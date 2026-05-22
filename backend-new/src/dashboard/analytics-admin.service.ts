@@ -2204,11 +2204,12 @@ export class AnalyticsAdminService {
       createdAt: { gte: kpiStart, lte: kpiEnd },
       ...userFilter,
     };
+    const paidWhere = { ...kpiWhere, status: 'completed' };
 
     const [kpiTotal, kpiSum, kpiFailedOrPending] = await Promise.all([
-      this.prisma.paymentTransaction.count({ where: kpiWhere }),
+      this.prisma.paymentTransaction.count({ where: paidWhere }),
       this.prisma.paymentTransaction.aggregate({
-        where: kpiWhere,
+        where: paidWhere,
         _sum: { amountCents: true },
       }),
       this.prisma.paymentTransaction.count({
