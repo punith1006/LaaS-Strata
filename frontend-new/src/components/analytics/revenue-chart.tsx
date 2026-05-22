@@ -10,6 +10,7 @@ const IST_OFFSET_SECONDS = 5.5 * 3600; // 19800s — shift UTC timestamps to IST
 interface RevenueChartProps {
   height?: number;
   timeRange: "24H" | "7D" | "30D" | "All";
+  clientId?: string;
   onDataLoaded?: (data: {
     ohlc: { open: number; high: number; low: number; close: number };
     currentRate: number;
@@ -18,7 +19,7 @@ interface RevenueChartProps {
   }) => void;
 }
 
-export function RevenueChart({ height = 240, timeRange, onDataLoaded }: RevenueChartProps) {
+export function RevenueChart({ height = 240, timeRange, onDataLoaded, clientId }: RevenueChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const lineSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
@@ -88,7 +89,7 @@ export function RevenueChart({ height = 240, timeRange, onDataLoaded }: RevenueC
       return () => { chart.remove(); };
     }
 
-    fetch(`${API_BASE}/api/dashboard/analytics/revenue-chart?timeRange=${timeRange}`, {
+    fetch(`${API_BASE}/api/dashboard/analytics/revenue-chart?timeRange=${timeRange}${clientId ? `&clientId=${clientId}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : Promise.reject(`HTTP ${res.status}`))
@@ -153,7 +154,7 @@ export function RevenueChart({ height = 240, timeRange, onDataLoaded }: RevenueC
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [height, timeRange, onDataLoaded]);
+  }, [height, timeRange, onDataLoaded, clientId]);
 
   if (error) {
     return (

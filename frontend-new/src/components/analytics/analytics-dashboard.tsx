@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import dynamic from 'next/dynamic';
-import { RotateCcw, X, MoreVertical, Eye, XCircle } from "lucide-react";
+import { RotateCcw, X, MoreVertical, Eye, XCircle, ChevronDown, Check } from "lucide-react";
 import { FleetHealthGauge, formatLastHeartbeat } from "./fleet-health-gauge";
 import type { User } from "@/types/auth";
 import { getAnalyticsAccessToken } from "@/lib/token";
@@ -185,6 +185,60 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
   const [timeRange, setTimeRange] = useState<"24H" | "7D" | "30D" | "All">("7D");
+  const [clientFilter, setClientFilter] = useState<string>("Overall");
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+  const clientDropdownRef = useRef<HTMLDivElement>(null);
+  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
+  const clientFilterOptions = ["Overall", ...clients.filter(c => c.name !== "Public").map((c) => c.name), "Public"];
+  const activeClientId = useMemo(() => {
+    if (clientFilter === "Overall") return undefined;
+    if (clientFilter === "Public") return "__public__";
+    const found = clients.find(c => c.name === clientFilter);
+    return found?.id;
+  }, [clientFilter, clients]);
+  const isKsrceSelected = clientFilter.toLowerCase().includes('ksrce');
+
+  // Close client filter dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        clientDropdownRef.current &&
+        !clientDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsClientDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Fetch clients for the client filter dropdown
+  useEffect(() => {
+    const token = getAnalyticsAccessToken();
+    if (!token) return;
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/dashboard/analytics/clients`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setClients(Array.isArray(data.clients) ? data.clients : []);
+      } catch {
+        // swallow
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [chartKey, setChartKey] = useState(0);
   const [kpiData, setKpiData] = useState<AnalyticsKpiResponse | null>(null);
   const [revenueChartData, setRevenueChartData] = useState<{
@@ -253,7 +307,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
     if (!token) { setKpiLoading(false); return; }
 
     // Fetch KPI data
-    fetch(`${API_BASE}/api/dashboard/analytics/kpi?timeRange=${timeRange}`, {
+    fetch(`${API_BASE}/api/dashboard/analytics/kpi?timeRange=${timeRange}${activeClientId ? `&clientId=${activeClientId}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
@@ -268,7 +322,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
       .finally(() => setKpiLoading(false));
 
     // Fetch compute activity data
-    fetch(`${API_BASE}/api/dashboard/analytics/compute-activity?timeRange=${timeRange}`, {
+    fetch(`${API_BASE}/api/dashboard/analytics/compute-activity?timeRange=${timeRange}${activeClientId ? `&clientId=${activeClientId}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : null)
@@ -278,15 +332,15 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
       .catch(err => console.error('[ComputeActivity] fetch error:', err));
 
     // Fetch revenue growth
-    getRevenueGrowthData(timeRange)
+    getRevenueGrowthData(timeRange, activeClientId)
       .then(data => setRevenueGrowthData(data))
       .catch(err => console.error('[RevenueGrowth] fetch error:', err));
 
     // Fetch user retention
-    getRetentionData(timeRange)
+    getRetentionData(timeRange, activeClientId)
       .then(data => setRetentionData(data))
       .catch(err => console.error('[Retention] fetch error:', err));
-  }, [timeRange]);
+  }, [timeRange, clientFilter]);
 
     // Fetch active sessions, recent transactions, and attention required on mount
   useEffect(() => {
@@ -294,7 +348,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
     if (!token) return;
 
     // Fetch active sessions
-    fetch(`${API_BASE}/api/dashboard/analytics/active-sessions`, {
+    fetch(`${API_BASE}/api/dashboard/analytics/active-sessions${activeClientId ? `?clientId=${activeClientId}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : null)
@@ -304,7 +358,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
       .catch(err => console.error('[ActiveSessions] fetch error:', err));
 
     // Fetch recent transactions
-    fetch(`${API_BASE}/api/dashboard/analytics/recent-transactions`, {
+    fetch(`${API_BASE}/api/dashboard/analytics/recent-transactions${activeClientId ? `?clientId=${activeClientId}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : null)
@@ -314,7 +368,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
       .catch(err => console.error('[RecentTransactions] fetch error:', err));
 
     // Fetch attention required
-    fetch(`${API_BASE}/api/dashboard/analytics/attention-required`, {
+    fetch(`${API_BASE}/api/dashboard/analytics/attention-required${activeClientId ? `?clientId=${activeClientId}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : null)
@@ -325,7 +379,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
 
     // Fetch unresolved support tickets
     getUnresolvedTickets().then(setUnresolvedTickets).catch(() => {});
-  }, []);
+  }, [clientFilter]);
 
   // Fetch attachment blobs whenever a ticket is selected for viewing
   useEffect(() => {
@@ -440,20 +494,123 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               KSRCE Analytics Overview
             </p>
           </div>
-          <div className="flex items-center border border-zinc-700 rounded-full p-1">
-            {(["24H", "7D", "30D", "All"] as const).map((range) => (
+          <div className="flex items-center gap-3">
+            {/* Client filter dropdown */}
+            {isClientDropdownOpen && (
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 90,
+                  backgroundColor: "rgba(11, 11, 11, 0.5)",
+                  backdropFilter: "blur(6px)",
+                  WebkitBackdropFilter: "blur(6px)",
+                }}
+                onClick={() => setIsClientDropdownOpen(false)}
+              />
+            )}
+            <div ref={clientDropdownRef} style={{ position: "relative", zIndex: 100 }}>
               <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
-                  timeRange === range
-                    ? "bg-white text-black"
-                    : "text-zinc-400 hover:text-zinc-200"
+                onClick={() => setIsClientDropdownOpen((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-200 rounded-full transition-all border ${
+                  isClientDropdownOpen
+                    ? "border-zinc-700"
+                    : "border-transparent hover:border-zinc-700"
                 }`}
               >
-                {range}
+                <span>{clientFilter}</span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${
+                    isClientDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
-            ))}
+
+              {isClientDropdownOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    marginTop: "4px",
+                    backgroundColor:
+                      "var(--bgColor-elevated, var(--bgColor-default))",
+                    border: "1px solid var(--borderColor-default)",
+                    borderRadius: "4px",
+                    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15)",
+                    zIndex: 100,
+                    minWidth: "160px",
+                    overflow: "hidden",
+                  }}
+                >
+                  {clientFilterOptions.map((option) => {
+                    const isSelected = clientFilter === option;
+                    return (
+                      <button
+                        key={option}
+                        onClick={() => {
+                          setClientFilter(option);
+                          setIsClientDropdownOpen(false);
+                        }}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "8px",
+                          padding: "10px 12px",
+                          backgroundColor: isSelected
+                            ? "var(--bgColor-muted)"
+                            : "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.8125rem",
+                          color: "var(--fgColor-default)",
+                          textAlign: "left",
+                          transition: "background-color 0.15s ease",
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.backgroundColor =
+                            "var(--bgColor-muted)";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.backgroundColor = isSelected
+                            ? "var(--bgColor-muted)"
+                            : "transparent";
+                        }}
+                      >
+                        <span>{option}</span>
+                        {isSelected && (
+                          <Check
+                            width={14}
+                            height={14}
+                            style={{ color: "var(--fgColor-muted)" }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Timeframe selector */}
+            <div className="flex items-center border border-zinc-700 rounded-full p-1">
+              {(["24H", "7D", "30D", "All"] as const).map((range) => (
+                <button
+                  key={range}
+                  onClick={() => setTimeRange(range)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                    timeRange === range
+                      ? "bg-white text-black"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -461,7 +618,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
           {/* Revenue */}
           <KPICard
-            label="REVENUE"
+            label={isKsrceSelected ? "CAPEX" : "REVENUE"}
             value={kpiData ? `₹${(kpiData.revenue.total / 100).toLocaleString("en-IN")}` : "—"}
             change={kpiData ? `${kpiData.revenue.changePct >= 0 ? '+' : ''}${kpiData.revenue.changePct.toFixed(1)}%` : "—"}
             changePositive={kpiData ? kpiData.revenue.changePct >= 0 : true}
@@ -479,7 +636,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
           />
           {/* GPU Hours */}
           <KPICard
-            label="GPU HOURS SOLD"
+            label={isKsrceSelected ? "GPU HOURS RENTED" : "GPU HOURS SOLD"}
             value={kpiData ? `${kpiData.gpuHours.totalHours.toFixed(0)} hrs` : "—"}
             change={kpiData ? `${kpiData.gpuHours.changePct >= 0 ? '+' : ''}${kpiData.gpuHours.changePct.toFixed(1)}%` : "—"}
             changePositive={kpiData ? kpiData.gpuHours.changePct >= 0 : true}
@@ -558,7 +715,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
                 </div>
               </div>
               <div className="flex items-center gap-2 mr-1">
-                <h2 className="text-white font-semibold text-base">Revenue Trend</h2>
+                <h2 className="text-white font-semibold text-base">{isKsrceSelected ? "Capex Trend" : "Revenue Trend"}</h2>
                 <span className="text-zinc-500 text-xs">
                   {timeRange === "24H" ? "Last 24 hours" : timeRange === "7D" ? "Last 7 days" : timeRange === "All" ? "All time" : "Last 30 days"}
                 </span>
@@ -590,7 +747,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               )}
             </div>
 
-            <RevenueChart key={chartKey} height={240} timeRange={timeRange} onDataLoaded={setRevenueChartData} />
+            <RevenueChart key={chartKey} height={240} timeRange={timeRange} clientId={activeClientId} onDataLoaded={setRevenueChartData} />
           </div>
 
           {/* Right: Attention Required / Open Tickets */}
@@ -1316,6 +1473,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
       <AllTransactionsModal
         isOpen={showAllTransactions}
         onClose={() => setShowAllTransactions(false)}
+        clientId={activeClientId}
       />
     </div>
   );

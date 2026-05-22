@@ -1502,18 +1502,20 @@ export interface RetentionData {
   avgRetentionPct: number;
 }
 
-export async function getRevenueGrowthData(timeRange: string): Promise<NrrResponse> {
+export async function getRevenueGrowthData(timeRange: string, clientId?: string): Promise<NrrResponse> {
   const token = getAnalyticsAccessToken();
-  const res = await fetch(`${API_BASE}/api/dashboard/analytics/revenue-growth?timeRange=${timeRange}`, {
+  const url = `${API_BASE}/api/dashboard/analytics/revenue-growth?timeRange=${timeRange}${clientId ? `&clientId=${clientId}` : ''}`;
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to fetch revenue growth data');
   return res.json();
 }
 
-export async function getRetentionData(timeRange: string): Promise<RetentionData> {
+export async function getRetentionData(timeRange: string, clientId?: string): Promise<RetentionData> {
   const token = getAnalyticsAccessToken();
-  const res = await fetch(`${API_BASE}/api/dashboard/analytics/retention?timeRange=${timeRange}`, {
+  const url = `${API_BASE}/api/dashboard/analytics/retention?timeRange=${timeRange}${clientId ? `&clientId=${clientId}` : ''}`;
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to fetch retention data');

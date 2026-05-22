@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -74,7 +75,7 @@ export interface RecentTransaction {
   userEmail: string;
   amount: number;
   type: 'compute' | 'storage';
-  status: 'completed' | 'active';
+  status: string;
 }
 
 export interface AllTransactionRow {
@@ -111,6 +112,7 @@ export interface GetAllTransactionsParams {
   status?: string;
   startDate?: string;
   endDate?: string;
+  clientId?: string;
 }
 
 export interface GetAnalyticsUsersParams {
@@ -304,17 +306,82 @@ export class AnalyticsAdminService {
     return filteredIds;
   }
 
-  async getKpiData(
+  /**
+   * Get user IDs belonging to a client (organization) or public users.
+   * Returns null for Overall (no filter).
+   */
+  private async getClientUserIds(clientId?: string): Promise<string[] | null> {
+    if (!clientId) return null; // Overall — no filter
+
+    if (clientId === '__public__') {
+      const rows = await this.prisma.userOrgRole.findMany({
+        where: { organization: { orgType: 'public_' } },
+        select: { userId: true },
+        distinct: ['userId'],
+      });
+      return rows.map(r => r.userId);
+    }
+
+    // Users may be linked to the organization via:
+    // 1. UserOrgRole join table (role-based membership)
+    // 2. User.defaultOrgId (direct FK — primary organization)
+    const [uorUsers, directUsers] = await Promise.all([
+      this.prisma.userOrgRole.findMany({
+        where: { organizationId: clientId },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      this.prisma.user.findMany({
+        where: { defaultOrgId: clientId, isActive: true },
+        select: { id: true },
+      }),
+    ]);
+
+    const uorIds = uorUsers.map(r => r.userId);
+    const directIds = directUsers.map(u => u.id);
+
+    // Merge and deduplicate
+    return [...new Set([...uorIds, ...directIds])];
+  }
+
+  /**
+   * Check if an organization is KSRCE (for CapEx mode).
+   */
+  private async isKSRCEOrg(clientId: string): Promise<boolean> {
+    // __public__ is a sentinel value, not a real org UUID
+    if (clientId === '__public__') return false;
+    const org = await this.prisma.organization.findUnique({
+      where: { id: clientId },
+      select: { name: true, slug: true },
+    });
+    if (!org) return false;
+    return org.name.toLowerCase().includes('ksrce') || org.slug.toLowerCase().includes('ksrce');
+  }
+
+ async getKpiData(
     timeRange: '24H' | '7D' | '30D' | 'All',
+    clientId?: string,
   ): Promise<AnalyticsKpiResponse> {
     const now = new Date();
     const { periodStart, priorStart, priorEnd, daysInPeriod, subtitleContext } =
       this.getPeriodBounds(timeRange, now);
 
+    // Determine client filter and cost classification
+    const userIds = await this.getClientUserIds(clientId);
+    let costClassification = 'revenue';
+    if (clientId && await this.isKSRCEOrg(clientId)) {
+      costClassification = 'capex';
+    }
+
+    // Helper for adding user ID filter to where clause
+    const userFilter = userIds
+      ? { userId: { in: userIds } }
+      : {};
+
     // --- Revenue ---
     const currentRevenue = await this.prisma.billingCharge.aggregate({
       _sum: { amountCents: true },
-      where: { createdAt: { gte: periodStart }, costClassification: 'revenue' },
+      where: { createdAt: { gte: periodStart }, costClassification, ...userFilter },
     });
     const currentTotal = Number(currentRevenue._sum.amountCents ?? 0);
 
@@ -322,7 +389,7 @@ export class AnalyticsAdminService {
     if (priorStart && priorEnd) {
       const priorRevenue = await this.prisma.billingCharge.aggregate({
         _sum: { amountCents: true },
-        where: { createdAt: { gte: priorStart, lt: priorEnd }, costClassification: 'revenue' },
+        where: { createdAt: { gte: priorStart, lt: priorEnd }, costClassification, ...userFilter },
       });
       priorTotal = Number(priorRevenue._sum.amountCents ?? 0);
     }
@@ -332,7 +399,12 @@ export class AnalyticsAdminService {
     const revenueDailyAvg = daysInPeriod > 0 ? currentTotal / daysInPeriod : 0;
 
     // --- Active Users: Regular users only (excludes admin roles like business_lead, it_admin) ---
-    const regularUserIds = await this.getRegularUserIds();
+    let regularUserIds = await this.getRegularUserIds();
+    // If filtering by client, intersect with client user IDs
+    if (userIds) {
+      const userIdSet = new Set(userIds);
+      regularUserIds = regularUserIds.filter(id => userIdSet.has(id));
+    }
     const activeUsers = regularUserIds.length;
 
     // CDC: compare active user count now vs users who existed before the period
@@ -350,7 +422,7 @@ export class AnalyticsAdminService {
         : 0;
 
     const liveSessions = await this.prisma.session.count({
-      where: { status: 'running' },
+      where: { status: 'running', ...userFilter },
     });
 
     const newUsers = await this.prisma.user.count({
@@ -381,6 +453,12 @@ export class AnalyticsAdminService {
     // NOTE: format dates as plain UTC strings (no Z suffix) to prevent PostgreSQL from
     // treating them as timestamptz and converting through the session timezone (IST)
     const periodStartTs = periodStart.toISOString().replace('Z', '');
+
+    const hasUserFilter = userIds !== null;
+    const userSql = hasUserFilter
+      ? Prisma.sql`AND s."user_id" = ANY(${userIds!}::uuid[])`
+      : Prisma.empty;
+
     const gpuData = await this.prisma.$queryRaw<
       Array<{ total_seconds: bigint; session_count: bigint }>
     >`
@@ -396,6 +474,7 @@ export class AnalyticsAdminService {
       FROM "sessions" s
       WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
         AND s."ended_at" >= ${periodStartTs}::timestamp
+        ${userSql}
     `;
 
     // Also include running sessions' elapsed time — only the portion within the selected period
@@ -403,6 +482,7 @@ export class AnalyticsAdminService {
       where: {
         status: 'running',
         startedAt: { not: null },
+        ...userFilter,
       },
       select: { startedAt: true },
     });
@@ -442,6 +522,7 @@ export class AnalyticsAdminService {
         WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
           AND s."ended_at" >= ${priorStartTs}::timestamp
           AND s."started_at" < ${priorEndTs}::timestamp
+          ${userSql}
       `;
       priorGpuTotalSeconds = Number(priorGpuData[0]?.total_seconds ?? 0);
     }
@@ -572,6 +653,7 @@ export class AnalyticsAdminService {
 
   async getRevenueChartData(
     timeRange: '24H' | '7D' | '30D' | 'All',
+    clientId?: string,
   ): Promise<RevenueChartResponse> {
     const now = new Date();
     const emptyResponse: RevenueChartResponse = {
@@ -581,6 +663,19 @@ export class AnalyticsAdminService {
       rateChange: 0,
       rateChangePct: 0,
     };
+
+    // Determine client filter and cost classification
+    const userIds = await this.getClientUserIds(clientId);
+    let costClassification = 'revenue';
+    if (clientId && await this.isKSRCEOrg(clientId)) {
+      costClassification = 'capex';
+    }
+
+    // Build user filter SQL fragment
+    const hasUserFilter = userIds !== null;
+    const userFilterSql = hasUserFilter
+      ? Prisma.sql`AND "user_id" = ANY(${userIds!}::uuid[])`
+      : Prisma.empty;
 
     // Step 1: Determine period bounds
     // For 'All' use 90 days to avoid generating hourly slots from epoch
@@ -606,7 +701,8 @@ export class AnalyticsAdminService {
         SUM("amount_cents")::bigint as total_cents
       FROM "billing_charges"
       WHERE "created_at" >= ${periodStart}
-        AND "cost_classification" = 'revenue'
+        AND "cost_classification" = ${costClassification}
+        ${userFilterSql}
       GROUP BY 1
       ORDER BY 1 ASC
     `;
@@ -738,7 +834,8 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint as total_cents
         FROM "billing_charges"
         WHERE "created_at" >= ${previousPeriodStart} AND "created_at" < ${previousPeriodEnd}
-          AND "cost_classification" = 'revenue'
+          AND "cost_classification" = ${costClassification}
+          ${userFilterSql}
         GROUP BY DATE_TRUNC('hour', "created_at")
       `;
 
@@ -834,12 +931,23 @@ export class AnalyticsAdminService {
    */
   async getComputeActivityData(
     timeRange: '24H' | '7D' | '30D' | 'All',
+    clientId?: string,
   ): Promise<ComputeActivityResponse> {
     const now = new Date();
     const { periodStart, priorStart, priorEnd } = this.getPeriodBounds(
       timeRange,
       now,
     );
+
+    // User filter
+    const userIds = await this.getClientUserIds(clientId);
+    const hasUserFilter = userIds !== null;
+    const userFilter = userIds
+      ? { userId: { in: userIds } }
+      : {};
+    const userSql = hasUserFilter
+      ? Prisma.sql`AND s."user_id" = ANY(${userIds!}::uuid[])`
+      : Prisma.empty;
 
     // NOTE: format dates as plain UTC strings (no Z suffix) to prevent PostgreSQL from
     // treating them as timestamptz and converting through the session timezone (IST)
@@ -860,6 +968,7 @@ export class AnalyticsAdminService {
       FROM "sessions" s
       WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
         AND s.ended_at >= ${periodStartTs}::timestamp
+        ${userSql}
     `;
 
     // Include running sessions
@@ -867,6 +976,7 @@ export class AnalyticsAdminService {
       where: {
         status: 'running',
         startedAt: { not: null },
+        ...userFilter,
       },
       select: { startedAt: true, durationSeconds: true },
     });
@@ -975,6 +1085,7 @@ export class AnalyticsAdminService {
         WHERE s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
           AND s."ended_at" >= ${priorStartTs}::timestamp
           AND s."ended_at" < ${priorEndTs}::timestamp
+          ${userSql}
       `;
       priorTotalHours = Number(priorData[0]?.total_hours || 0);
     }
@@ -1033,9 +1144,16 @@ export class AnalyticsAdminService {
   /**
    * Get active sessions breakdown by tier
    */
-  async getActiveSessionsByTier(): Promise<ActiveSessionsResponse> {
+  async getActiveSessionsByTier(
+    clientId?: string,
+  ): Promise<ActiveSessionsResponse> {
+    const userIds = await this.getClientUserIds(clientId);
+    const userFilter = userIds
+      ? { userId: { in: userIds } }
+      : {};
+
     const activeSessions = await this.prisma.session.findMany({
-      where: { status: 'running' },
+      where: { status: 'running', ...userFilter },
       select: {
         computeConfig: {
           select: { name: true, gpuVramMb: true },
@@ -1080,11 +1198,18 @@ export class AnalyticsAdminService {
   /**
    * Get recent 5 wallet top-ups/credit additions
    */
-  async getRecentTransactions(): Promise<RecentTransaction[]> {
-    const transactions = await this.prisma.walletTransaction.findMany({
+  async getRecentTransactions(
+    clientId?: string,
+  ): Promise<RecentTransaction[]> {
+    const userIds = await this.getClientUserIds(clientId);
+    const userFilter = userIds
+      ? { userId: { in: userIds } }
+      : {};
+
+    // Query payment_transactions for real statuses (paid, pending, failed, etc.)
+    const transactions = await this.prisma.paymentTransaction.findMany({
       where: {
-        txnType: 'credit',
-        referenceType: 'payment', // Only payment top-ups, not refunds or adjustments
+        ...userFilter,
       },
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -1106,13 +1231,24 @@ export class AnalyticsAdminService {
       const userName =
         txn.user.firstName || txn.user.email.split('@')[0];
 
+      // Map payment gateway status to display status
+      let displayStatus = txn.status;
+      const normalized = txn.status.toLowerCase();
+      if (normalized === 'completed' || normalized === 'succeeded') {
+        displayStatus = 'completed';
+      } else if (normalized === 'pending' || normalized === 'initiated' || normalized === 'processing') {
+        displayStatus = 'pending';
+      } else if (normalized === 'failed' || normalized === 'error' || normalized === 'cancelled' || normalized === 'canceled') {
+        displayStatus = 'failed';
+      }
+
       return {
         time,
         userName,
         userEmail: txn.user.email,
         amount: Number(txn.amountCents) / 100,
-        type: 'compute' as const, // All are credit top-ups
-        status: 'completed' as const, // Payment transactions are completed
+        type: 'compute' as const,
+        status: displayStatus,
       };
     });
   }
@@ -1120,14 +1256,22 @@ export class AnalyticsAdminService {
   /**
    * Get attention required metrics (time-independent, always current state)
    */
-  async getAttentionRequiredData(): Promise<AttentionRequiredResponse> {
+  async getAttentionRequiredData(
+    clientId?: string,
+  ): Promise<AttentionRequiredResponse> {
     const now = new Date();
+
+    const userIds = await this.getClientUserIds(clientId);
+    const userFilter = userIds
+      ? { userId: { in: userIds } }
+      : {};
 
     // 1. Low Balance Users: Count users with balance < ₹500 (50000 cents)
     const lowBalanceThresholdCents = 50000; // ₹500
     const lowBalanceUsers = await this.prisma.wallet.count({
       where: {
         balanceCents: { lt: BigInt(lowBalanceThresholdCents) },
+        ...userFilter,
       },
     });
 
@@ -1137,6 +1281,7 @@ export class AnalyticsAdminService {
       where: {
         status: { in: ['open', 'in_progress'] },
         createdAt: { lte: twelveHoursAgo },
+        ...userFilter,
       },
     });
 
@@ -1145,6 +1290,7 @@ export class AnalyticsAdminService {
       where: {
         status: { in: ['resolved', 'closed'] },
         resolvedAt: { not: null },
+        ...userFilter,
       },
       select: {
         createdAt: true,
@@ -1175,6 +1321,7 @@ export class AnalyticsAdminService {
     const currentWeekSessions = await this.prisma.session.findMany({
       where: {
         startedAt: { gte: currentWeekStart },
+        ...userFilter,
       },
       select: {
         status: true,
@@ -1194,6 +1341,7 @@ export class AnalyticsAdminService {
           gte: priorWeekStart,
           lt: currentWeekStart,
         },
+        ...userFilter,
       },
       select: {
         status: true,
@@ -1385,8 +1533,19 @@ export class AnalyticsAdminService {
    * periods. Daily (7 days) for 24H/7D, custom 2.5-day buckets (12) for 30D,
    * monthly (12 months) for All.
    */
-  async getNetRevenueRetention(timeRange: string): Promise<NrrResponse> {
+  async getNetRevenueRetention(timeRange: string, clientId?: string): Promise<NrrResponse> {
     const now = new Date();
+
+    // Client filter and cost classification
+    const userIds = await this.getClientUserIds(clientId);
+    let costClassification = 'revenue';
+    if (clientId && await this.isKSRCEOrg(clientId)) {
+      costClassification = 'capex';
+    }
+    const hasUserFilter = userIds !== null;
+    const userFilterSql = hasUserFilter
+      ? Prisma.sql`AND "user_id" = ANY(${userIds!}::uuid[])`
+      : Prisma.empty;
 
     const isDaily = timeRange === '24H' || timeRange === '7D';
     const isCustom30D = timeRange === '30D';
@@ -1422,7 +1581,8 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint AS user_revenue
         FROM "billing_charges"
         WHERE "created_at" >= ${queryStartTs}::timestamp
-          AND "cost_classification" = 'revenue'
+          AND "cost_classification" = ${costClassification}
+          ${userFilterSql}
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;
@@ -1451,7 +1611,8 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint AS user_revenue
         FROM "billing_charges"
         WHERE "created_at" >= ${queryStartTs}::timestamp
-          AND "cost_classification" = 'revenue'
+          AND "cost_classification" = ${costClassification}
+          ${userFilterSql}
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;
@@ -1489,7 +1650,8 @@ export class AnalyticsAdminService {
           SUM("amount_cents")::bigint AS user_revenue
         FROM "billing_charges"
         WHERE "created_at" >= ${queryStartTs}::timestamp
-          AND "cost_classification" = 'revenue'
+          AND "cost_classification" = ${costClassification}
+          ${userFilterSql}
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;
@@ -1594,8 +1756,15 @@ export class AnalyticsAdminService {
    * Daily (7 days) for 24H/7D, custom 2.5-day buckets (12) for 30D,
    * monthly (12 months) for All.
    */
-  async getRetentionData(timeRange: string): Promise<RetentionResponse> {
+  async getRetentionData(timeRange: string, clientId?: string): Promise<RetentionResponse> {
     const now = new Date();
+
+    // Client filter
+    const userIds = await this.getClientUserIds(clientId);
+    const hasUserFilter = userIds !== null;
+    const userFilterSql = hasUserFilter
+      ? Prisma.sql`AND s."user_id" = ANY(${userIds!}::uuid[])`
+      : Prisma.empty;
 
     const isDaily = timeRange === '24H' || timeRange === '7D';
     const isCustom30D = timeRange === '30D';
@@ -1638,6 +1807,7 @@ export class AnalyticsAdminService {
           WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
             AND s."started_at" >= ${queryStartTs}::timestamp
             AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+            ${userFilterSql}
         ),
         expanded AS (
           SELECT 
@@ -1688,6 +1858,7 @@ export class AnalyticsAdminService {
           WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
             AND s."started_at" >= ${queryStartTs}::timestamp
             AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+            ${userFilterSql}
         ),
         expanded AS (
           SELECT 
@@ -1746,6 +1917,7 @@ export class AnalyticsAdminService {
           WHERE s."status" IN ('ended', 'terminated_idle', 'terminated_overuse', 'running')
             AND s."started_at" >= ${queryStartTs}::timestamp
             AND r."name" NOT IN ('business_lead', 'it_admin', 'super_admin', 'org_admin')
+            ${userFilterSql}
         ),
         expanded AS (
           SELECT 
@@ -1847,6 +2019,12 @@ export class AnalyticsAdminService {
     const limit = Math.max(1, params.limit || 15);
     const skip = (page - 1) * limit;
 
+    // Resolve client filter: get user IDs belonging to the selected client
+    const userIds = params.clientId ? await this.getClientUserIds(params.clientId) : null;
+    const userFilter: Record<string, unknown> = userIds !== null
+      ? { userId: { in: userIds } }
+      : {};
+
     // Map status filter
     let statusFilter: string | undefined;
     if (params.status) {
@@ -1867,8 +2045,8 @@ export class AnalyticsAdminService {
       if (!isNaN(ed.getTime())) dateFilter.lte = ed;
     }
 
-    // Build base where clause (without search)
-    const baseWhere: Record<string, unknown> = {};
+    // Build base where clause (without search) — includes user/status/date filters
+    const baseWhere: Record<string, unknown> = { ...userFilter };
     if (statusFilter) baseWhere.status = statusFilter;
     if (dateFilter.gte || dateFilter.lte) baseWhere.createdAt = dateFilter;
 
@@ -2024,6 +2202,7 @@ export class AnalyticsAdminService {
 
     const kpiWhere = {
       createdAt: { gte: kpiStart, lte: kpiEnd },
+      ...userFilter,
     };
 
     const [kpiTotal, kpiSum, kpiFailedOrPending] = await Promise.all([

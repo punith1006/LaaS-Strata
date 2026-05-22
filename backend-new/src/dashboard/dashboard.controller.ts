@@ -55,44 +55,56 @@ export class DashboardController {
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/kpi')
-  async getAnalyticsKpi(@Query('timeRange') timeRange: string) {
+  async getAnalyticsKpi(
+    @Query('timeRange') timeRange: string,
+    @Query('clientId') clientId?: string,
+  ) {
     return this.analyticsAdminService.getKpiData(
       (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
+      clientId,
     );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/revenue-chart')
-  async getRevenueChart(@Query('timeRange') timeRange: string) {
+  async getRevenueChart(
+    @Query('timeRange') timeRange: string,
+    @Query('clientId') clientId?: string,
+  ) {
     return this.analyticsAdminService.getRevenueChartData(
       (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
+      clientId,
     );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/compute-activity')
-  async getComputeActivity(@Query('timeRange') timeRange: string) {
+  async getComputeActivity(
+    @Query('timeRange') timeRange: string,
+    @Query('clientId') clientId?: string,
+  ) {
     return this.analyticsAdminService.getComputeActivityData(
       (timeRange as '24H' | '7D' | '30D' | 'All') || '7D',
+      clientId,
     );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/active-sessions')
-  async getActiveSessions() {
-    return this.analyticsAdminService.getActiveSessionsByTier();
+  async getActiveSessions(@Query('clientId') clientId?: string) {
+    return this.analyticsAdminService.getActiveSessionsByTier(clientId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/recent-transactions')
-  async getRecentTransactions() {
-    return this.analyticsAdminService.getRecentTransactions();
+  async getRecentTransactions(@Query('clientId') clientId?: string) {
+    return this.analyticsAdminService.getRecentTransactions(clientId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/attention-required')
-  async getAttentionRequired() {
-    return this.analyticsAdminService.getAttentionRequiredData();
+  async getAttentionRequired(@Query('clientId') clientId?: string) {
+    return this.analyticsAdminService.getAttentionRequiredData(clientId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -103,14 +115,20 @@ export class DashboardController {
 
   @Get('analytics/revenue-growth')
   @UseGuards(JwtAuthGuard)
-  async getRevenueGrowth(@Query('timeRange') timeRange: string) {
-    return this.analyticsAdminService.getNetRevenueRetention(timeRange || '7D');
+  async getRevenueGrowth(
+    @Query('timeRange') timeRange: string,
+    @Query('clientId') clientId?: string,
+  ) {
+    return this.analyticsAdminService.getNetRevenueRetention(timeRange || '7D', clientId);
   }
 
   @Get('analytics/retention')
   @UseGuards(JwtAuthGuard)
-  async getRetention(@Query('timeRange') timeRange: string) {
-    return this.analyticsAdminService.getRetentionData(timeRange || '7D');
+  async getRetention(
+    @Query('timeRange') timeRange: string,
+    @Query('clientId') clientId?: string,
+  ) {
+    return this.analyticsAdminService.getRetentionData(timeRange || '7D', clientId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -122,6 +140,7 @@ export class DashboardController {
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('clientId') clientId?: string,
   ) {
     return this.analyticsAdminService.getAllTransactions({
       page: parseInt(page || '1', 10),
@@ -130,6 +149,7 @@ export class DashboardController {
       status: status || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
+      clientId: clientId || undefined,
     });
   }
 

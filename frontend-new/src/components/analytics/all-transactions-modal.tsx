@@ -10,6 +10,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 interface AllTransactionsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  clientId?: string;
 }
 
 interface Transaction {
@@ -82,7 +83,7 @@ function getStatusVisual(status: string): { color: string; label: string } {
   return { color: "#a1a1aa", label: status || "—" };
 }
 
-export function AllTransactionsModal({ isOpen, onClose }: AllTransactionsModalProps) {
+export function AllTransactionsModal({ isOpen, onClose, clientId }: AllTransactionsModalProps) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -143,6 +144,7 @@ export function AllTransactionsModal({ isOpen, onClose }: AllTransactionsModalPr
         if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
         if (startDate) params.set("startDate", startDate);
         if (endDate) params.set("endDate", endDate);
+        if (clientId) params.set("clientId", clientId);
 
         const res = await fetch(
           `${API_BASE}/api/dashboard/analytics/all-transactions?${params.toString()}`,
@@ -179,7 +181,7 @@ export function AllTransactionsModal({ isOpen, onClose }: AllTransactionsModalPr
     return () => {
       cancelled = true;
     };
-  }, [isOpen, page, debouncedSearch, statusFilter, startDate, endDate]);
+  }, [isOpen, page, debouncedSearch, statusFilter, startDate, endDate, clientId]);
 
   const handleDownload = async (txn: Transaction) => {
     const token = getAnalyticsAccessToken();
