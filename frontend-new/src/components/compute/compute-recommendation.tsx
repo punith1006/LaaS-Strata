@@ -156,6 +156,36 @@ const DURATIONS = [
   { id: "extended", label: "Extended", desc: "6+ hours or ongoing" },
 ];
 
+const PROJECT_DURATIONS = [
+  { id: "daily", label: "Daily", desc: "Using the platform on a daily basis" },
+  { id: "less_than_month", label: "Less than a Month", desc: "Short-term project within a month" },
+  { id: "less_than_3_months", label: "Less than 3 Months", desc: "Medium-term project requiring a few months" },
+  { id: "approx_6_months", label: "Approx 6 Months", desc: "Long-term project over several months" },
+];
+
+const PERIOD_DURATIONS_BY_PROJECT: Record<string, { id: string; label: string; desc: string }[]> = {
+  daily: [
+    { id: "quick", label: "Quick session", desc: "Under 2 hours" },
+    { id: "standard", label: "Standard", desc: "2-6 hours" },
+    { id: "extended", label: "Extended", desc: "6+ hours or ongoing" },
+  ],
+  less_than_month: [
+    { id: "light", label: "Light usage", desc: "1-2 hours per session" },
+    { id: "moderate", label: "Moderate", desc: "3-4 hours per session" },
+    { id: "heavy", label: "Heavy usage", desc: "5+ hours per session" },
+  ],
+  less_than_3_months: [
+    { id: "light", label: "Light usage", desc: "1-2 hours per session" },
+    { id: "moderate", label: "Moderate", desc: "3-4 hours per session" },
+    { id: "heavy", label: "Heavy usage", desc: "5+ hours per session" },
+  ],
+  approx_6_months: [
+    { id: "light", label: "Light usage", desc: "1-2 hours per session" },
+    { id: "moderate", label: "Moderate", desc: "3-4 hours per session" },
+    { id: "heavy", label: "Heavy usage", desc: "5+ hours per session" },
+  ],
+};
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -177,6 +207,8 @@ export function ComputeRecommendation({
   const [budget, setBudget] = useState("");
   const [budgetAmount, setBudgetAmount] = useState<number>(50);
   const [sessionDuration, setSessionDuration] = useState("");
+  const [projectDuration, setProjectDuration] = useState("");
+  const [periodDuration, setPeriodDuration] = useState("");
 
   // Results state
   const [results, setResults] = useState<ScoredConfig[] | null>(null);
@@ -247,6 +279,8 @@ export function ComputeRecommendation({
     setPrimaryGoal('');
     setDatasetSize('');
     setWorkloadIntensity(1);
+    setProjectDuration('');
+    setPeriodDuration('');
     setAutoSelectedFields(new Set());
     setResults(null);
 
@@ -286,6 +320,17 @@ export function ComputeRecommendation({
           if (mapped !== undefined) {
             setWorkloadIntensity(mapped);
             newAutoSelected.add('workloadIntensity');
+          }
+        }
+
+        // Auto-select Project Duration (only if confident and value is present)
+        const projectDurationConfidence = result.fieldConfidence?.projectDuration ?? 0;
+        if (result.detectedProjectDuration && projectDurationConfidence >= 0.7) {
+          const validDurations = ['daily', 'less_than_month', 'less_than_3_months', 'approx_6_months'];
+          if (validDurations.includes(result.detectedProjectDuration)) {
+            setProjectDuration(result.detectedProjectDuration);
+            setPeriodDuration('');
+            newAutoSelected.add('projectDuration');
           }
         }
 
@@ -343,7 +388,8 @@ export function ComputeRecommendation({
           datasetSize: datasetSize || "not_sure",
           budget: budget || "balanced",
           budgetAmount: budgetAmount,
-          sessionDuration: sessionDuration || "standard",
+          projectDuration: projectDuration || "daily",
+          sessionDuration: periodDuration || sessionDuration || "standard",
           performancePriority: workloadIntensity,
           llmAnalysis: llmAnalysis || undefined,
         }
@@ -388,7 +434,8 @@ export function ComputeRecommendation({
             selectedIntensity: workloadIntensity,
             selectedBudgetType: budget || undefined,
             selectedBudgetAmount: budgetAmount > 50 ? budgetAmount : undefined,
-            selectedDuration: sessionDuration || undefined,
+            selectedDuration: periodDuration || sessionDuration || undefined,
+            selectedProjectDuration: projectDuration || undefined,
             goalAutoSelected: autoSelectedFields.has('primaryGoal'),
             datasetAutoSelected: autoSelectedFields.has('datasetSize'),
             intensityAutoSelected: autoSelectedFields.has('workloadIntensity'),
@@ -610,13 +657,10 @@ export function ComputeRecommendation({
               <div
                 style={{
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent: "flex-end",
                   marginTop: "4px",
                 }}
               >
-                <span style={{ fontSize: "var(--text-xs, 0.75rem)", color: "var(--fgColor-default)" }}>
-                  Optional — helps our AI understand your needs better
-                </span>
                 <span style={{ fontSize: "var(--text-xs, 0.75rem)", color: "var(--fgColor-default)" }}>
                   {getWordCount(descriptionText)} / 500 words
                 </span>
@@ -818,8 +862,8 @@ export function ComputeRecommendation({
               </ul>
             )}
 
-            {/* Continue button with Edit Input link */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--borderColor-info, #3a73ff)" }}>
+            {/* Edit Input link */}
+            <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "12px" }}>
               <span
                 onClick={() => setAnalysisState('input')}
                 style={{
@@ -835,24 +879,8 @@ export function ComputeRecommendation({
               >
                 Edit Input
               </span>
-              <button
-                onClick={() => setWizardStep(2)}
-                style={{
-                  padding: "10px 28px",
-                  backgroundColor: "var(--fgColor-default)",
-                  color: "var(--bgColor-default)",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: "var(--font-sans)",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                Continue
-              </button>
             </div>
+
           </div>
         )}
 
@@ -944,6 +972,219 @@ export function ComputeRecommendation({
           </div>
         )}
       </div>
+      )}
+
+      {wizardStep === 1 && analysisState === 'success' && (
+        <div style={{
+          border: autoSelectedFields.has('projectDuration') ? "1px solid var(--borderColor-info, #3a73ff)" : "1px solid var(--borderColor-default)",
+          borderRadius: "4px",
+          padding: "16px",
+          marginTop: "8px",
+          position: "relative",
+        }}>
+          {autoSelectedFields.has('projectDuration') && (
+            <span style={{
+              position: "absolute",
+              top: "12px",
+              right: "16px",
+              fontSize: "0.7rem",
+              fontStyle: "italic",
+              color: "var(--borderColor-info, #3a73ff)",
+              fontFamily: "var(--font-sans)",
+            }}>
+              Auto-selected based on analysis — you can change this
+            </span>
+          )}
+          {/* Expected Project Duration */}
+          <div
+            style={{
+              marginTop: "0",
+              paddingTop: "0",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "var(--text-xs, 0.75rem)",
+                fontWeight: 600,
+                color: "var(--fgColor-default)",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                marginBottom: "8px",
+              }}
+            >
+              Expected Project Duration{" "}
+              <span style={{ fontSize: "var(--text-2xs, 0.65rem)", fontWeight: 400, color: "var(--fgColor-muted)" }}>
+                (Optional — helps our AI understand your needs better)
+              </span>
+            </div>
+            <p
+              style={{
+                fontSize: "var(--text-sm, 0.875rem)",
+                color: "var(--fgColor-default)",
+                marginBottom: "16px",
+                marginTop: 0,
+              }}
+            >
+              How long do you plan to use this platform for your project? We&apos;ll estimate your total cost.
+            </p>
+
+            {/* Horizontal flex layout for project durations */}
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              {PROJECT_DURATIONS.map((item) => {
+                const isSelected = projectDuration === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      const newProjectId = projectDuration === item.id ? "" : item.id;
+                      setProjectDuration(newProjectId);
+                      setPeriodDuration("");
+                      if (autoSelectedFields.has('projectDuration')) {
+                        setAutoSelectedFields(prev => { const next = new Set(prev); next.delete('projectDuration'); return next; });
+                      }
+                    }}
+                    style={{
+                      flex: "1 1 auto",
+                      minWidth: "140px",
+                      padding: isSelected ? "11px 15px" : "12px 16px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      backgroundColor: "var(--bgColor-default)",
+                      border: isSelected
+                        ? "2px solid var(--fgColor-default)"
+                        : "1px solid var(--borderColor-default)",
+                      borderRadius: "4px",
+                      fontFamily: "var(--font-sans)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "var(--text-sm, 0.875rem)",
+                        color: "var(--fgColor-default)",
+                      }}
+                    >
+                      {item.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "var(--text-xs, 0.75rem)",
+                        color: "var(--fgColor-muted)",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {item.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Period duration sub-options (shown when a project duration is selected) */}
+            {projectDuration && PERIOD_DURATIONS_BY_PROJECT[projectDuration] && (
+              <>
+                <div
+                  style={{
+                    borderTop: "1px solid var(--borderColor-default)",
+                    marginTop: "16px",
+                    paddingTop: "16px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "var(--text-xs, 0.75rem)",
+                      fontWeight: 600,
+                      color: "var(--fgColor-default)",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    {projectDuration === "daily" ? "Expected Session Duration" : "Typical Usage Per Session"}
+                    <span style={{ color: "#e53e3e", marginLeft: "4px", fontSize: "14px" }}>*</span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {PERIOD_DURATIONS_BY_PROJECT[projectDuration].map((item) => {
+                      const isSelected = periodDuration === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setPeriodDuration(isSelected ? "" : item.id)}
+                          style={{
+                            flex: "1 1 auto",
+                            minWidth: "140px",
+                            padding: isSelected ? "11px 15px" : "12px 16px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            backgroundColor: "var(--bgColor-default)",
+                            border: isSelected
+                              ? "2px solid var(--fgColor-default)"
+                              : "1px solid var(--borderColor-default)",
+                            borderRadius: "4px",
+                            fontFamily: "var(--font-sans)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              fontSize: "var(--text-sm, 0.875rem)",
+                              color: "var(--fgColor-default)",
+                            }}
+                          >
+                            {item.label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "var(--text-xs, 0.75rem)",
+                              color: "var(--fgColor-muted)",
+                              marginTop: "4px",
+                            }}
+                          >
+                            {item.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Continue button inside the expected project duration block */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
+              <button
+                onClick={() => { setWizardStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={!projectDuration || !periodDuration}
+                style={{
+                  padding: "10px 28px",
+                  backgroundColor: !projectDuration || !periodDuration ? "var(--bgColor-muted)" : "var(--fgColor-default)",
+                  color: !projectDuration || !periodDuration ? "var(--fgColor-muted)" : "var(--bgColor-default)",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  cursor: !projectDuration || !periodDuration ? "not-allowed" : "pointer",
+                  fontFamily: "var(--font-sans)",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Step 2: Configure Setup */}
@@ -1580,11 +1821,12 @@ export function ComputeRecommendation({
               color: "var(--fgColor-default)",
             }}
           >
-            {sessionDuration ? (
+            {periodDuration || sessionDuration ? (
               <>
-                For {sessionDuration === "quick" ? 2 : sessionDuration === "extended" ? 8 : 4}hrs:{" "}
+                For {(periodDuration || sessionDuration) === "quick" || (periodDuration || sessionDuration) === "light" ? 2 : (periodDuration || sessionDuration) === "extended" || (periodDuration || sessionDuration) === "heavy" ? 8 : 4}hrs:{" "}
                 {(() => {
-                  const durationHours = sessionDuration === "quick" ? 2 : sessionDuration === "extended" ? 8 : 4;
+                  const dur = periodDuration || sessionDuration || "standard";
+                  const durationHours = dur === "quick" || dur === "light" ? 2 : dur === "extended" || dur === "heavy" ? 8 : 4;
                   const sparkCost = 35 * durationHours;
                   const blazeCost = 65 * durationHours;
                   const infernoCost = 105 * durationHours;
@@ -1617,90 +1859,6 @@ export function ComputeRecommendation({
             )}
           </div>
         )}
-      </div>
-
-      {/* Section F: Session Duration */}
-      <div
-        style={{
-          backgroundColor: "var(--bgColor-mild)",
-          border: "1px solid var(--borderColor-default)",
-          borderRadius: "4px",
-          padding: "24px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "var(--text-xs, 0.75rem)",
-            fontWeight: 600,
-            color: "var(--fgColor-default)",
-            textTransform: "uppercase",
-            letterSpacing: "1px",
-            marginBottom: "8px",
-          }}
-        >
-          Expected Session Duration
-        </div>
-        <p
-          style={{
-            fontSize: "var(--text-sm, 0.875rem)",
-            color: "var(--fgColor-default)",
-            marginBottom: "16px",
-            marginTop: 0,
-          }}
-        >
-          How long do you expect to use this instance? We&apos;ll estimate your total cost.
-        </p>
-
-        {/* Horizontal flex layout */}
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}
-        >
-          {DURATIONS.map((item) => {
-            const isSelected = sessionDuration === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setSessionDuration(item.id)}
-                style={{
-                  flex: "1 1 auto",
-                  minWidth: "140px",
-                  padding: isSelected ? "11px 15px" : "12px 16px",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  backgroundColor: "var(--bgColor-default)",
-                  border: isSelected
-                    ? "2px solid var(--fgColor-default)"
-                    : "1px solid var(--borderColor-default)",
-                  borderRadius: "4px",
-                  fontFamily: "var(--font-sans)",
-                }}
-              >
-                <div
-                  style={{
-                    fontWeight: 600,
-                    fontSize: "var(--text-sm, 0.875rem)",
-                    color: "var(--fgColor-default)",
-                  }}
-                >
-                  {item.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: "var(--text-xs, 0.75rem)",
-                    color: "var(--fgColor-muted)",
-                    marginTop: "4px",
-                  }}
-                >
-                  {item.desc}
-                </div>
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* CTA Button */}

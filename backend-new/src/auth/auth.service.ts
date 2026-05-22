@@ -278,7 +278,7 @@ export class AuthService {
         defaultOrgId,
         isActive: true,
         storageUid,
-        storageProvisioningStatus: isInstitutionSignup ? 'pending' : null,
+        storageProvisioningStatus: null,
       },
     });
 
@@ -319,11 +319,10 @@ export class AuthService {
 
     await this.mail.sendWelcomeEmail(user.email, user.firstName);
 
-    // [DISABLED] Auto-storage provisioning for institutional signup removed.
-    // Students can still manually provision storage via File Store page.
-    // Disabled as part of student billing exemption — see plan: Student_Billing_Exemption
+    // [DISABLED] Auto-storage provisioning for institutional signup — 2026-05-22
+    // Student users from @ksrce.in (OTP/institution_local) do NOT get auto-provisioned storage.
+    // They can manually provision via File Store page if needed.
     /*
-    // --- Storage provisioning for institution signup (10GB) ---
     if (isInstitutionSignup && storageUid) {
       const INSTITUTION_QUOTA_GB = 10;
       const result = await this.storage.provisionUserQuota(storageUid, user.id, INSTITUTION_QUOTA_GB);

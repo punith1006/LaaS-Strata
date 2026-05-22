@@ -1578,7 +1578,9 @@ export async function analyzeWorkload(description: string, primaryGoal?: string)
   inputQuality: 'sufficient' | 'insufficient';
   missingCategories: string[];
   suggestions: string;
-  fieldConfidence: { goal: number; vram: number; intensity: number };
+  detectedProjectDuration?: string | null;
+  estimatedTotalWeeks?: number | null;
+  fieldConfidence: { goal: number; vram: number; intensity: number; projectDuration?: number };
 }> {
   const token = getAccessToken();
   const res = await fetch(`${API_BASE}/api/compute/analyze-workload`, {
@@ -1626,6 +1628,7 @@ export async function updateRecommendationSession(id: string, data: {
   selectedBudgetType?: string;
   selectedBudgetAmount?: number;
   selectedDuration?: string;
+  selectedProjectDuration?: string;
   goalAutoSelected?: boolean;
   datasetAutoSelected?: boolean;
   intensityAutoSelected?: boolean;

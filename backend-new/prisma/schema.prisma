@@ -2269,6 +2269,7 @@ model RecommendationSession {
   selectedBudgetType    String? @map("selected_budget_type")
   selectedBudgetAmount  Int?    @map("selected_budget_amount")
   selectedDuration      String? @map("selected_duration")
+  selectedProjectDuration String? @map("selected_project_duration")
 
   // Auto-selection tracking
   goalAutoSelected      Boolean @default(false) @map("goal_auto_selected")

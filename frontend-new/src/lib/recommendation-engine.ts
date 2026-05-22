@@ -24,7 +24,9 @@ export interface WorkloadAnalysis {
   inputQuality: 'sufficient' | 'insufficient';
   missingCategories: string[];
   suggestions: string;
-  fieldConfidence: { goal: number; vram: number; intensity: number };
+  detectedProjectDuration?: string | null;
+  estimatedTotalWeeks?: number | null;
+  fieldConfidence: { goal: number; vram: number; intensity: number; projectDuration?: number };
 }
 
 /**
@@ -35,6 +37,7 @@ export interface RecommendationInput {
   datasetSize: string;
   budget: string; // chip selection: 'economy' | 'balanced' | 'performance' | ''
   budgetAmount: number; // slider value in INR (0 = not set)
+  projectDuration: string;
   sessionDuration: string;
   performancePriority: number;  // 0=Light, 1=Moderate, 2=Heavy, 3=Maximum
   llmAnalysis?: WorkloadAnalysis;

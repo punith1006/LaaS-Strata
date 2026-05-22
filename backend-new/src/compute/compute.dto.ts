@@ -238,7 +238,9 @@ export interface WorkloadAnalysisResponse {
   inputQuality: 'sufficient' | 'insufficient';
   missingCategories: string[];
   suggestions: string;
-  fieldConfidence: { goal: number; vram: number; intensity: number };
+  detectedProjectDuration?: string;
+  estimatedTotalWeeks?: number | null;
+  fieldConfidence: { goal: number; vram: number; intensity: number; projectDuration?: number };
 }
 
 // For creating a recommendation session
@@ -263,6 +265,7 @@ export class UpdateRecommendationSessionDto {
   @IsOptional() @IsString() selectedBudgetType?: string;
   @IsOptional() @IsNumber() selectedBudgetAmount?: number;
   @IsOptional() @IsString() selectedDuration?: string;
+  @IsOptional() @IsString() selectedProjectDuration?: string;
   @IsOptional() @IsBoolean() goalAutoSelected?: boolean;
   @IsOptional() @IsBoolean() datasetAutoSelected?: boolean;
   @IsOptional() @IsBoolean() intensityAutoSelected?: boolean;

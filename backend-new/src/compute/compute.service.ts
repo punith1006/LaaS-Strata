@@ -2985,9 +2985,10 @@ export class ComputeService {
     let text = '';
 
     if (mimetype === 'application/pdf') {
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(buffer);
-      text = data.text;
+      const { PDFParse } = require('pdf-parse');
+      const parser = new PDFParse({ data: buffer });
+      const result = await parser.getText();
+      text = result.text;
     } else if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       const mammoth = require('mammoth');
       const result = await mammoth.extractRawText({ buffer });
@@ -3034,6 +3035,23 @@ estimatedVramNeedGb RULES:
 - For heavy training/rendering: 8-16 GB
 - Do NOT inflate VRAM estimates for workloads that don't need GPU
 
+estimatedTotalWeeks (CRITICAL — this is the primary signal):
+- Extract EVERY explicit time/duration reference from the text ("2 weeks", "3-4 weeks", "a month", "final week", "first X days")
+- For ranges like "3-4 weeks", use the midpoint (3.5)
+- Convert months to weeks (1 month = 4 weeks)
+- SUM ALL durations into a total number of weeks
+- ONLY use explicitly stated durations — do NOT guess or infer
+- If the text mentions ZERO time-related information, set to null
+- Example: "2 weeks" + "3-4 weeks" (use 3.5) + "1 week" + "1 month" (4 weeks) = 10.5 total weeks
+
+detectedProjectDuration:
+- If estimatedTotalWeeks is set, set this to null (the backend will compute it)
+- If estimatedTotalWeeks is null (no timeline info), you may recommend based on project scope:
+  - Vague exploration, just an idea → "less_than_month"
+  - Defined project with clear scope → "less_than_3_months"
+  - Large production system → "approx_6_months"
+- If unsure about scope-based recommendation, set to null
+
 Respond ONLY with valid JSON matching this exact schema:
 {
   "detectedGoal": "ml_training" | "inference" | "data_science" | "rendering" | "general_dev" | "research",
@@ -3046,7 +3064,9 @@ Respond ONLY with valid JSON matching this exact schema:
   "inputQuality": "sufficient" | "insufficient",
   "missingCategories": array of zero or more values from ["primary_goal", "gpu_memory", "workload_intensity"],
   "suggestions": concise string max 2 sentences explaining what to include for better analysis, empty string if input is sufficient,
-  "fieldConfidence": { "goal": number 0-1, "vram": number 0-1, "intensity": number 0-1 }
+  "detectedProjectDuration": "daily" | "less_than_month" | "less_than_3_months" | "approx_6_months" | null,
+  "estimatedTotalWeeks": number | null,
+  "fieldConfidence": { "goal": number 0-1, "vram": number 0-1, "intensity": number 0-1, "projectDuration": number 0-1 }
 }`;
 
       const userPrompt = primaryGoal
@@ -3067,7 +3087,20 @@ Respond ONLY with valid JSON matching this exact schema:
       const content = response.choices[0]?.message?.content;
       if (!content) throw new Error('Empty response from OpenAI');
 
-      return JSON.parse(content);
+      const parsed = JSON.parse(content);
+
+      // Override detectedProjectDuration with deterministic mapping from estimatedTotalWeeks
+      if (parsed.estimatedTotalWeeks !== null && parsed.estimatedTotalWeeks !== undefined && typeof parsed.estimatedTotalWeeks === 'number') {
+        const weeks = parsed.estimatedTotalWeeks;
+        if (weeks <= 1) parsed.detectedProjectDuration = 'daily';
+        else if (weeks <= 4) parsed.detectedProjectDuration = 'less_than_month';
+        else if (weeks <= 16) parsed.detectedProjectDuration = 'less_than_3_months';
+        else parsed.detectedProjectDuration = 'approx_6_months';
+        parsed.fieldConfidence = { ...parsed.fieldConfidence, projectDuration: 0.9 };
+      }
+      // If estimatedTotalWeeks is null, keep LLM's scope-based recommendation as-is
+
+      return parsed;
     } catch (error) {
       this.logger.error('OpenAI workload analysis failed:', error);
       // Fallback: return default analysis so scoring still works
@@ -3087,11 +3120,28 @@ Respond ONLY with valid JSON matching this exact schema:
     }
   }
 
+  private sanitizeStrings(obj: any): any {
+    if (typeof obj === 'string') {
+      return obj.replace(/\x00/g, '');
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeStrings(item));
+    }
+    if (obj !== null && typeof obj === 'object') {
+      const sanitized: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        sanitized[key] = this.sanitizeStrings(value);
+      }
+      return sanitized;
+    }
+    return obj;
+  }
+
   async createRecommendationSession(userId: string, data: any): Promise<{ id: string }> {
     const session = await this.prisma.recommendationSession.create({
       data: {
         userId,
-        ...data,
+        ...this.sanitizeStrings(data),
       },
     });
     return { id: session.id };
@@ -3108,7 +3158,7 @@ Respond ONLY with valid JSON matching this exact schema:
     await this.prisma.recommendationSession.update({
       where: { id: sessionId },
       data: {
-        ...data,
+        ...this.sanitizeStrings(data),
         completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
       },
     });
