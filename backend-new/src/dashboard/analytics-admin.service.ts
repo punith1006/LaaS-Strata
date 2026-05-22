@@ -684,11 +684,11 @@ export class AnalyticsAdminService {
       periodStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     } else {
       const bounds = this.getPeriodBounds(timeRange, now);
-      // Extend periodStart back to capture the full UTC hour where periodStart falls
-      // This ensures charges at 18:30 UTC are grouped into the 18:00 UTC bucket
-      const periodStartMs = bounds.periodStart.getTime();
-      const hourMs = 60 * 60 * 1000;
-      periodStart = new Date(periodStartMs - (periodStartMs % hourMs));
+      // Use IST-day-boundary from getPeriodBounds directly (no UTC hour alignment).
+      // The SQL DATE_TRUNC('hour', ...) naturally handles hour grouping.
+      // This keeps periodStart consistent with getKpiData, so KPI totals and
+      // chart data share the same time boundaries.
+      periodStart = bounds.periodStart;
     }
 
     // Step 2: Query hourly aggregates in UTC
@@ -806,9 +806,11 @@ export class AnalyticsAdminService {
     // Step 6: Calculate rate metrics
     // currentRate should always reflect the most recent HOUR's revenue (independent of timeframe/bucket size)
     // Get from raw hourly data, not from aggregated buckets
-    const hourlyValues = Array.from(dataMap.values());
-    const lastHourRevenue = hourlyValues.length > 0 ? hourlyValues[hourlyValues.length - 1] : 0;
-    const previousHourRevenue = hourlyValues.length > 1 ? hourlyValues[hourlyValues.length - 2] : 0;
+    // Use hourlySeries (which includes zero-filled slots) instead of dataMap.values()
+    // because dataMap only contains hours WITH data — Array.from(dataMap.values())
+    // would skip empty hours and return wrong "last" hour if there are gaps.
+    const lastHourRevenue = hourlySeries.length > 0 ? hourlySeries[hourlySeries.length - 1].value : 0;
+    const previousHourRevenue = hourlySeries.length > 1 ? hourlySeries[hourlySeries.length - 2].value : 0;
     
     const currentRate = lastHourRevenue;
     const rateChange = Math.round((lastHourRevenue - previousHourRevenue) * 100) / 100;
@@ -818,32 +820,64 @@ export class AnalyticsAdminService {
         : 0;
 
     // Calculate previous period high (for 24H, 7D, 30D only)
+    // Must use the SAME bucket aggregation as the main chart so PH compares
+    // like-for-like (e.g. highest 4-hour bucket sum for 7D, not raw hourly max).
+    //
+    // IMPORTANT: Use the IST-day-boundary-based prior period from getPeriodBounds,
+    // NOT a sliding window (periodStart - periodDuration), otherwise the prior
+    // period only covers the elapsed time since midnight IST, missing the early
+    // part of yesterday (e.g. for 24H at ~11:30 AM IST, it would only examine
+    // ~13:00 IST yesterday → midnight, losing all morning/afternoon data).
     let previousHigh = 0;
     if (timeRange !== 'All') {
-      // Calculate the previous period bounds
-      const periodDuration = now.getTime() - periodStart.getTime();
-      const previousPeriodStart = new Date(periodStart.getTime() - periodDuration);
-      const previousPeriodEnd = new Date(periodStart.getTime());
+      const pb = this.getPeriodBounds(timeRange, now);
+      // Use IST-day-boundary prior period from getPeriodBounds directly.
+      // No UTC hour alignment — keeps prior period consistent with KPI's prior period.
+      const previousPeriodStart = pb.priorStart!;
+      const previousPeriodEnd = pb.priorEnd!;
 
-      // Query for the maximum hourly bucket in the previous period
-      const previousPeriodRows = await this.prisma.$queryRaw<
+      // Query hourly aggregates in the previous period (same SQL as main query)
+      const prevRows = await this.prisma.$queryRaw<
         Array<{ time: number; total_cents: bigint }>
       >`
         SELECT
-          EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at"))::int as time,
+          EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at") AT TIME ZONE 'UTC')::int as time,
           SUM("amount_cents")::bigint as total_cents
         FROM "billing_charges"
         WHERE "created_at" >= ${previousPeriodStart} AND "created_at" < ${previousPeriodEnd}
           AND "cost_classification" = ${costClassification}
           ${userFilterSql}
-        GROUP BY DATE_TRUNC('hour', "created_at")
+        GROUP BY 1
+        ORDER BY 1 ASC
       `;
 
-      // Find the maximum value from previous period
-      if (previousPeriodRows.length > 0) {
-        previousHigh = Math.max(
-          ...previousPeriodRows.map(row => Number(row.total_cents) / 100)
-        );
+      // Build hourly map (same as main period)
+      const prevDataMap = new Map<number, number>();
+      for (const row of prevRows) {
+        prevDataMap.set(Number(row.time), Number(row.total_cents) / 100);
+      }
+
+      // Fill hourly gaps with zeros (same as main period)
+      const prevStartEpoch = Math.floor(previousPeriodStart.getTime() / 1000);
+      const prevEndEpoch = Math.floor(previousPeriodEnd.getTime() / 1000);
+      const prevHourSeconds = 3600;
+      const prevAlignedStart = prevStartEpoch - (prevStartEpoch % prevHourSeconds);
+      const prevHourly: Array<{ value: number }> = [];
+      for (let t = prevAlignedStart; t < prevEndEpoch; t += prevHourSeconds) {
+        prevHourly.push({ value: prevDataMap.get(t) ?? 0 });
+      }
+
+      // Apply the SAME bucket aggregation as the main chart
+      const prevAggregated: number[] = [];
+      for (let i = 0; i < prevHourly.length; i += bucketSize) {
+        const bucket = prevHourly.slice(i, i + bucketSize);
+        const sum = bucket.reduce((acc, p) => acc + p.value, 0);
+        prevAggregated.push(Math.round(sum * 100) / 100);
+      }
+
+      // PH = max of the aggregated bucket values (like-for-like with chart)
+      if (prevAggregated.length > 0) {
+        previousHigh = Math.max(...prevAggregated);
       }
     }
 
