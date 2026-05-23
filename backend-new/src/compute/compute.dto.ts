@@ -272,6 +272,7 @@ export class UpdateRecommendationSessionDto {
   @IsOptional() @IsObject() recommendations?: any;
   @IsOptional() @IsString() selectedConfigSlug?: string;
   @IsOptional() @IsDateString() completedAt?: string;
+  @IsOptional() @IsDateString() consumedAt?: string;
 }
 
 // Explanation request

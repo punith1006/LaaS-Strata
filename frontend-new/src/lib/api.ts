@@ -1635,6 +1635,7 @@ export async function updateRecommendationSession(id: string, data: {
   recommendations?: { slug: string; score: number; tag: string }[];
   selectedConfigSlug?: string;
   completedAt?: string;
+  consumedAt?: string;
 }): Promise<void> {
   const token = getAccessToken();
   const res = await fetch(`${API_BASE}/api/compute/recommendation-session/${id}`, {
@@ -1643,6 +1644,47 @@ export async function updateRecommendationSession(id: string, data: {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error('Failed to update recommendation session');
+}
+
+export async function getLatestRecommendationSession(): Promise<{
+  id: string;
+  selectedConfigSlug: string;
+  analysisResult?: Record<string, unknown>;
+  detectedGoal?: string;
+  detectedVramGb?: number;
+  detectedIntensity?: string;
+  selectedGoal?: string;
+  selectedDatasetSize?: string;
+  selectedIntensity?: number;
+  selectedBudgetType?: string;
+  selectedBudgetAmount?: number;
+  selectedDuration?: string;
+  selectedProjectDuration?: string;
+} | null> {
+  const token = getAccessToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/compute/recommendation-session/latest`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function consumeRecommendationSession(id: string): Promise<void> {
+  try {
+    await updateRecommendationSession(id, {
+      consumedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn('Failed to consume recommendation session:', e);
+  }
 }
 
 export async function generateExplanation(

@@ -9,6 +9,8 @@ import {
   getStorageStatus,
   getBillingData,
   launchComputeSession,
+  getLatestRecommendationSession,
+  consumeRecommendationSession,
   type ComputeConfigResponse,
   type StorageStatus,
   type BillingData,
@@ -268,6 +270,7 @@ export default function LaunchInstancePage() {
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showRecommendationFlow, setShowRecommendationFlow] = useState(false);
+  const [pendingRecommendation, setPendingRecommendation] = useState<{ id: string; selectedConfigSlug: string } | null>(null);
   
   // Derived state
   const hasFileStore = storageStatus?.hasStorage && storageStatus?.reachable;
@@ -285,7 +288,23 @@ export default function LaunchInstancePage() {
             (c) => c.name !== "GPU Desktop Standard" && c.slug !== "gpu-desktop-standard"
           );
           setConfigs(filteredConfigs);
-          // Select first available config by default
+
+          // Check for a pending recommendation session first
+          try {
+            const pending = await getLatestRecommendationSession();
+            if (pending && pending.selectedConfigSlug) {
+              const recommendedConfig = filteredConfigs.find(c => c.slug === pending.selectedConfigSlug);
+              if (recommendedConfig) {
+                setSelectedConfig(recommendedConfig.id);
+                setPendingRecommendation({ id: pending.id, selectedConfigSlug: pending.selectedConfigSlug });
+                return; // done — skip the first-available fallback
+              }
+            }
+          } catch {
+            // Silently fail — fall back to default selection
+          }
+
+          // Fallback: select first available config
           const firstAvailable = filteredConfigs.find(c => c.available);
           if (firstAvailable) {
             setSelectedConfig(firstAvailable.id);
@@ -422,6 +441,12 @@ export default function LaunchInstancePage() {
         storageType: storageType,
       });
       
+      // Consume the pending recommendation if it exists
+      if (pendingRecommendation) {
+        consumeRecommendationSession(pendingRecommendation.id);
+        setPendingRecommendation(null);
+      }
+
       // Redirect to instances page with session info
       router.push(`/instances?session=${result.sessionId}&launched=true`);
     } catch (err) {
@@ -555,6 +580,67 @@ export default function LaunchInstancePage() {
         </>
         )}
 
+        {/* Recommendation info dialogue banner */}
+        {!showRecommendationFlow && pendingRecommendation && (
+          <div
+            style={{
+              backgroundColor: "var(--bgColor-info, #cedeff)",
+              border: "1px solid var(--borderColor-info, #3a73ff)",
+              borderRadius: "4px",
+              padding: "16px",
+              marginBottom: "24px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "12px",
+            }}
+          >
+            {/* Info icon */}
+            <div style={{ flexShrink: 0, marginTop: "2px" }}>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ color: "var(--fgColor-info, #3a73ff)" }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </div>
+            {/* Content */}
+            <div>
+              <h2
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "var(--text-base)",
+                  fontWeight: 600,
+                  color: "var(--fgColor-default)",
+                  margin: 0,
+                  marginBottom: "4px",
+                }}
+              >
+                Pre-configured Configuration
+              </h2>
+              <p
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "var(--text-sm)",
+                  lineHeight: "1.375rem",
+                  color: "var(--fgColor-default)",
+                  margin: 0,
+                }}
+              >
+                We have pre-configured your compute specifications and setup as tailored for your requirements as discussed in the recommendation agent. You can make changes as needed.
+              </p>
+            </div>
+          </div>
+        )}
+
         {showRecommendationFlow ? (
           <ComputeRecommendation
             configs={configs}
@@ -562,6 +648,7 @@ export default function LaunchInstancePage() {
             onSelectConfig={(configId: string) => {
               setSelectedConfig(configId);
               setShowRecommendationFlow(false);
+              setPendingRecommendation(null);
             }}
             onBack={() => setShowRecommendationFlow(false)}
           />

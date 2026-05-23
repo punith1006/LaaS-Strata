@@ -245,8 +245,13 @@ function calculateBudgetFitScore(
 ): number {
   const pricePerHour = config.basePricePerHourCents / 100;
 
-  // If slider is used (budgetAmount > 50), score based on total session cost
-  if (budgetAmount > 50) {
+  // No budget preference set and slider at default — neutral
+  if (!budget && budgetAmount <= 1000) {
+    return 100;
+  }
+
+  // If slider is used (budgetAmount > 1000), score based on total session cost
+  if (budgetAmount > 1000) {
     const durationHours = DURATION_HOURS[sessionDuration] || 4;
     const totalSessionCost = pricePerHour * durationHours;
     const budgetRatio = budgetAmount / totalSessionCost; // >1 = affordable, <1 = over budget

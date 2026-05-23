@@ -205,7 +205,7 @@ export function ComputeRecommendation({
   const [datasetSize, setDatasetSize] = useState("");
   const [workloadIntensity, setWorkloadIntensity] = useState(1); // 0=Light, 1=Moderate, 2=Heavy, 3=Maximum
   const [budget, setBudget] = useState("");
-  const [budgetAmount, setBudgetAmount] = useState<number>(50);
+  const [budgetAmount, setBudgetAmount] = useState<number>(1000);
   const [sessionDuration, setSessionDuration] = useState("");
   const [projectDuration, setProjectDuration] = useState("");
   const [periodDuration, setPeriodDuration] = useState("");
@@ -394,7 +394,7 @@ export function ComputeRecommendation({
         {
           primaryGoal,
           datasetSize: datasetSize || "not_sure",
-          budget: budget || "balanced",
+          budget: budget,
           budgetAmount: budgetAmount,
           projectDuration: projectDuration || "daily",
           sessionDuration: periodDuration || sessionDuration || "standard",
@@ -441,7 +441,7 @@ export function ComputeRecommendation({
             selectedDatasetSize: datasetSize || undefined,
             selectedIntensity: workloadIntensity,
             selectedBudgetType: budget || undefined,
-            selectedBudgetAmount: budgetAmount > 50 ? budgetAmount : undefined,
+            selectedBudgetAmount: budgetAmount > 1000 ? budgetAmount : undefined,
             selectedDuration: periodDuration || sessionDuration || undefined,
             selectedProjectDuration: projectDuration || undefined,
             goalAutoSelected: autoSelectedFields.has('primaryGoal'),
@@ -1614,7 +1614,7 @@ export function ComputeRecommendation({
             </div>
             {/* Heading */}
             <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--fgColor-default)", fontFamily: "var(--font-outfit, var(--font-sans))", lineHeight: 1.2, marginBottom: "6px" }}>
-              Set Your Budget &amp; Duration
+              Plan Your Budget
             </div>
             {/* Subtitle */}
             <div style={{ fontSize: "0.875rem", color: "var(--fgColor-muted)", fontFamily: "var(--font-outfit, var(--font-sans))" }}>
@@ -1641,7 +1641,10 @@ export function ComputeRecommendation({
             marginBottom: "8px",
           }}
         >
-          Budget Preference
+          Budget Preference{' '}
+          <span style={{ color: 'var(--fgColor-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>
+            (Optional — helps find your best-fit config)
+          </span>
         </div>
         <p
           style={{
@@ -1669,7 +1672,7 @@ export function ComputeRecommendation({
                 key={item.id}
                 onClick={() => {
                   setBudget(item.id);
-                  setBudgetAmount(50); // Reset slider when chip selected
+                  setBudgetAmount(1000); // Reset slider when chip selected
                 }}
                 style={{
                   flex: "1 1 auto",
@@ -1749,7 +1752,7 @@ export function ComputeRecommendation({
           >
             ₹{budgetAmount}
           </span>
-          {budgetAmount > 50 && (
+          {budgetAmount > 1000 && (
             <span
               style={{
                 fontSize: "var(--text-xs, 0.75rem)",
@@ -1764,9 +1767,9 @@ export function ComputeRecommendation({
         {/* Slider */}
         <input
           type="range"
-          min={50}
-          max={2000}
-          step={10}
+          min={1000}
+          max={40000}
+          step={500}
           value={budgetAmount}
           onChange={(e) => {
             const value = parseInt(e.target.value, 10);
@@ -1797,11 +1800,11 @@ export function ComputeRecommendation({
           }}
         >
           {[
-            { label: "₹50", pct: 0 },
-            { label: "₹250", pct: ((250 - 50) / (2000 - 50)) * 100 },
-            { label: "₹500", pct: ((500 - 50) / (2000 - 50)) * 100 },
-            { label: "₹1000", pct: ((1000 - 50) / (2000 - 50)) * 100 },
-            { label: "₹2000", pct: 100 },
+            { label: "₹1K", pct: 0 },
+            { label: "₹5K", pct: ((5000 - 1000) / (40000 - 1000)) * 100 },
+            { label: "₹10K", pct: ((10000 - 1000) / (40000 - 1000)) * 100 },
+            { label: "₹20K", pct: ((20000 - 1000) / (40000 - 1000)) * 100 },
+            { label: "₹40K", pct: 100 },
           ].map((tick) => (
             <span
               key={tick.label}
@@ -1817,7 +1820,7 @@ export function ComputeRecommendation({
         </div>
 
         {/* Estimated hours helper text */}
-        {budgetAmount > 50 && (
+        {budgetAmount > 1000 && (
           <div
             style={{
               marginTop: "12px",
@@ -2149,9 +2152,8 @@ export function ComputeRecommendation({
                     <div
                       style={{
                         fontSize: "var(--text-xs, 0.75rem)",
-                        color: "var(--fgColor-muted)",
+                        color: "var(--fgColor-default)",
                         marginTop: "4px",
-                        opacity: 0.75,
                       }}
                     >
                       {scored.estimatedAvgProjectCost} &nbsp;|&nbsp; {scored.estimatedMaxProjectCost}

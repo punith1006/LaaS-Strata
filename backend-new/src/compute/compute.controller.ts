@@ -252,6 +252,17 @@ export class ComputeController {
   }
 
   /**
+   * Get the latest pending recommendation session for the authenticated user
+   * Returns the most recent session with a selectedConfigSlug that hasn't been consumed yet
+   */
+  @Get('recommendation-session/latest')
+  @UseGuards(JwtAuthGuard)
+  async getLatestRecommendationSession(@Req() req: any) {
+    const userId = req.user.id || req.user.sub;
+    return this.computeService.getLatestRecommendationSession(userId);
+  }
+
+  /**
    * Create a new recommendation session
    * Persists workload analysis data and initial selections
    */

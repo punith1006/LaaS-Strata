@@ -2283,6 +2283,7 @@ model RecommendationSession {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   completedAt DateTime? @map("completed_at")
+  consumedAt  DateTime? @map("consumed_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

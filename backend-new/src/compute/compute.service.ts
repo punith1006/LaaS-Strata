@@ -3154,6 +3154,34 @@ Respond ONLY with valid JSON matching this exact schema:
     return { id: session.id };
   }
 
+  async getLatestRecommendationSession(userId: string): Promise<any> {
+    const session = await this.prisma.recommendationSession.findFirst({
+      where: {
+        userId,
+        selectedConfigSlug: { not: null },
+        consumedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        selectedConfigSlug: true,
+        analysisResult: true,
+        detectedGoal: true,
+        detectedVramGb: true,
+        detectedIntensity: true,
+        selectedGoal: true,
+        selectedDatasetSize: true,
+        selectedIntensity: true,
+        selectedBudgetType: true,
+        selectedBudgetAmount: true,
+        selectedDuration: true,
+        selectedProjectDuration: true,
+      },
+    });
+
+    return session || null;
+  }
+
   async updateRecommendationSession(userId: string, sessionId: string, data: any): Promise<void> {
     const session = await this.prisma.recommendationSession.findFirst({
       where: { id: sessionId, userId },
@@ -3167,6 +3195,7 @@ Respond ONLY with valid JSON matching this exact schema:
       data: {
         ...this.sanitizeStrings(data),
         completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+        consumedAt: data.consumedAt ? new Date(data.consumedAt) : undefined,
       },
     });
   }
