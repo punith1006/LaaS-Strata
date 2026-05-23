@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScoredConfig, scoreConfigs, ConfigForScoring, WorkloadAnalysis } from "@/lib/recommendation-engine";
 import { createRecommendationSession, updateRecommendationSession } from "@/lib/api";
 
@@ -157,10 +157,10 @@ const DURATIONS = [
 ];
 
 const PROJECT_DURATIONS = [
-  { id: "daily", label: "Daily", desc: "Using the platform on a daily basis" },
-  { id: "less_than_month", label: "Less than a Month", desc: "Short-term project within a month" },
-  { id: "less_than_3_months", label: "Less than 3 Months", desc: "Medium-term project requiring a few months" },
-  { id: "approx_6_months", label: "Approx 6 Months", desc: "Long-term project over several months" },
+  { id: "daily", label: "Daily", desc: "Ongoing — flexible hours, no fixed end date" },
+  { id: "less_than_month", label: "Less than a Month", desc: "24/7 instance for up to ~30 days" },
+  { id: "less_than_3_months", label: "Less than 3 Months", desc: "24/7 instance for up to ~90 days" },
+  { id: "approx_6_months", label: "Approx 6 Months", desc: "24/7 instance for up to ~180 days" },
 ];
 
 const PERIOD_DURATIONS_BY_PROJECT: Record<string, { id: string; label: string; desc: string }[]> = {
@@ -225,6 +225,14 @@ export function ComputeRecommendation({
   // Wizard state
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [skippedAnalysis, setSkippedAnalysis] = useState(false);
+  
+  // Scroll to top of the main content container whenever wizard step changes
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (main) {
+      main.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [wizardStep]);
   
   // Word count helper
   const getWordCount = (text: string): number => {
@@ -1165,17 +1173,17 @@ export function ComputeRecommendation({
             {/* Continue button inside the expected project duration block */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
               <button
-                onClick={() => { setWizardStep(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                disabled={!projectDuration || !periodDuration}
+                onClick={() => { setWizardStep(2); }}
+                disabled={!!projectDuration && !periodDuration}
                 style={{
                   padding: "10px 28px",
-                  backgroundColor: !projectDuration || !periodDuration ? "var(--bgColor-muted)" : "var(--fgColor-default)",
-                  color: !projectDuration || !periodDuration ? "var(--fgColor-muted)" : "var(--bgColor-default)",
+                  backgroundColor: !!projectDuration && !periodDuration ? "var(--bgColor-muted)" : "var(--fgColor-default)",
+                  color: !!projectDuration && !periodDuration ? "var(--fgColor-muted)" : "var(--bgColor-default)",
                   border: "none",
                   borderRadius: "6px",
                   fontSize: "var(--text-sm)",
                   fontWeight: 600,
-                  cursor: !projectDuration || !periodDuration ? "not-allowed" : "pointer",
+                  cursor: !!projectDuration && !periodDuration ? "not-allowed" : "pointer",
                   fontFamily: "var(--font-sans)",
                   transition: "all 0.2s ease",
                 }}
@@ -2137,6 +2145,18 @@ export function ComputeRecommendation({
                   >
                     {scored.estimatedCost}
                   </span>
+                  {scored.estimatedAvgProjectCost && scored.estimatedMaxProjectCost && projectDuration && projectDuration !== 'daily' && (
+                    <div
+                      style={{
+                        fontSize: "var(--text-xs, 0.75rem)",
+                        color: "var(--fgColor-muted)",
+                        marginTop: "4px",
+                        opacity: 0.75,
+                      }}
+                    >
+                      {scored.estimatedAvgProjectCost} &nbsp;|&nbsp; {scored.estimatedMaxProjectCost}
+                    </div>
+                  )}
                 </div>
 
                 {/* Divider */}

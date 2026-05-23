@@ -3044,12 +3044,19 @@ estimatedTotalWeeks (CRITICAL — this is the primary signal):
 - If the text mentions ZERO time-related information, set to null
 - Example: "2 weeks" + "3-4 weeks" (use 3.5) + "1 week" + "1 month" (4 weeks) = 10.5 total weeks
 
+detectedProjectDuration SEMANTIC MEANING (use this understanding when inferring or recommending):
+- "daily" → Flexible ongoing usage, no fixed end date. User may login for variable hours, not necessarily every day. Sessions can span multiple days (24hrs+). Instance cost is session-based, NOT 24/7.
+- "less_than_month" / "less_than_3_months" / "approx_6_months" → The project has a defined max tenure (up to ~30/90/180 days). If the instance ran 24/7 for the full period, the max cost = hourly_rate * 24 * days (upper bound). However, the backend computes a more realistic averaged estimate based on the user's selected session duration (1 session/day). Sessions can be a few hours or extend across multiple days within that period. Cheaper hourly rates matter more for longer durations.
+- The longer the fixed duration, the more sensitive the user is to hourly pricing.
+
+Use this understanding when making scope-based duration recommendations (Mode B).
+
 detectedProjectDuration:
 - If estimatedTotalWeeks is set, set this to null (the backend will compute it)
 - If estimatedTotalWeeks is null (no timeline info), you may recommend based on project scope:
-  - Vague exploration, just an idea → "less_than_month"
-  - Defined project with clear scope → "less_than_3_months"
-  - Large production system → "approx_6_months"
+  - Vague exploration, just an idea → "less_than_month" (exploratory, short-term)
+  - Defined project with clear scope → "less_than_3_months" (standard project cycle)
+  - Large production system → "approx_6_months" (extended commitment)
 - If unsure about scope-based recommendation, set to null
 
 Respond ONLY with valid JSON matching this exact schema:

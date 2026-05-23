@@ -83,6 +83,8 @@ export interface ScoredConfig {
   bullets?: string[]; // LLM-generated structured bullets, populated later
   available: boolean;
   estimatedCost: string; // e.g., "~₹130 for 2 hrs"
+  estimatedMaxProjectCost: string; // e.g., "Max ~₹93,600 over 3mo" (24/7 upper bound)
+  estimatedAvgProjectCost: string; // e.g., "Avg ~₹15,600 over 3mo" (1 session/day)
 }
 
 /**
@@ -94,6 +96,7 @@ interface ScoringBreakdown {
   budgetFit: number;
   datasetFit: number;
   durationCost: number;
+  projectDurationScore: number;
   llmInsight: number;
   weightedTotal: number;
 }
@@ -104,12 +107,13 @@ interface ScoringBreakdown {
 
 /** Weights for each scoring factor — prioritizes technical fit while keeping budget influential */
 const SCORING_WEIGHTS = {
-  performanceExpectation: 0.25, // Highest — user's explicit compute intensity need
-  goalMatch: 0.20,             // What the user is trying to accomplish
-  budgetFit: 0.20,             // Important but not a hard stop — informs, not gates
-  datasetFit: 0.15,            // VRAM/memory requirements
-  durationCost: 0.10,          // Session length cost efficiency
-  llmInsight: 0.10,            // AI-analyzed workload context
+  performanceExpectation: 0.25,
+  goalMatch: 0.20,
+  budgetFit: 0.15,
+  datasetFit: 0.15,
+  durationCost: 0.05,
+  projectDurationFit: 0.10,
+  llmInsight: 0.10,
 } as const;
 
 /** Goal → ideal config tier mapping (0-100 score per slug) */
@@ -135,6 +139,30 @@ const DURATION_HOURS: Record<string, number> = {
   quick: 2,
   standard: 4,
   extended: 8,
+};
+
+/** Maps project durations to total 24/7 runtime hours (0 = session-based, no fixed tenure) */
+const PROJECT_DURATION_HOURS: Record<string, number> = {
+  daily: 0,
+  less_than_month: 720,       // 30 days * 24hrs
+  less_than_3_months: 2160,   // 90 days * 24hrs
+  approx_6_months: 4320,      // 180 days * 24hrs
+};
+
+/** Maps project duration IDs to month labels */
+const PROJECT_DURATION_MONTHS: Record<string, string> = {
+  daily: '',
+  less_than_month: '1',
+  less_than_3_months: '3',
+  approx_6_months: '6',
+};
+
+/** Maps project durations to max days for averaging (1 session/day assumption) */
+const PROJECT_DURATION_DAYS: Record<string, number> = {
+  daily: 1,
+  less_than_month: 30,
+  less_than_3_months: 90,
+  approx_6_months: 180,
 };
 
 /** Price boundaries (in rupees) */
@@ -359,6 +387,69 @@ function calculateLlmInsightScore(
 /**
  * Calculate all scoring components and weighted total
  */
+/**
+ * Calculate project duration fit score (0-100)
+ * Uses avg total cost (price × session_hours × days) for normalization.
+ * For daily/no selection: session-based, neutral score.
+ */
+function calculateProjectDurationScore(
+  config: ConfigForScoring,
+  projectDuration: string,
+  sessionDuration: string
+): number {
+  // No fixed tenure or daily — session-based billing, neutral
+  if (!projectDuration || projectDuration === 'daily') return 100;
+
+  const days = PROJECT_DURATION_DAYS[projectDuration] || 0;
+  if (days <= 0) return 100;
+
+  const sessionHours = DURATION_HOURS[sessionDuration] || 4;
+  const pricePerHour = config.basePricePerHourCents / 100;
+  const avgTotalCost = pricePerHour * sessionHours * days;
+
+  // Normalize against max possible avg cost (supernova × 180 days × extended session)
+  const maxAvgCost = 360 * 180 * 8;
+  const normalizedScore = 100 * (1 - avgTotalCost / maxAvgCost);
+
+  return Math.max(0, Math.min(100, normalizedScore));
+}
+
+/**
+ * Calculate max project cost (24/7 upper bound for the full tenure)
+ * Returns empty string for daily (no fixed tenure).
+ */
+function calculateMaxProjectCost(
+  config: ConfigForScoring,
+  projectDuration: string
+): string {
+  const totalHours = PROJECT_DURATION_HOURS[projectDuration];
+  if (!totalHours || totalHours <= 0) return '';
+  const pricePerHour = config.basePricePerHourCents / 100;
+  const total = Math.round(pricePerHour * totalHours);
+  return `Max ~₹${total.toLocaleString('en-IN')}`;
+}
+
+/**
+ * Calculate avg project cost (1 session/day at the selected session duration)
+ * Returns empty string for daily (no fixed tenure).
+ */
+function calculateAvgProjectCost(
+  config: ConfigForScoring,
+  projectDuration: string,
+  sessionDuration: string
+): string {
+  const days = PROJECT_DURATION_DAYS[projectDuration];
+  if (!days || days <= 0) return '';
+  const sessionHours = DURATION_HOURS[sessionDuration] || 4;
+  const pricePerHour = config.basePricePerHourCents / 100;
+  const total = Math.round(pricePerHour * sessionHours * days);
+  const label = PROJECT_DURATION_MONTHS[projectDuration];
+  return `Avg ~₹${total.toLocaleString('en-IN')} over ${label}mo`;
+}
+
+/**
+ * Calculate full scoring breakdown for a config
+ */
 function calculateFullScore(
   config: ConfigForScoring,
   input: RecommendationInput
@@ -373,6 +464,7 @@ function calculateFullScore(
   const budgetFit = calculateBudgetFitScore(config, input.budget, input.budgetAmount, input.sessionDuration);
   const datasetFit = calculateDatasetFitScore(config, input.datasetSize, input.primaryGoal, input.llmAnalysis);
   const durationCost = calculateDurationCostScore(config, input.sessionDuration);
+  const projectDurationScore = calculateProjectDurationScore(config, input.projectDuration, input.sessionDuration);
   const llmInsight = calculateLlmInsightScore(config, input.llmAnalysis);
 
   const weightedTotal =
@@ -381,6 +473,7 @@ function calculateFullScore(
     budgetFit * SCORING_WEIGHTS.budgetFit +
     datasetFit * SCORING_WEIGHTS.datasetFit +
     durationCost * SCORING_WEIGHTS.durationCost +
+    projectDurationScore * SCORING_WEIGHTS.projectDurationFit +
     llmInsight * SCORING_WEIGHTS.llmInsight;
 
   return {
@@ -389,6 +482,7 @@ function calculateFullScore(
     budgetFit,
     datasetFit,
     durationCost,
+    projectDurationScore,
     llmInsight,
     weightedTotal,
   };
@@ -457,6 +551,18 @@ function generateReasons(
       reasons.push(`Premium resources at ₹${pricePerHour}/hr`);
     } else {
       reasons.push(`Balanced pricing at ₹${pricePerHour}/hr`);
+    }
+  }
+
+  // Project duration cost projection (avg — 1 session/day at selected session duration)
+  if (input.projectDuration && input.projectDuration !== 'daily') {
+    const days = PROJECT_DURATION_DAYS[input.projectDuration];
+    if (days && days > 0) {
+      const sessionHours = DURATION_HOURS[input.sessionDuration] || 4;
+      const pricePerHour = config.basePricePerHourCents / 100;
+      const avgCost = Math.round(pricePerHour * sessionHours * days);
+      const months = PROJECT_DURATION_MONTHS[input.projectDuration];
+      reasons.push(`Avg ~₹${avgCost.toLocaleString('en-IN')} over ${months}mo (1 session/day)`);
     }
   }
 
@@ -583,6 +689,8 @@ export function scoreConfigs(
       reasons: generateReasons(config, input, breakdown),
       available: config.available,
       estimatedCost: calculateEstimatedCost(config, input.sessionDuration),
+      estimatedMaxProjectCost: calculateMaxProjectCost(config, input.projectDuration),
+      estimatedAvgProjectCost: calculateAvgProjectCost(config, input.projectDuration, input.sessionDuration),
     };
   });
 
