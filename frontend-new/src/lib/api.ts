@@ -1581,6 +1581,7 @@ export async function analyzeWorkload(description: string, primaryGoal?: string)
   detectedProjectDuration?: string | null;
   estimatedTotalWeeks?: number | null;
   fieldConfidence: { goal: number; vram: number; intensity: number; projectDuration?: number };
+  recommendedStorageType?: 'stateful' | 'ephemeral' | null;
 }> {
   const token = getAccessToken();
   const res = await fetch(`${API_BASE}/api/compute/analyze-workload`, {

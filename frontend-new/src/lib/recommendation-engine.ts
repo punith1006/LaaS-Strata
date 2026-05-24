@@ -27,6 +27,7 @@ export interface WorkloadAnalysis {
   detectedProjectDuration?: string | null;
   estimatedTotalWeeks?: number | null;
   fieldConfidence: { goal: number; vram: number; intensity: number; projectDuration?: number };
+  recommendedStorageType?: 'stateful' | 'ephemeral' | null;
 }
 
 /**
@@ -135,10 +136,13 @@ const DATASET_TO_VRAM: Record<string, number> = {
 };
 
 /** Session duration → hours */
-const DURATION_HOURS: Record<string, number> = {
+export const DURATION_HOURS: Record<string, number> = {
   quick: 2,
   standard: 4,
   extended: 8,
+  light: 2,
+  moderate: 4,
+  heavy: 8,
 };
 
 /** Maps project durations to total 24/7 runtime hours (0 = session-based, no fixed tenure) */
@@ -150,7 +154,7 @@ const PROJECT_DURATION_HOURS: Record<string, number> = {
 };
 
 /** Maps project duration IDs to month labels */
-const PROJECT_DURATION_MONTHS: Record<string, string> = {
+export const PROJECT_DURATION_MONTHS: Record<string, string> = {
   daily: '',
   less_than_month: '1',
   less_than_3_months: '3',
@@ -158,7 +162,7 @@ const PROJECT_DURATION_MONTHS: Record<string, string> = {
 };
 
 /** Maps project durations to max days for averaging (1 session/day assumption) */
-const PROJECT_DURATION_DAYS: Record<string, number> = {
+export const PROJECT_DURATION_DAYS: Record<string, number> = {
   daily: 1,
   less_than_month: 30,
   less_than_3_months: 90,
@@ -331,10 +335,10 @@ function calculateDurationCostScore(
   const hours = DURATION_HOURS[sessionDuration] ?? 4;
   const totalCost = (config.basePricePerHourCents / 100) * hours;
 
-  if (sessionDuration === 'extended') {
+  if (sessionDuration === 'extended' || sessionDuration === 'heavy') {
     // Normalize against max possible cost (supernova for 8 hrs)
     return 100 * (1 - totalCost / (MAX_PRICE_RUPEES * 8));
-  } else if (sessionDuration === 'quick') {
+  } else if (sessionDuration === 'quick' || sessionDuration === 'light') {
     // Duration barely matters for short sessions
     return 80;
   } else {

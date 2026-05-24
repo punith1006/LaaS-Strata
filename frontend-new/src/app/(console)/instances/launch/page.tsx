@@ -270,7 +270,7 @@ export default function LaunchInstancePage() {
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showRecommendationFlow, setShowRecommendationFlow] = useState(false);
-  const [pendingRecommendation, setPendingRecommendation] = useState<{ id: string; selectedConfigSlug: string } | null>(null);
+  const [pendingRecommendation, setPendingRecommendation] = useState<{ id: string; selectedConfigSlug: string; recommendedStorageType?: 'stateful' | 'ephemeral' } | null>(null);
   
   // Derived state
   const hasFileStore = storageStatus?.hasStorage && storageStatus?.reachable;
@@ -296,7 +296,13 @@ export default function LaunchInstancePage() {
               const recommendedConfig = filteredConfigs.find(c => c.slug === pending.selectedConfigSlug);
               if (recommendedConfig) {
                 setSelectedConfig(recommendedConfig.id);
-                setPendingRecommendation({ id: pending.id, selectedConfigSlug: pending.selectedConfigSlug });
+                // Extract recommended storage type from analysis result, if available
+                const analysisResult = pending.analysisResult as { recommendedStorageType?: 'stateful' | 'ephemeral' } | undefined;
+                setPendingRecommendation({
+                  id: pending.id,
+                  selectedConfigSlug: pending.selectedConfigSlug,
+                  recommendedStorageType: analysisResult?.recommendedStorageType ?? undefined,
+                });
                 return; // done — skip the first-available fallback
               }
             }
@@ -365,16 +371,22 @@ export default function LaunchInstancePage() {
     return () => observer.disconnect();
   }, []);
 
-  // Auto-select storage type based on file store availability
+  // Auto-select storage type based on file store availability + recommendation
   useEffect(() => {
     if (storageStatus !== null) {
+      // Priority 1: Pending recommendation with storage type
+      if (pendingRecommendation?.recommendedStorageType) {
+        setStorageType(pendingRecommendation.recommendedStorageType);
+        return;
+      }
+      // Priority 2: File store availability
       if (hasFileStore) {
         setStorageType("stateful");
       } else {
         setStorageType("ephemeral");
       }
     }
-  }, [hasFileStore, storageStatus]);
+  }, [hasFileStore, storageStatus, pendingRecommendation?.recommendedStorageType]);
 
   // Get selected config object
   const currentConfig = configs.find((c) => c.id === selectedConfig);
@@ -645,10 +657,12 @@ export default function LaunchInstancePage() {
           <ComputeRecommendation
             configs={configs}
             walletBalance={walletBalance}
-            onSelectConfig={(configId: string) => {
+            onSelectConfig={(configId: string, configSlug?: string, recSessionId?: string | null, recommendedStorageType?: string | null) => {
               setSelectedConfig(configId);
               setShowRecommendationFlow(false);
-              setPendingRecommendation(null);
+              if (configSlug) {
+                setPendingRecommendation({ id: recSessionId || 'local', selectedConfigSlug: configSlug, recommendedStorageType: (recommendedStorageType as 'stateful' | 'ephemeral') || undefined });
+              }
             }}
             onBack={() => setShowRecommendationFlow(false)}
           />
@@ -1055,15 +1069,34 @@ export default function LaunchInstancePage() {
         <div
           style={{
             backgroundColor: "var(--bgColor-mild)",
-            border: "1px solid var(--borderColor-default)",
+            border: pendingRecommendation?.recommendedStorageType ? "1px solid var(--borderColor-info, #3a73ff)" : "1px solid var(--borderColor-default)",
             borderRadius: "4px",
             padding: "24px",
             marginBottom: "32px",
+            position: "relative",
           }}
         >
           <SectionHeader>Storage</SectionHeader>
           
           {/* hasFileStore will come from API */}
+
+          {pendingRecommendation?.recommendedStorageType && (
+            <span
+              style={{
+                position: "absolute",
+                top: "12px",
+                right: "16px",
+                fontSize: "0.7rem",
+                fontStyle: "italic",
+                color: "var(--borderColor-info, #3a73ff)",
+                fontFamily: "var(--font-sans)",
+                zIndex: 1,
+              }}
+            >
+              <span style={{ color: "var(--fgColor-critical, #E70000)" }}>* </span>
+              Auto-selected based on analysis — you can change this
+            </span>
+          )}
 
           <div
             style={{
@@ -1075,7 +1108,13 @@ export default function LaunchInstancePage() {
           >
             {/* Stateful */}
             <button
-              onClick={() => setStorageType("stateful")}
+              onClick={() => {
+                setStorageType("stateful");
+                // Clear auto-selection when user manually selects
+                if (pendingRecommendation?.recommendedStorageType) {
+                  setPendingRecommendation({ ...pendingRecommendation, recommendedStorageType: undefined });
+                }
+              }}
               style={{
                 backgroundColor: "var(--bgColor-default)",
                 border: storageType === "stateful"
@@ -1116,7 +1155,13 @@ export default function LaunchInstancePage() {
 
             {/* Ephemeral */}
             <button
-              onClick={() => setStorageType("ephemeral")}
+              onClick={() => {
+                setStorageType("ephemeral");
+                // Clear auto-selection when user manually selects
+                if (pendingRecommendation?.recommendedStorageType) {
+                  setPendingRecommendation({ ...pendingRecommendation, recommendedStorageType: undefined });
+                }
+              }}
               style={{
                 backgroundColor: "var(--bgColor-default)",
                 border: storageType === "ephemeral"
@@ -1270,6 +1315,22 @@ export default function LaunchInstancePage() {
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </Link>
+                {pendingRecommendation?.recommendedStorageType === 'stateful' && !hasFileStore && (
+                  <div style={{
+                    marginTop: "12px",
+                    fontSize: "0.875rem",
+                    fontWeight: 400,
+                    color: "var(--fgColor-default)",
+                    lineHeight: "1.5",
+                    padding: "12px",
+                    backgroundColor: infoBoxColors.blue.bg,
+                    borderLeft: `3px solid ${infoBoxColors.blue.border}`,
+                    borderRadius: "4px",
+                  }}>
+                    <span style={{ color: "var(--fgColor-critical, #E70000)", fontWeight: 600 }}>* </span>
+                    Based on your workload analysis and recurring usage patterns, we recommend persistent (Stateful) storage to keep your data intact across sessions. Create a FileStore above to enable this.
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ScoredConfig, scoreConfigs, ConfigForScoring, WorkloadAnalysis } from "@/lib/recommendation-engine";
+import { ScoredConfig, scoreConfigs, ConfigForScoring, WorkloadAnalysis, DURATION_HOURS, PROJECT_DURATION_DAYS, PROJECT_DURATION_MONTHS } from "@/lib/recommendation-engine";
 import { createRecommendationSession, updateRecommendationSession } from "@/lib/api";
 
 // ============================================================================
@@ -24,7 +24,7 @@ interface ComputeRecommendationProps {
     maxLaunchable: number;
   }>;
   walletBalance: number;
-  onSelectConfig: (configId: string) => void;
+  onSelectConfig: (configId: string, configSlug?: string, recSessionId?: string | null, recommendedStorageType?: string | null) => void;
   onBack: () => void;
 }
 
@@ -340,6 +340,11 @@ export function ComputeRecommendation({
             setPeriodDuration('');
             newAutoSelected.add('projectDuration');
           }
+        }
+
+        // Auto-select Storage Type (stored in analysisData, applied on the launch page)
+        if (result.recommendedStorageType && result.confidence >= 0.6) {
+          newAutoSelected.add('storageType');
         }
 
         setAutoSelectedFields(newAutoSelected);
@@ -1725,7 +1730,7 @@ export function ComputeRecommendation({
           style={{
             fontSize: "var(--text-xs, 0.75rem)",
             fontWeight: 600,
-            color: "var(--fgColor-default)",
+            color: budgetAmount > 1000 ? "var(--fgColor-default)" : "var(--fgColor-muted)",
             textTransform: "uppercase",
             letterSpacing: "1px",
             marginBottom: "12px",
@@ -1747,7 +1752,7 @@ export function ComputeRecommendation({
             style={{
               fontSize: "1.5rem",
               fontWeight: 700,
-              color: "var(--fgColor-default)",
+              color: budgetAmount > 1000 ? "var(--fgColor-default)" : "var(--fgColor-muted)",
             }}
           >
             ₹{budgetAmount}
@@ -1764,112 +1769,166 @@ export function ComputeRecommendation({
           )}
         </div>
 
-        {/* Slider */}
-        <input
-          type="range"
-          min={1000}
-          max={40000}
-          step={500}
-          value={budgetAmount}
-          onChange={(e) => {
-            const value = parseInt(e.target.value, 10);
-            setBudgetAmount(value);
-            setBudget(""); // Clear chip selection when slider used
-          }}
-          style={{
-            width: "100%",
-            height: "4px",
-            background: "var(--borderColor-default)",
-            borderRadius: "2px",
-            outline: "none",
-            WebkitAppearance: "none",
-            appearance: "none",
-            cursor: "pointer",
-          }}
-        />
-
-        {/* Tick labels */}
+        {/* Slider area — dimmed until user drags */}
         <div
           style={{
-            display: "flex",
-            position: "relative",
-            marginTop: "8px",
-            fontSize: "var(--text-xs, 0.75rem)",
-            color: "var(--fgColor-muted)",
-            height: "16px",
+            opacity: budgetAmount > 1000 ? 1 : 0.5,
+            transition: "opacity 0.15s ease",
+            cursor: "pointer",
           }}
         >
-          {[
-            { label: "₹1K", pct: 0 },
-            { label: "₹5K", pct: ((5000 - 1000) / (40000 - 1000)) * 100 },
-            { label: "₹10K", pct: ((10000 - 1000) / (40000 - 1000)) * 100 },
-            { label: "₹20K", pct: ((20000 - 1000) / (40000 - 1000)) * 100 },
-            { label: "₹40K", pct: 100 },
-          ].map((tick) => (
-            <span
-              key={tick.label}
-              style={{
-                position: "absolute",
-                left: `${tick.pct}%`,
-                transform: tick.pct === 100 ? "translateX(-100%)" : tick.pct === 0 ? "none" : "translateX(-50%)",
-              }}
-            >
-              {tick.label}
-            </span>
-          ))}
-        </div>
+          <input
+            type="range"
+            min={1000}
+            max={40000}
+            step={500}
+            value={budgetAmount}
+            onChange={(e) => {
+              const value = parseInt(e.target.value, 10);
+              setBudgetAmount(value);
+              setBudget(""); // Clear chip selection when slider used
+            }}
+            style={{
+              width: "100%",
+              height: "4px",
+              background: "var(--borderColor-default)",
+              borderRadius: "2px",
+              outline: "none",
+              WebkitAppearance: "none",
+              appearance: "none",
+              cursor: "pointer",
+            }}
+          />
 
-        {/* Estimated hours helper text */}
-        {budgetAmount > 1000 && (
+          {/* Tick labels */}
           <div
             style={{
-              marginTop: "12px",
-              padding: "10px 12px",
-              backgroundColor: "var(--bgColor-info, #cedeff)",
-              border: "1px solid var(--borderColor-info, #3a73ff)",
-              borderRadius: "4px",
+              display: "flex",
+              position: "relative",
+              marginTop: "8px",
               fontSize: "var(--text-xs, 0.75rem)",
-              color: "var(--fgColor-default)",
+              color: "var(--fgColor-muted)",
+              height: "16px",
             }}
           >
-            {periodDuration || sessionDuration ? (
-              <>
-                For {(periodDuration || sessionDuration) === "quick" || (periodDuration || sessionDuration) === "light" ? 2 : (periodDuration || sessionDuration) === "extended" || (periodDuration || sessionDuration) === "heavy" ? 8 : 4}hrs:{" "}
-                {(() => {
-                  const dur = periodDuration || sessionDuration || "standard";
-                  const durationHours = dur === "quick" || dur === "light" ? 2 : dur === "extended" || dur === "heavy" ? 8 : 4;
-                  const sparkCost = 35 * durationHours;
-                  const blazeCost = 65 * durationHours;
-                  const infernoCost = 105 * durationHours;
-                  return (
-                    <>
-                      <span>Spark ₹{sparkCost}</span>
-                      <span style={{ color: sparkCost <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
-                        {sparkCost <= budgetAmount ? " ✓" : " ✗"}
-                      </span>
-                      {" | "}
-                      <span>Blaze ₹{blazeCost}</span>
-                      <span style={{ color: blazeCost <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
-                        {blazeCost <= budgetAmount ? " ✓" : " ✗"}
-                      </span>
-                      {" | "}
-                      <span>Inferno ₹{infernoCost}</span>
-                      <span style={{ color: infernoCost <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
-                        {infernoCost <= budgetAmount ? " ✓" : " ✗"}
-                      </span>
-                    </>
-                  );
-                })()}
-              </>
-            ) : (
-              <>
-                At ₹{budgetAmount}: ~{Math.floor(budgetAmount / 35)}hrs on Spark, ~
-                {Math.floor(budgetAmount / 65)}hrs on Blaze, ~{Math.floor(budgetAmount / 105)}hrs on
-                Inferno
-              </>
-            )}
+            {[
+              { label: "₹1K", pct: 0 },
+              { label: "₹5K", pct: ((5000 - 1000) / (40000 - 1000)) * 100 },
+              { label: "₹10K", pct: ((10000 - 1000) / (40000 - 1000)) * 100 },
+              { label: "₹20K", pct: ((20000 - 1000) / (40000 - 1000)) * 100 },
+              { label: "₹40K", pct: 100 },
+            ].map((tick) => (
+              <span
+                key={tick.label}
+                style={{
+                  position: "absolute",
+                  left: `${tick.pct}%`,
+                  transform: tick.pct === 100 ? "translateX(-100%)" : tick.pct === 0 ? "none" : "translateX(-50%)",
+                }}
+              >
+                {tick.label}
+              </span>
+            ))}
           </div>
-        )}
+
+          {/* Hint text when at default */}
+          {budgetAmount === 1000 && (
+            <div
+              style={{
+                marginTop: "4px",
+                fontSize: "var(--text-xs, 0.75rem)",
+                color: "var(--fgColor-muted)",
+                fontStyle: "italic",
+              }}
+            >
+              Drag the slider to set a custom budget amount
+            </div>
+          )}
+        </div>
+
+        {/* Estimated cost helper — uses real config prices + project duration */}
+        {budgetAmount > 1000 && (() => {
+          const dur = periodDuration || sessionDuration;
+          const durationHours = dur === "quick" || dur === "light" ? 2 : dur === "extended" || dur === "heavy" ? 8 : 4;
+
+          // Use real config prices
+          const sparkCfg = configs.find(c => c.slug === "spark");
+          const blazeCfg = configs.find(c => c.slug === "blaze");
+          const infernoCfg = configs.find(c => c.slug === "inferno");
+          const sparkPrice = sparkCfg ? sparkCfg.basePricePerHourCents / 100 : 120;
+          const blazePrice = blazeCfg ? blazeCfg.basePricePerHourCents / 100 : 210;
+          const infernoPrice = infernoCfg ? infernoCfg.basePricePerHourCents / 100 : 300;
+
+          const sparkSession = Math.round(sparkPrice * durationHours);
+          const blazeSession = Math.round(blazePrice * durationHours);
+          const infernoSession = Math.round(infernoPrice * durationHours);
+
+          const projectDays = projectDuration ? (PROJECT_DURATION_DAYS[projectDuration] ?? 0) : 0;
+          const projectLabel = projectDuration ? (PROJECT_DURATION_MONTHS[projectDuration] ?? '') : '';
+          const showProjectCost = projectDuration && projectDuration !== "daily" && projectDays > 0;
+
+          return (
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "10px 12px",
+                backgroundColor: "var(--bgColor-info, #cedeff)",
+                border: "1px solid var(--borderColor-info, #3a73ff)",
+                borderRadius: "4px",
+                fontSize: "var(--text-xs, 0.75rem)",
+                color: "var(--fgColor-default)",
+              }}
+            >
+              {dur ? (
+                <>
+                  <div>
+                    <strong>Per session ({durationHours}hrs):</strong>{" "}
+                    <span>Spark ₹{sparkSession}</span>
+                    <span style={{ color: sparkSession <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
+                      {sparkSession <= budgetAmount ? " ✓" : " ✗"}
+                    </span>
+                    {" | "}
+                    <span>Blaze ₹{blazeSession}</span>
+                    <span style={{ color: blazeSession <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
+                      {blazeSession <= budgetAmount ? " ✓" : " ✗"}
+                    </span>
+                    {" | "}
+                    <span>Inferno ₹{infernoSession}</span>
+                    <span style={{ color: infernoSession <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
+                      {infernoSession <= budgetAmount ? " ✓" : " ✗"}
+                    </span>
+                  </div>
+
+                  {showProjectCost && (
+                    <div style={{ marginTop: "6px", paddingTop: "6px", borderTop: "1px solid var(--borderColor-info, #3a73ff)" }}>
+                      <strong>Est. project cost ({projectLabel}mo, 1 session/day):</strong><br />
+                      Spark ~₹{(sparkPrice * durationHours * projectDays).toLocaleString("en-IN")}
+                      <span style={{ color: (sparkPrice * durationHours * projectDays) <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
+                        {(sparkPrice * durationHours * projectDays) <= budgetAmount ? " ✓" : " ✗"}
+                      </span>
+                      {" | "}
+                      Blaze ~₹{(blazePrice * durationHours * projectDays).toLocaleString("en-IN")}
+                      <span style={{ color: (blazePrice * durationHours * projectDays) <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
+                        {(blazePrice * durationHours * projectDays) <= budgetAmount ? " ✓" : " ✗"}
+                      </span>
+                      {" | "}
+                      Inferno ~₹{(infernoPrice * durationHours * projectDays).toLocaleString("en-IN")}
+                      <span style={{ color: (infernoPrice * durationHours * projectDays) <= budgetAmount ? "#1a7f37" : "#cf222e", marginLeft: "2px" }}>
+                        {(infernoPrice * durationHours * projectDays) <= budgetAmount ? " ✓" : " ✗"}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  At ₹{budgetAmount}: ~{Math.floor(budgetAmount / sparkPrice)}hrs on Spark, ~
+                  {Math.floor(budgetAmount / blazePrice)}hrs on Blaze, ~{Math.floor(budgetAmount / infernoPrice)}hrs on
+                  Inferno
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* CTA Button */}
@@ -2275,7 +2334,7 @@ export function ComputeRecommendation({
                 {!isUnavailable ? (
                   <button
                     onClick={() => {
-                      onSelectConfig(scored.config.id);
+                      onSelectConfig(scored.config.id, scored.config.slug, recommendationSessionId, llmAnalysis?.recommendedStorageType ?? null);
                       if (recommendationSessionId) {
                         updateRecommendationSession(recommendationSessionId, {
                           selectedConfigSlug: scored.config.slug,

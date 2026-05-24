@@ -3059,6 +3059,13 @@ detectedProjectDuration:
   - Large production system → "approx_6_months" (extended commitment)
 - If unsure about scope-based recommendation, set to null
 
+recommendedStorageType RULES (for determining stateful vs ephemeral):
+- The platform offers two storage types: "stateful" (persistent NFS storage that survives restarts) and "ephemeral" (10 GB temporary disk that is destroyed on stop/terminate)
+- "stateful" → User's workload involves recurring sessions, long-running projects, iterative work where data needs to persist (checkpoints, datasets, model weights, code repos). Project duration is weeks/months with repeated access. Examples: multi-phase ML training, ongoing development, recurring data processing.
+- "ephemeral" → User's workload is one-off, short burst experimentation, quick testing, or disposable sessions where no data needs to survive. Project duration is daily/short-term with no recurring access. Examples: quick inference tests, one-off rendering, throwaway experiments.
+- When in doubt (workload could go either way), lean on the detectedProjectDuration: if daily or less_than_month with low recurring usage → ephemeral; if less_than_3_months or approx_6_months → stateful.
+- If user explicitly mentions persistent data, datasets, model training checkpoints, or recurring work → stateful.
+
 Respond ONLY with valid JSON matching this exact schema:
 {
   "detectedGoal": "ml_training" | "inference" | "data_science" | "rendering" | "general_dev" | "research",
@@ -3073,7 +3080,8 @@ Respond ONLY with valid JSON matching this exact schema:
   "suggestions": concise string max 2 sentences explaining what to include for better analysis, empty string if input is sufficient,
   "detectedProjectDuration": "daily" | "less_than_month" | "less_than_3_months" | "approx_6_months" | null,
   "estimatedTotalWeeks": number | null,
-  "fieldConfidence": { "goal": number 0-1, "vram": number 0-1, "intensity": number 0-1, "projectDuration": number 0-1 }
+  "fieldConfidence": { "goal": number 0-1, "vram": number 0-1, "intensity": number 0-1, "projectDuration": number 0-1 },
+  "recommendedStorageType": "stateful" | "ephemeral" | null
 }`;
 
       const userPrompt = primaryGoal
@@ -3123,6 +3131,7 @@ Respond ONLY with valid JSON matching this exact schema:
         missingCategories: ['primary_goal', 'gpu_memory', 'workload_intensity'],
         suggestions: 'Unable to analyze the description. Please provide more details about your workload, framework, and data size.',
         fieldConfidence: { goal: 0, vram: 0, intensity: 0 },
+        recommendedStorageType: null,
       };
     }
   }

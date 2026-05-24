@@ -7,6 +7,21 @@ import {
 import multipart from '@fastify/multipart';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
+import { map } from 'rxjs';
+
+// NestJS global interceptor that converts BigInt to Number before Fastify serialization
+const BigIntInterceptor = {
+  intercept: (_context: any, next: { handle: () => any }) =>
+    next.handle().pipe(
+      map((data: unknown) =>
+        JSON.parse(
+          JSON.stringify(data, (_key: string, value: unknown) =>
+            typeof value === 'bigint' ? Number(value) : value,
+          ),
+        ),
+      ),
+    ),
+};
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -33,21 +48,8 @@ async function bootstrap() {
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   });
 
-  // Add reply hook to serialize BigInt values to Number for all responses
-  app.getHttpAdapter().getInstance().addHook('onSend', (_req: unknown, reply: unknown, payload: string, done: (err: Error | null, payload?: string) => void) => {
-    if (payload && typeof payload === 'string') {
-      try {
-        const parsed = JSON.parse(payload);
-        const result = JSON.stringify(parsed, (_key: string, value: unknown) =>
-          typeof value === 'bigint' ? Number(value) : value,
-        );
-        return done(null, result);
-      } catch {
-        // Not JSON, pass through
-      }
-    }
-    done(null, payload);
-  });
+  // Global interceptor to convert BigInt to Number before Fastify serialization
+  app.useGlobalInterceptors(BigIntInterceptor);
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
