@@ -1562,23 +1562,69 @@ export class AnalyticsAdminService {
   }
 
   /**
+   * Get all user IDs that have the 'student' role (institutional users exempt from billing).
+   * These users should be excluded from revenue metrics like NRR.
+   */
+  private async getStudentUserIds(): Promise<string[]> {
+    const studentRoles = await this.prisma.userOrgRole.findMany({
+      where: {
+        role: { name: 'student' },
+      },
+      select: { userId: true },
+    });
+    return studentRoles.map((r) => r.userId);
+  }
+
+  /**
    * Net Revenue Retention (NRR): Measures whether EXISTING users are spending
    * more or less over time by comparing the same cohort's spend across adjacent
    * periods. Daily (7 days) for 24H/7D, custom 2.5-day buckets (12) for 30D,
    * monthly (12 months) for All.
+   * 
+   * IMPORTANT: NRR is a REVENUE metric — it MUST exclude student users (CapEx)
+   * regardless of client filter. Students don't contribute to revenue, so including
+   * them makes NRR meaningless.
    */
   async getNetRevenueRetention(timeRange: string, clientId?: string): Promise<NrrResponse> {
     const now = new Date();
 
-    // Client filter and cost classification
+    // NRR is ALWAYS a revenue metric — exclude student users entirely
+    // Students are CapEx (institutional cost), not revenue contributors
+    const studentUserIds = await this.getStudentUserIds();
+
+    // Client filter (for non-student users in the selected org)
     const userIds = await this.getClientUserIds(clientId);
-    let costClassification = 'revenue';
-    if (clientId && await this.isKSRCEOrg(clientId)) {
-      costClassification = 'capex';
+
+    // Combine filters: if both clientId and student exclusion are active,
+    // we need to exclude students from the client user list
+    let finalUserIds: string[] | null = userIds;
+    if (studentUserIds.length > 0) {
+      if (finalUserIds === null) {
+        // No client filter, but exclude all students globally
+        // We'll handle this with SQL NOT IN clause
+        finalUserIds = null;
+      } else {
+        // Client filter active: exclude students from this client's users
+        finalUserIds = finalUserIds.filter((id) => !studentUserIds.includes(id));
+      }
     }
-    const hasUserFilter = userIds !== null;
+
+    // If after filtering there are no users, return empty
+    if (finalUserIds !== null && finalUserIds.length === 0) {
+      return { periods: [], currentNrrPct: null, avgNrrPct: 0 };
+    }
+
+    // NRR always uses 'revenue' classification — never 'capex'
+    const costClassification = 'revenue';
+
+    const hasUserFilter = finalUserIds !== null;
     const userFilterSql = hasUserFilter
-      ? Prisma.sql`AND "user_id" = ANY(${userIds!}::uuid[])`
+      ? Prisma.sql`AND "user_id" = ANY(${finalUserIds!}::uuid[])`
+      : Prisma.empty;
+
+    // Student exclusion SQL (for when no client filter is active)
+    const studentExcludeSql = (!hasUserFilter && studentUserIds.length > 0)
+      ? Prisma.sql`AND "user_id" NOT IN (${Prisma.join(studentUserIds.map(id => Prisma.sql`${id}::uuid`))})`
       : Prisma.empty;
 
     const isDaily = timeRange === '24H' || timeRange === '7D';
@@ -1617,6 +1663,7 @@ export class AnalyticsAdminService {
         WHERE "created_at" >= ${queryStartTs}::timestamp
           AND "cost_classification" = ${costClassification}
           ${userFilterSql}
+          ${studentExcludeSql}
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;
@@ -1647,6 +1694,7 @@ export class AnalyticsAdminService {
         WHERE "created_at" >= ${queryStartTs}::timestamp
           AND "cost_classification" = ${costClassification}
           ${userFilterSql}
+          ${studentExcludeSql}
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;
@@ -1686,6 +1734,7 @@ export class AnalyticsAdminService {
         WHERE "created_at" >= ${queryStartTs}::timestamp
           AND "cost_classification" = ${costClassification}
           ${userFilterSql}
+          ${studentExcludeSql}
         GROUP BY 1, 2
         ORDER BY 1 ASC
       `;

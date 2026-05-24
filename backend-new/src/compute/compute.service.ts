@@ -1492,59 +1492,100 @@ export class ComputeService {
         },
       });
 
-      // 10. Create final billing charge (only if there's remaining amount to charge)
+      // 10. Check student role — students get CapEx tracking only, no wallet deduction
+      const isStudent = await isStudentRole(this.prisma, userId);
+
+      // 11. Create final billing charge (only if there's remaining amount to charge)
       const wallet = await tx.wallet.findUnique({ where: { userId } });
       let walletTransactionId: string | null = null;
 
-      if (remainingChargeCents > 0 && wallet) {
-        // Calculate remaining duration that wasn't billed (for the BillingCharge record)
-        const alreadyBilledSeconds = Math.floor(
-          (alreadyBilledCents / basePricePerHourCents) * 3600,
-        );
-        const remainingSeconds = Math.max(
-          0,
-          (durationSeconds ?? 0) - alreadyBilledSeconds,
-        );
+      if (remainingChargeCents > 0) {
+        // STUDENT PATH: Track as CapEx only, never deduct wallet
+        if (isStudent) {
+          // Calculate remaining duration that wasn't billed (for the BillingCharge record)
+          const alreadyBilledSeconds = Math.floor(
+            (alreadyBilledCents / basePricePerHourCents) * 3600,
+          );
+          const remainingSeconds = Math.max(
+            0,
+            (durationSeconds ?? 0) - alreadyBilledSeconds,
+          );
 
-        const newBalance =
-          BigInt(wallet.balanceCents) - BigInt(remainingChargeCents);
-        const walletTxn = await tx.walletTransaction.create({
-          data: {
-            walletId: wallet.id,
-            userId,
-            txnType: 'debit',
-            amountCents: BigInt(remainingChargeCents),
-            balanceAfterCents: newBalance,
-            referenceType: 'compute_billing',
-            referenceId: sessionId,
-            description: `Final compute charge: ${session.instanceName || session.id}`,
-          },
-        });
-        walletTransactionId = walletTxn.id;
+          await tx.billingCharge.create({
+            data: {
+              userId,
+              chargeType: 'compute',
+              sessionId,
+              computeConfigId: session.computeConfigId,
+              durationSeconds: remainingSeconds,
+              rateCentsPerHour: basePricePerHourCents,
+              amountCents: BigInt(remainingChargeCents),
+              currency: 'INR',
+              costClassification: 'capex',
+            },
+          });
 
-        // 11. Deduct from wallet
-        await tx.wallet.update({
-          where: { id: wallet.id },
-          data: {
-            balanceCents: newBalance,
-            lifetimeSpentCents: { increment: remainingChargeCents },
-          },
-        });
+          this.logger.log(
+            `Final charge tracked as CapEx for student session=${sessionId} amount=${remainingChargeCents} paise (no wallet deduction)`,
+          );
+        } else {
+          // NON-STUDENT PATH: Deduct from wallet and create revenue-classified charge
+          if (!wallet) {
+            this.logger.warn(
+              `No wallet found for user ${userId}, skipping final charge`,
+            );
+          } else {
+            // Calculate remaining duration that wasn't billed (for the BillingCharge record)
+            const alreadyBilledSeconds = Math.floor(
+              (alreadyBilledCents / basePricePerHourCents) * 3600,
+            );
+            const remainingSeconds = Math.max(
+              0,
+              (durationSeconds ?? 0) - alreadyBilledSeconds,
+            );
 
-        // Create final billing charge record
-        await tx.billingCharge.create({
-          data: {
-            userId,
-            chargeType: 'compute',
-            sessionId,
-            computeConfigId: session.computeConfigId,
-            durationSeconds: remainingSeconds,
-            rateCentsPerHour: basePricePerHourCents,
-            amountCents: BigInt(remainingChargeCents),
-            currency: 'INR',
-            walletTransactionId,
-          },
-        });
+            const newBalance =
+              BigInt(wallet.balanceCents) - BigInt(remainingChargeCents);
+            const walletTxn = await tx.walletTransaction.create({
+              data: {
+                walletId: wallet.id,
+                userId,
+                txnType: 'debit',
+                amountCents: BigInt(remainingChargeCents),
+                balanceAfterCents: newBalance,
+                referenceType: 'compute_billing',
+                referenceId: sessionId,
+                description: `Final compute charge: ${session.instanceName || session.id}`,
+              },
+            });
+            walletTransactionId = walletTxn.id;
+
+            // Deduct from wallet
+            await tx.wallet.update({
+              where: { id: wallet.id },
+              data: {
+                balanceCents: newBalance,
+                lifetimeSpentCents: { increment: remainingChargeCents },
+              },
+            });
+
+            // Create final billing charge record
+            await tx.billingCharge.create({
+              data: {
+                userId,
+                chargeType: 'compute',
+                sessionId,
+                computeConfigId: session.computeConfigId,
+                durationSeconds: remainingSeconds,
+                rateCentsPerHour: basePricePerHourCents,
+                amountCents: BigInt(remainingChargeCents),
+                currency: 'INR',
+                walletTransactionId,
+                costClassification: 'revenue',
+              },
+            });
+          }
+        }
       }
 
       // 12. Update session to ended with final total cost
