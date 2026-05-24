@@ -5,7 +5,11 @@ import { Search } from "lucide-react";
 import { getAnalyticsAccessToken } from "@/lib/token";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
-const PAGE_SIZE = 15;
+
+// Row height constants for dynamic viewport-fit page sizing
+const ROW_HEIGHT = 48;
+const PAGINATION_ROW_HEIGHT = 52;
+const TABLE_HEADER_HEIGHT = 48;
 
 type UsersTab = "users" | "dept";
 
@@ -174,7 +178,10 @@ function UserActionDropdown({
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         style={{
           width: "32px",
           height: "32px",
@@ -219,7 +226,8 @@ function UserActionDropdown({
           }}
         >
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setIsOpen(false);
               onDisable();
             }}
@@ -252,7 +260,8 @@ function UserActionDropdown({
             Disable
           </button>
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setIsOpen(false);
               onAddTo();
             }}
@@ -305,6 +314,17 @@ export function UsersSection() {
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Dynamic page size — calculated from viewport so all rows + pagination fit without scrolling
+  const [dynamicPageSize, setDynamicPageSize] = useState(10);
+
+  // Accordion state
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [collapsingUserId, setCollapsingUserId] = useState<string | null>(null);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(400);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const filtersRowRef = useRef<HTMLDivElement>(null);
+
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [departments, setDepartments] = useState<DeptOption[]>([]);
 
@@ -335,7 +355,7 @@ export function UsersSection() {
       try {
         const params = new URLSearchParams();
         params.set("page", String(page));
-        params.set("limit", String(PAGE_SIZE));
+        params.set("limit", String(dynamicPageSize));
         if (debouncedSearch) params.set("search", debouncedSearch);
         if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
         if (clientFilter) params.set("clientId", clientFilter);
@@ -373,7 +393,7 @@ export function UsersSection() {
     return () => {
       cancelled = true;
     };
-  }, [page, debouncedSearch, statusFilter, clientFilter, deptFilter]);
+  }, [page, debouncedSearch, statusFilter, clientFilter, deptFilter, dynamicPageSize]);
 
   // Fetch clients on mount
   useEffect(() => {
@@ -436,14 +456,96 @@ export function UsersSection() {
     };
   }, [clientFilter]);
 
+  // Calculate dynamic page size (rows that fit viewport) and expanded panel height
+  useEffect(() => {
+    const calcLayout = () => {
+      if (!tableContainerRef.current) return;
+
+      const containerTop = tableContainerRef.current.getBoundingClientRect().top;
+
+      // --- Page size: how many data rows fit with pagination row at the bottom ---
+      const availableForRows =
+        window.innerHeight -
+        containerTop -
+        2 - // table border-top + border-bottom
+        TABLE_HEADER_HEIGHT -
+        PAGINATION_ROW_HEIGHT;
+      const rows = Math.max(1, Math.floor(availableForRows / ROW_HEIGHT));
+      setDynamicPageSize(rows);
+
+      // --- Panel height: space from expanded row bottom to pagination row top ---
+      const panelH =
+        window.innerHeight -
+        containerTop -
+        2 - // border top/bottom
+        TABLE_HEADER_HEIGHT -
+        ROW_HEIGHT - // expanded row
+        PAGINATION_ROW_HEIGHT -
+        8; // small buffer
+      setPanelMaxHeight(Math.max(200, Math.floor(panelH)));
+    };
+
+    calcLayout();
+    window.addEventListener("resize", calcLayout);
+    return () => window.removeEventListener("resize", calcLayout);
+  }, []);
+
+  // Animate panel open: after mount, set max-height to trigger CSS transition
+  useEffect(() => {
+    if (expandedUserId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const raf = requestAnimationFrame(() => {
+        el.style.maxHeight = `${panelMaxHeight}px`;
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [expandedUserId, panelMaxHeight]);
+
+  // Collapse animation: set max-height to 0, wait for transition, then clear collapsingUserId
+  useEffect(() => {
+    if (collapsingUserId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const timeout = setTimeout(() => {
+        setCollapsingUserId(null);
+      }, 400); // slightly longer than CSS transition (350ms)
+      return () => clearTimeout(timeout);
+    }
+  }, [collapsingUserId]);
+
+  // Click handler for row expand/collapse
+  const handleRowClick = (userId: string) => {
+    if (expandedUserId === userId) {
+      // Collapse: trigger collapse animation
+      setCollapsingUserId(userId);
+      setExpandedUserId(null);
+    } else {
+      // Expand: clear any pending collapse, set new expanded
+      setCollapsingUserId(null);
+      setExpandedUserId(userId);
+    }
+  };
+
   const rangeStart = useMemo(
-    () => (total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1),
-    [page, total]
+    () => (total === 0 ? 0 : (page - 1) * dynamicPageSize + 1),
+    [page, total, dynamicPageSize]
   );
   const rangeEnd = useMemo(
-    () => Math.min(page * PAGE_SIZE, total),
-    [page, total]
+    () => Math.min(page * dynamicPageSize, total),
+    [page, total, dynamicPageSize]
   );
+
+  // Reorder users when one is expanded: expanded row moves to top
+  const orderedUsers = useMemo(() => {
+    const activeId = expandedUserId ?? collapsingUserId;
+    if (!activeId) return users;
+    const idx = users.findIndex((u) => u.id === activeId);
+    if (idx === -1) return users;
+    const expanded = users[idx];
+    const rest = [...users.slice(0, idx), ...users.slice(idx + 1)];
+    return [expanded, ...rest];
+  }, [users, expandedUserId, collapsingUserId]);
 
   // Grid template — 8 columns (Name | Email | Client | Profession | Timezone | Join Date | Status | Actions)
   const GRID_TEMPLATE =
@@ -471,7 +573,7 @@ export function UsersSection() {
   ];
 
   return (
-    <div style={{ padding: "15px", fontFamily: "var(--font-sans)" }}>
+    <div style={{ padding: "15px", fontFamily: "var(--font-sans)", overflow: "hidden", height: "100%" }}>
       {/* Page Header — exact billing page styling */}
       <h1
         style={{
@@ -506,6 +608,7 @@ export function UsersSection() {
       <div style={{ marginTop: "24px" }}>
         {/* Filters row */}
         <div
+          ref={filtersRowRef}
           style={{
             display: "flex",
             alignItems: "center",
@@ -654,6 +757,7 @@ export function UsersSection() {
 
         {/* Table container — billing pattern */}
         <div
+          ref={tableContainerRef}
           style={{
             backgroundColor: "var(--bgColor-mild)",
             border: "1px solid var(--borderColor-default)",
@@ -728,249 +832,299 @@ export function UsersSection() {
               No users found
             </div>
           ) : (
-            users.map((u) => {
+            orderedUsers.map((u) => {
               const fullName =
                 `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || "—";
+              const isExpanded = expandedUserId === u.id;
+              const isCollapsing = collapsingUserId === u.id;
+              const isActive = isExpanded || isCollapsing;
               return (
-                <div
-                  key={u.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: GRID_TEMPLATE,
-                    gap: "12px",
-                    padding: "12px 20px",
-                    borderBottom: "1px solid var(--borderColor-default)",
-                    alignItems: "center",
-                    transition: "background-color 0.1s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor =
-                      "rgba(255,255,255,0.02)";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                  }}
-                >
-                  {/* Name */}
-                  <span
+                <div key={u.id}>
+                  {/* Row */}
+                  <div
                     style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      fontWeight: 500,
-                      color: "var(--fgColor-default)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={fullName}
-                  >
-                    {fullName}
-                  </span>
-
-                  {/* Email */}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      color: "var(--fgColor-default)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={u.email}
-                  >
-                    {u.email || "—"}
-                  </span>
-
-                  {/* Client */}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      color: u.clientName
-                        ? "var(--fgColor-default)"
-                        : "var(--fgColor-muted)",
-                      fontStyle: u.clientName ? "normal" : "italic",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={u.clientName || "Public User"}
-                  >
-                    {u.clientName || "Public User"}
-                  </span>
-
-                  {/* Profession */}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      color: "var(--fgColor-default)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={u.profession || ""}
-                  >
-                    {u.profession || "—"}
-                  </span>
-
-                  {/* Timezone */}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      color: "var(--fgColor-muted)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={u.timezone || ""}
-                  >
-                    {u.timezone || "—"}
-                  </span>
-
-                  {/* Join Date */}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono, monospace)",
-                      fontSize: "0.8125rem",
-                      color: "var(--fgColor-default)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {formatISTDate(u.joinDate)}
-                  </span>
-
-                  {/* Status */}
-                  <span
-                    style={{
-                      display: "flex",
+                      display: "grid",
+                      gridTemplateColumns: GRID_TEMPLATE,
+                      gap: "12px",
+                      padding: "12px 20px",
+                      borderBottom: "1px solid var(--borderColor-default)",
                       alignItems: "center",
-                      gap: "6px",
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
+                      transition: "background-color 0.1s ease",
+                      cursor: "pointer",
+                      backgroundColor: "transparent",
+                    }}
+                    onClick={() => handleRowClick(u.id)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--bgColor-default)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
                     }}
                   >
+                    {/* Name */}
                     <span
                       style={{
-                        display: "inline-block",
-                        width: 8,
-                        height: 8,
-                        borderRadius: "9999px",
-                        backgroundColor: u.isActive ? "#05C004" : "#818178",
-                        flexShrink: 0,
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                        fontWeight: 500,
+                        color: "var(--fgColor-default)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
-                    />
-                    <span style={{ color: u.isActive ? "var(--fgColor-default)" : "var(--fgColor-muted)" }}>
-                      {u.isActive ? "Active" : "Inactive"}
+                      title={fullName}
+                    >
+                      {fullName}
                     </span>
-                  </span>
 
-                  {/* Actions — kebab menu */}
-                  <div style={{ display: "flex", justifyContent: "center" }}>
-                    <UserActionDropdown
-                      onDisable={() => { /* no-op */ }}
-                      onAddTo={() => { /* no-op */ }}
-                    />
+                    {/* Email */}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                        color: "var(--fgColor-default)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={u.email}
+                    >
+                      {u.email || "—"}
+                    </span>
+
+                    {/* Client */}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                        color: u.clientName
+                          ? "var(--fgColor-default)"
+                          : "var(--fgColor-muted)",
+                        fontStyle: u.clientName ? "normal" : "italic",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={u.clientName || "Public User"}
+                    >
+                      {u.clientName || "Public User"}
+                    </span>
+
+                    {/* Profession */}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                        color: "var(--fgColor-default)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={u.profession || ""}
+                    >
+                      {u.profession || "—"}
+                    </span>
+
+                    {/* Timezone */}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                        color: "var(--fgColor-muted)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={u.timezone || ""}
+                    >
+                      {u.timezone || "—"}
+                    </span>
+
+                    {/* Join Date */}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: "0.8125rem",
+                        color: "var(--fgColor-default)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatISTDate(u.joinDate)}
+                    </span>
+
+                    {/* Status */}
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 8,
+                          height: 8,
+                          borderRadius: "9999px",
+                          backgroundColor: u.isActive ? "#05C004" : "#818178",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span style={{ color: u.isActive ? "var(--fgColor-default)" : "var(--fgColor-muted)" }}>
+                        {u.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </span>
+
+                    {/* Actions — kebab menu only */}
+                    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "4px" }}>
+                      <UserActionDropdown
+                        onDisable={() => { /* no-op */ }}
+                        onAddTo={() => { /* no-op */ }}
+                      />
+                    </div>
                   </div>
+
+                  {/* Expanded Panel */}
+                  {(isExpanded || isCollapsing) && (
+                    <div
+                      ref={panelRef}
+                      style={{
+                        maxHeight: "0px",
+                        overflow: "hidden",
+                        transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+                        backgroundColor: "var(--bgColor-default)",
+                        borderBottom: "1px solid var(--borderColor-default)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: panelMaxHeight,
+                          padding: "24px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "0.875rem",
+                            color: "var(--fgColor-muted)",
+                          }}
+                        >
+                          Details coming soon
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
-        </div>
 
-        {/* Pagination — billing pattern */}
-        {total > 0 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: "16px",
-              padding: "0 4px",
-            }}
-          >
-            <span
+          {/* Pagination footer inside table */}
+          {total > 0 && (
+            <div
               style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: "0.875rem",
-                color: "var(--fgColor-muted)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "10px 20px",
+                borderTop: "1px solid var(--borderColor-default)",
               }}
-            >
-              Showing {rangeStart}-{rangeEnd} of {total.toLocaleString("en-IN")}
-            </span>
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "0.875rem",
+                    color: "var(--fgColor-muted)",
+                  }}
+                >
+                  Showing {rangeStart}-{rangeEnd} of{" "}
+                  {total.toLocaleString("en-IN")}
+                </span>
 
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || isLoading}
-                style={{
-                  padding: "6px 12px",
-                  backgroundColor: "var(--bgColor-muted)",
-                  border: "1px solid var(--borderColor-default)",
-                  borderRadius: "4px",
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color:
-                    page <= 1 || isLoading
-                      ? "var(--fgColor-muted)"
-                      : "var(--fgColor-default)",
-                  cursor: page <= 1 || isLoading ? "not-allowed" : "pointer",
-                  opacity: page <= 1 || isLoading ? 0.5 : 1,
-                  transition: "background-color 0.15s ease",
-                }}
-                onMouseOver={(e) => {
-                  if (page > 1 && !isLoading)
-                    e.currentTarget.style.backgroundColor = "var(--bgColor-mild)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--bgColor-muted)";
-                }}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setPage((p) => Math.min(totalPages || 1, p + 1))
-                }
-                disabled={page >= totalPages || totalPages === 0 || isLoading}
-                style={{
-                  padding: "6px 12px",
-                  backgroundColor: "var(--bgColor-muted)",
-                  border: "1px solid var(--borderColor-default)",
-                  borderRadius: "4px",
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color:
-                    page >= totalPages || totalPages === 0 || isLoading
-                      ? "var(--fgColor-muted)"
-                      : "var(--fgColor-default)",
-                  cursor:
-                    page >= totalPages || totalPages === 0 || isLoading
-                      ? "not-allowed"
-                      : "pointer",
-                  opacity:
-                    page >= totalPages || totalPages === 0 || isLoading
-                      ? 0.5
-                      : 1,
-                  transition: "background-color 0.15s ease",
-                }}
-                onMouseOver={(e) => {
-                  if (page < totalPages && !isLoading)
-                    e.currentTarget.style.backgroundColor = "var(--bgColor-mild)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--bgColor-muted)";
-                }}
-              >
-                Next
-              </button>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1 || isLoading}
+                    style={{
+                      padding: "6px 12px",
+                      backgroundColor: "var(--bgColor-muted)",
+                      border: "1px solid var(--borderColor-default)",
+                      borderRadius: "4px",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color:
+                        page <= 1 || isLoading
+                          ? "var(--fgColor-muted)"
+                          : "var(--fgColor-default)",
+                      cursor:
+                        page <= 1 || isLoading ? "not-allowed" : "pointer",
+                      opacity: page <= 1 || isLoading ? 0.5 : 1,
+                      transition: "background-color 0.15s ease",
+                    }}
+                    onMouseOver={(e) => {
+                      if (page > 1 && !isLoading)
+                        e.currentTarget.style.backgroundColor =
+                          "var(--bgColor-mild)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--bgColor-muted)";
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPage((p) => Math.min(totalPages || 1, p + 1))
+                    }
+                    disabled={
+                      page >= totalPages || totalPages === 0 || isLoading
+                    }
+                    style={{
+                      padding: "6px 12px",
+                      backgroundColor: "var(--bgColor-muted)",
+                      border: "1px solid var(--borderColor-default)",
+                      borderRadius: "4px",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color:
+                        page >= totalPages || totalPages === 0 || isLoading
+                          ? "var(--fgColor-muted)"
+                          : "var(--fgColor-default)",
+                      cursor:
+                        page >= totalPages || totalPages === 0 || isLoading
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity:
+                        page >= totalPages || totalPages === 0 || isLoading
+                          ? 0.5
+                          : 1,
+                      transition: "background-color 0.15s ease",
+                    }}
+                    onMouseOver={(e) => {
+                      if (page < totalPages && !isLoading)
+                        e.currentTarget.style.backgroundColor =
+                          "var(--bgColor-mild)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "var(--bgColor-muted)";
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
