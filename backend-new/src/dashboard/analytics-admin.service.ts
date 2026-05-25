@@ -210,14 +210,46 @@ export class AnalyticsAdminService {
   private readonly IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
   /**
-   * Get start of current day in IST (00:00 IST)
+   * Get start of current IST day (00:00 IST)
    */
   private getISTDayStart(date: Date): Date {
-    // Convert to IST
     const istTime = new Date(date.getTime() + this.IST_OFFSET_MS);
-    // Set to midnight IST
     istTime.setUTCHours(0, 0, 0, 0);
-    // Convert back to UTC
+    return new Date(istTime.getTime() - this.IST_OFFSET_MS);
+  }
+
+  /**
+   * Get Monday 00:00 IST of the calendar week containing the given date.
+   */
+  private getWeekStart(date: Date): Date {
+    const istTime = new Date(date.getTime() + this.IST_OFFSET_MS);
+    const dayOfWeek = istTime.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    // Days since Monday (Mon=0, Tue=1, ..., Sun=6)
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    istTime.setUTCDate(istTime.getUTCDate() - daysSinceMonday);
+    istTime.setUTCHours(0, 0, 0, 0);
+    return new Date(istTime.getTime() - this.IST_OFFSET_MS);
+  }
+
+  /**
+   * Get 1st of current calendar month 00:00 IST.
+   */
+  private getMonthStart(date: Date): Date {
+    const istTime = new Date(date.getTime() + this.IST_OFFSET_MS);
+    istTime.setUTCDate(1);
+    istTime.setUTCHours(0, 0, 0, 0);
+    return new Date(istTime.getTime() - this.IST_OFFSET_MS);
+  }
+
+  /**
+   * Get 1st of the previous calendar month 00:00 IST.
+   */
+  private getPriorMonthStart(date: Date): Date {
+    const istTime = new Date(date.getTime() + this.IST_OFFSET_MS);
+    const currentMonth = istTime.getUTCMonth(); // 0-based
+    istTime.setUTCMonth(currentMonth - 1);
+    istTime.setUTCDate(1);
+    istTime.setUTCHours(0, 0, 0, 0);
     return new Date(istTime.getTime() - this.IST_OFFSET_MS);
   }
 
@@ -678,17 +710,24 @@ export class AnalyticsAdminService {
       : Prisma.empty;
 
     // Step 1: Determine period bounds
-    // For 'All' use 90 days to avoid generating hourly slots from epoch
+    // Chart graph uses rolling window for 24H/7D/30D (as before)
+    // OHLC values use calendar period from getPeriodBounds
     let periodStart: Date;
+    let ohlcPeriodStart: Date | undefined;
     if (timeRange === 'All') {
       periodStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     } else {
       const bounds = this.getPeriodBounds(timeRange, now);
-      // Use IST-day-boundary from getPeriodBounds directly (no UTC hour alignment).
-      // The SQL DATE_TRUNC('hour', ...) naturally handles hour grouping.
-      // This keeps periodStart consistent with getKpiData, so KPI totals and
-      // chart data share the same time boundaries.
-      periodStart = bounds.periodStart;
+      if (timeRange === '24H' || timeRange === '7D' || timeRange === '30D') {
+        // Rolling window for chart graph
+        const istDayStart = this.getISTDayStart(now);
+        const days = timeRange === '7D' ? 6 : timeRange === '30D' ? 29 : 0;
+        periodStart = new Date(istDayStart.getTime() - days * 24 * 60 * 60 * 1000);
+        // Calendar period for OHLC
+        ohlcPeriodStart = bounds.periodStart;
+      } else {
+        periodStart = bounds.periodStart;
+      }
     }
 
     // Step 2: Query hourly aggregates in UTC
@@ -728,13 +767,21 @@ export class AnalyticsAdminService {
     const endEpoch = Math.floor(now.getTime() / 1000);
     const hourSeconds = 3600;
 
-    // Align start to the previous UTC hour (round down)
-    // This captures charges at 18:30 UTC which get grouped into 18:00 UTC bucket
-    const alignedStart = startEpoch - (startEpoch % hourSeconds);
+    // Align start to the next UTC hour AT or AFTER periodStart (round up)
+    // This prevents displaying zero-filled buckets BEFORE the period boundary.
+    // Merge any data from the last partial UTC hour (between periodStart and the
+    // rounded-up boundary) into the first full bucket so no charges are lost.
+    const alignedStart = Math.ceil(startEpoch / hourSeconds) * hourSeconds;
+    const partialMergeValue = dataMap.get(alignedStart - hourSeconds) ?? 0;
 
     const hourlySeries: Array<{ time: number; value: number }> = [];
     for (let t = alignedStart; t <= endEpoch; t += hourSeconds) {
-      hourlySeries.push({ time: t, value: dataMap.get(t) ?? 0 });
+      let value = dataMap.get(t) ?? 0;
+      // Merge partial-hour data into the first full bucket
+      if (t === alignedStart && partialMergeValue > 0) {
+        value += partialMergeValue;
+      }
+      hourlySeries.push({ time: t, value: Math.round(value * 100) / 100 });
     }
 
     if (hourlySeries.length === 0) {
@@ -780,28 +827,66 @@ export class AnalyticsAdminService {
       return emptyResponse;
     }
 
-    // Remove ONLY the very last bucket if it's zero AND we're at the current hour (incomplete bucket)
-    // Do NOT remove buckets that have non-zero values, even if followed by zeros
-    if (
-      aggregatedSeries.length > 1 &&
-      aggregatedSeries[aggregatedSeries.length - 1].value === 0
-    ) {
-      // Check if the second-to-last bucket has data (keep it if it does)
-      const secondLast = aggregatedSeries[aggregatedSeries.length - 2];
-      if (secondLast && secondLast.value > 0) {
-        // Only remove if we're in the current (incomplete) hour
-        aggregatedSeries.pop();
-      }
-    }
-
     // Step 5: Calculate OHLC from the final aggregated series
-    const open = aggregatedSeries[0].value;
-    const close = aggregatedSeries[aggregatedSeries.length - 1].value;
-    const high = Math.max(...aggregatedSeries.map((p) => p.value));
+    let open = aggregatedSeries[0].value;
+    let close = aggregatedSeries[aggregatedSeries.length - 1].value;
+    let high = Math.max(...aggregatedSeries.map((p) => p.value));
     const nonZeroValues = aggregatedSeries
       .map((p) => p.value)
       .filter((v) => v > 0);
-    const low = nonZeroValues.length > 0 ? Math.min(...nonZeroValues) : 0;
+    let low = nonZeroValues.length > 0 ? Math.min(...nonZeroValues) : 0;
+
+    // For 24H/7D/30D, override OHLC values with calendar-period data
+    // Chart graph stays rolling window, but OHLC text labels show this period
+    if ((timeRange === '24H' || timeRange === '7D' || timeRange === '30D') && ohlcPeriodStart) {
+      const ohlcRows = await this.prisma.$queryRaw<
+        Array<{ time: number; total_cents: bigint }>
+      >`
+        SELECT
+          EXTRACT(EPOCH FROM DATE_TRUNC('hour', "created_at") AT TIME ZONE 'UTC')::int as time,
+          SUM("amount_cents")::bigint as total_cents
+        FROM "billing_charges"
+        WHERE "created_at" >= ${ohlcPeriodStart}
+          AND "cost_classification" = ${costClassification}
+          ${userFilterSql}
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `;
+
+      const ohlcDataMap = new Map<number, number>();
+      for (const row of ohlcRows) {
+        ohlcDataMap.set(Number(row.time), Number(row.total_cents) / 100);
+      }
+
+      // Generate hourly series from ohlcPeriodStart to now (same zero-fill pattern)
+      const ohlcStartEpoch = Math.floor(ohlcPeriodStart.getTime() / 1000);
+      const ohlcAligned = Math.ceil(ohlcStartEpoch / hourSeconds) * hourSeconds;
+      const ohlcPartialMerge = ohlcDataMap.get(ohlcAligned - hourSeconds) ?? 0;
+
+      const ohlcHourly: Array<{ value: number }> = [];
+      for (let t = ohlcAligned; t <= endEpoch; t += hourSeconds) {
+        let v = ohlcDataMap.get(t) ?? 0;
+        if (t === ohlcAligned && ohlcPartialMerge > 0) v += ohlcPartialMerge;
+        ohlcHourly.push({ value: Math.round(v * 100) / 100 });
+      }
+
+      // Bucket aggregate using same bucketSize
+      const ohlcAggregated: number[] = [];
+      for (let i = 0; i < ohlcHourly.length; i += bucketSize) {
+        const bucket = ohlcHourly.slice(i, i + bucketSize);
+        const sum = bucket.reduce((acc, p) => acc + p.value, 0);
+        ohlcAggregated.push(Math.round(sum * 100) / 100);
+      }
+
+      // Override OHLC values with calendar-period data
+      if (ohlcAggregated.length > 0) {
+        open = ohlcAggregated[0];
+        close = ohlcAggregated[ohlcAggregated.length - 1];
+        high = Math.max(...ohlcAggregated);
+        const ohlcNonZero = ohlcAggregated.filter(v => v > 0);
+        low = ohlcNonZero.length > 0 ? Math.min(...ohlcNonZero) : 0;
+      }
+    }
 
     // Step 6: Calculate rate metrics
     // currentRate should always reflect the most recent HOUR's revenue (independent of timeframe/bucket size)
@@ -829,7 +914,7 @@ export class AnalyticsAdminService {
     // part of yesterday (e.g. for 24H at ~11:30 AM IST, it would only examine
     // ~13:00 IST yesterday → midnight, losing all morning/afternoon data).
     let previousHigh = 0;
-    if (timeRange !== 'All') {
+    if ((timeRange as string) !== 'All') {
       const pb = this.getPeriodBounds(timeRange, now);
       // Use IST-day-boundary prior period from getPeriodBounds directly.
       // No UTC hour alignment — keeps prior period consistent with KPI's prior period.
@@ -918,9 +1003,9 @@ export class AnalyticsAdminService {
         };
       }
       case '7D': {
-        // Last 7 complete IST days (from 00:00 IST 7 days ago)
-        const periodStart = new Date(istDayStart.getTime() - 6 * 24 * 60 * 60 * 1000);
-        // Prior period: 7 days before periodStart
+        // Current calendar week: Monday 00:00 IST to now
+        const periodStart = this.getWeekStart(now);
+        // Prior week: previous Monday 00:00 IST to this Monday 00:00 IST
         const priorStart = new Date(periodStart.getTime() - 7 * 24 * 60 * 60 * 1000);
         return {
           periodStart,
@@ -931,16 +1016,16 @@ export class AnalyticsAdminService {
         };
       }
       case '30D': {
-        // Last 30 complete IST days (from 00:00 IST 30 days ago)
-        const periodStart = new Date(istDayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
-        // Prior period: 30 days before periodStart
-        const priorStart = new Date(periodStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+        // Current calendar month: 1st of month 00:00 IST to now
+        const periodStart = this.getMonthStart(now);
+        // Prior month: previous calendar month
+        const priorStart = this.getPriorMonthStart(now);
         return {
           periodStart,
           priorStart,
           priorEnd: periodStart,
           daysInPeriod: 30,
-          subtitleContext: 'vs prior 30 days',
+          subtitleContext: 'vs prior month',
         };
       }
       case 'All':

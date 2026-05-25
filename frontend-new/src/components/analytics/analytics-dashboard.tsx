@@ -717,7 +717,7 @@ export function AnalyticsDashboard({ user }: AnalyticsDashboardProps) {
               <div className="flex items-center gap-2 mr-1">
                 <h2 className="text-white font-semibold text-base">{isKsrceSelected ? "Capex Trend" : "Revenue Trend"}</h2>
                 <span className="text-zinc-500 text-xs">
-                  {timeRange === "24H" ? "Last 24 hours" : timeRange === "7D" ? "Last 7 days" : timeRange === "All" ? "All time" : "Last 30 days"}
+                  {timeRange === "24H" ? "Last 24 hours" : timeRange === "7D" ? "This Week" : timeRange === "All" ? "All time" : "This Month"}
                 </span>
                 <button
                   onClick={() => setChartKey(prev => prev + 1)}
