@@ -15,6 +15,8 @@ function getOAuthUrl(provider: "google" | "github"): string {
   if (KEYCLOAK_URL && KEYCLOAK_REALM && KEYCLOAK_CLIENT_ID) {
     // Clear any lingering session data before OAuth
     sessionStorage.clear();
+    // Save the IdP hint so the callback page can pass it to the backend
+    sessionStorage.setItem("laas_idp_hint", provider);
     
     const params = new URLSearchParams({
       client_id: KEYCLOAK_CLIENT_ID,

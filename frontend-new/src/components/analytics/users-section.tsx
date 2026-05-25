@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Search } from "lucide-react";
 import { getAnalyticsAccessToken } from "@/lib/token";
 
@@ -52,6 +53,31 @@ interface DepartmentsResponse {
   departments: DeptOption[];
 }
 
+interface UserDetail {
+  id: string;
+  displayName: string | null;
+  phone: string | null;
+  authType: string;
+  oauthProvider: string | null;
+  emailVerified: boolean;
+  roles: string[];
+  collegeName: string | null;
+  departmentName: string | null;
+  courseName: string | null;
+  academicYear: number | null;
+  operationalDomains: string[];
+  useCasePurposes: string[];
+  expertiseLevel: string | null;
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  websiteUrl: string | null;
+  skills: string[];
+  hasActiveSession: boolean;
+  lastLoginAt: string | null;
+  runningComputeSessions: number;
+  storageProvisioningStatus: string | null;
+}
+
 function formatISTDate(isoString: string | null | undefined): string {
   if (!isoString) return "—";
   const d = new Date(isoString);
@@ -62,6 +88,113 @@ function formatISTDate(isoString: string | null | undefined): string {
     month: "short",
     year: "numeric",
   });
+}
+
+function formatRelativeTime(isoString: string | null | undefined): string {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = Date.now();
+  const diffMs = now - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+/** A single label-value row matching the profile page InfoRow style */
+function InfoRow({ label, value, valueColor, isLast = false }: { label: string; value: string | ReactNode; valueColor?: string; isLast?: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        minHeight: "48px",
+        padding: "0 20px",
+        borderBottom: isLast ? "none" : "1px solid var(--borderColor-default)",
+      }}
+    >
+      <span
+        style={{
+          width: "160px",
+          flexShrink: 0,
+          color: "var(--fgColor-muted)",
+          fontSize: "0.75rem",
+          fontWeight: 400,
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          flex: 1,
+          fontSize: "0.875rem",
+          fontWeight: 400,
+          color: valueColor ?? "var(--fgColor-default)",
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/** Color palette for expertise level tags (avoids green/red/blue/grey used elsewhere) */
+function getExpertiseColor(level: string): { bg: string; text: string } {
+  switch (level.toLowerCase()) {
+    case "beginner":
+      return { bg: "#D97706", text: "#fff" }; // solid amber
+    case "intermediate":
+      return { bg: "#0891B2", text: "#fff" }; // solid cyan
+    case "advanced":
+      return { bg: "#7C3AED", text: "#fff" }; // solid violet
+    case "expert":
+      return { bg: "#B45309", text: "#fff" }; // solid dark amber
+    default:
+      return { bg: "var(--bgColor-muted)", text: "var(--fgColor-muted)" };
+  }
+}
+
+/** Auth badge color + label based on oauthProvider and authType */
+function getAuthBadge(oauthProvider: string | null, authType: string): { bg: string; label: string } {
+  if (oauthProvider === "google") return { bg: "#4285F4", label: "Google" };
+  if (oauthProvider === "github") return { bg: "#333333", label: "GitHub" };
+  if (oauthProvider === "keycloak") return { bg: "#4F46E5", label: "Keycloak" };
+  if (authType === "university_sso" || authType === "institution_local") return { bg: "#6366F1", label: "SSO" };
+  return { bg: "#52525B", label: "Email" };
+}
+
+/** A small pill tag matching the profile page PillTag style */
+function Pill({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "0 8px",
+        borderRadius: "2px",
+        background: "var(--bgColor-muted)",
+        fontSize: "0.75rem",
+        fontWeight: 500,
+        height: "22px",
+        color: "var(--fgColor-default)",
+        fontFamily: "var(--font-sans)",
+      }}
+    >
+      {label}
+    </span>
+  );
 }
 
 const SELECT_CHEVRON_BG =
@@ -325,6 +458,10 @@ export function UsersSection() {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const filtersRowRef = useRef<HTMLDivElement>(null);
 
+  // User detail (fetched when accordion opens)
+  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [departments, setDepartments] = useState<DeptOption[]>([]);
 
@@ -513,6 +650,38 @@ export function UsersSection() {
       return () => clearTimeout(timeout);
     }
   }, [collapsingUserId]);
+
+  // Fetch user detail when accordion expands
+  useEffect(() => {
+    if (!expandedUserId) {
+      setUserDetail(null);
+      return;
+    }
+    const token = getAnalyticsAccessToken();
+    if (!token) return;
+    let cancelled = false;
+
+    const fetchDetail = async () => {
+      setDetailLoading(true);
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/dashboard/analytics/users/${expandedUserId}/detail`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return;
+        const data: UserDetail = await res.json();
+        if (!cancelled) setUserDetail(data);
+      } catch {
+        // swallow
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    };
+    fetchDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [expandedUserId]);
 
   // Click handler for row expand/collapse
   const handleRowClick = (userId: string) => {
@@ -993,7 +1162,7 @@ export function UsersSection() {
                       ref={panelRef}
                       style={{
                         maxHeight: "0px",
-                        overflow: "hidden",
+                        overflowY: "auto",
                         transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
                         backgroundColor: "var(--bgColor-default)",
                         borderBottom: "1px solid var(--borderColor-default)",
@@ -1001,22 +1170,308 @@ export function UsersSection() {
                     >
                       <div
                         style={{
-                          height: panelMaxHeight,
                           padding: "24px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
                         }}
                       >
-                        <span
-                          style={{
-                            fontFamily: "var(--font-sans)",
-                            fontSize: "0.875rem",
-                            color: "var(--fgColor-muted)",
-                          }}
-                        >
-                          Details coming soon
-                        </span>
+                        {detailLoading ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              height: "100%",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "0.875rem",
+                                color: "var(--fgColor-muted)",
+                              }}
+                            >
+                              Loading profile...
+                            </span>
+                          </div>
+                        ) : userDetail ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "20px",
+                              height: "100%",
+                            }}
+                          >
+                            {/* Identity Bar — two columns: user info | academic details */}
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr auto",
+                                gap: "24px",
+                                padding: "16px",
+                                background: "var(--bgColor-mild)",
+                                borderRadius: "6px",
+                                border: "1px solid var(--borderColor-default)",
+                              }}
+                            >
+                              {/* Left Column: Avatar + Name + Session */}
+                              <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
+                                <div
+                                  style={{
+                                    width: "48px",
+                                    height: "48px",
+                                    borderRadius: "50%",
+                                    background: "var(--bgColor-muted)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontFamily: "var(--font-sans)",
+                                      fontSize: "1.125rem",
+                                      fontWeight: 600,
+                                      color: "var(--fgColor-default)",
+                                    }}
+                                  >
+                                    {fullName.charAt(0)?.toUpperCase() || "?"}
+                                  </span>
+                                </div>
+
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                    <span
+                                      style={{
+                                        fontFamily: "var(--font-sans)",
+                                        fontSize: "1rem",
+                                        fontWeight: 600,
+                                        color: "var(--fgColor-default)",
+                                      }}
+                                    >
+                                      {fullName}
+                                    </span>
+                                    <span
+                                      style={{
+                                        display: "inline-flex",
+                                        padding: "2px 8px",
+                                        borderRadius: "9999px",
+                                        fontSize: "0.6875rem",
+                                        fontWeight: 500,
+                                        fontFamily: "var(--font-sans)",
+                                        background: getAuthBadge(userDetail.oauthProvider, userDetail.authType).bg,
+                                        color: "#fff",
+                                      }}
+                                    >
+                                      {getAuthBadge(userDetail.oauthProvider, userDetail.authType).label}
+                                    </span>
+                                    {userDetail.emailVerified && (
+                                      <span
+                                        style={{
+                                          display: "inline-flex",
+                                          padding: "2px 8px",
+                                          borderRadius: "9999px",
+                                          fontSize: "0.6875rem",
+                                          fontWeight: 500,
+                                          fontFamily: "var(--font-sans)",
+                                          background: "#059669",
+                                          color: "#fff",
+                                        }}
+                                      >
+                                        Verified
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                                    {userDetail.hasActiveSession ? (
+                                      <>
+                                        <span
+                                          className="w-2 h-2 rounded-full"
+                                          style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: "50%",
+                                            backgroundColor: "#34D399",
+                                            flexShrink: 0,
+                                          }}
+                                        />
+                                        <span
+                                          style={{
+                                            fontFamily: "var(--font-sans)",
+                                            fontSize: "0.8125rem",
+                                            color: "#34D399",
+                                          }}
+                                        >
+                                          Active Now
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span
+                                          style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: "50%",
+                                            backgroundColor: "#818178",
+                                            flexShrink: 0,
+                                          }}
+                                        />
+                                        <span
+                                          style={{
+                                            fontFamily: "var(--font-sans)",
+                                            fontSize: "0.8125rem",
+                                            color: "var(--fgColor-muted)",
+                                          }}
+                                        >
+                                          Offline
+                                        </span>
+                                      </>
+                                    )}
+                                    <span style={{ color: "var(--fgColor-muted)", fontSize: "0.8125rem" }}>·</span>
+                                    <span
+                                      style={{
+                                        fontFamily: "var(--font-sans)",
+                                        fontSize: "0.8125rem",
+                                        color: "var(--fgColor-muted)",
+                                      }}
+                                    >
+                                      {userDetail.lastLoginAt
+                                        ? `Last login ${formatRelativeTime(userDetail.lastLoginAt)}`
+                                        : "Never logged in"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right Column: Academic details — restructured as single flex row */}
+                              {(userDetail.collegeName || userDetail.courseName) && (
+                                <div style={{ display: "flex", alignItems: "flex-start", gap: "32px", minWidth: 0 }}>
+                                  {/* Institution + Department stacked */}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    {userDetail.collegeName && (
+                                      <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--fgColor-default)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        {userDetail.collegeName}
+                                      </div>
+                                    )}
+                                    {userDetail.departmentName && (
+                                      <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        {userDetail.departmentName}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {/* Course + Expertise tag */}
+                                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                    {userDetail.courseName && (
+                                      <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4 }}>
+                                        {userDetail.courseName}{userDetail.academicYear ? ` \u00B7 Year ${userDetail.academicYear}` : ""}
+                                      </div>
+                                    )}
+                                    {userDetail.expertiseLevel && (
+                                      <span style={{ display: "inline-block", fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, padding: "3px 12px", borderRadius: "4px", marginTop: "6px", background: getExpertiseColor(userDetail.expertiseLevel).bg, color: getExpertiseColor(userDetail.expertiseLevel).text }}>
+                                        {userDetail.expertiseLevel}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 2-Column Info Grid */}
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr",
+                                gap: "16px",
+                                flex: 1,
+                                overflow: "hidden",
+                              }}
+                            >
+                              {/* Left Column */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "16px", overflow: "auto" }}>
+                                {/* Account Card — SectionCard style */}
+                                <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden" }}>
+                                  <div
+                                    style={{
+                                      background: "var(--bgColor-muted)",
+                                      padding: "0 20px",
+                                      height: "40px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      borderBottom: "1px solid var(--borderColor-default)",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: "0.75rem",
+                                        fontWeight: 500,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.06em",
+                                        color: "var(--fgColor-default)",
+                                        fontFamily: "var(--font-sans)",
+                                      }}
+                                    >
+                                      Account
+                                    </span>
+                                  </div>
+                                  <div style={{ padding: "0" }}>
+                                    <InfoRow label="Account ID" value={<span style={{ display: "flex", alignItems: "center", gap: "8px" }}><code style={{ fontFamily: '"Suisse Intl Mono", ui-monospace, monospace', fontSize: "0.875rem", background: "var(--bgColor-muted)", padding: "4px 8px", borderRadius: "4px" }}>{userDetail.id}</code><button onClick={() => navigator.clipboard.writeText(userDetail.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fgColor-muted)", fontSize: "0.75rem" }}>Copy</button></span>} isLast={false} />
+                                    <InfoRow label="Auth Type" value={userDetail.oauthProvider === "google" ? "Google OAuth" : userDetail.oauthProvider === "github" ? "GitHub OAuth" : userDetail.authType === "university_sso" || userDetail.authType === "institution_local" ? "Institutional SSO" : "Email & Password"} isLast={false} />
+                                    <InfoRow label="Phone" value={userDetail.phone || "Not set"} isLast={true} />
+                                  </div>
+                                </div>
+
+                              </div>
+
+                              {/* Right Column */}
+                              <div style={{ display: "flex", flexDirection: "column", gap: "16px", overflow: "auto" }}>
+                                {/* Links & Skills Card — SectionCard style */}
+                                <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden" }}>
+                                  <div
+                                    style={{
+                                      background: "var(--bgColor-muted)",
+                                      padding: "0 20px",
+                                      height: "40px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      borderBottom: "1px solid var(--borderColor-default)",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: "0.75rem",
+                                        fontWeight: 500,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.06em",
+                                        color: "var(--fgColor-default)",
+                                        fontFamily: "var(--font-sans)",
+                                      }}
+                                    >
+                                      Links & Skills
+                                    </span>
+                                  </div>
+                                  <div style={{ padding: "0" }}>
+                                    <InfoRow label="GitHub" value={userDetail.githubUrl || "Not set"} isLast={false} />
+                                    <InfoRow label="LinkedIn" value={userDetail.linkedinUrl || "Not set"} isLast={false} />
+                                    <InfoRow label="Website" value={userDetail.websiteUrl || "Not set"} isLast={userDetail.skills.length === 0} />
+                                    {userDetail.skills.length > 0 && (
+                                      <div style={{ borderTop: "1px solid var(--borderColor-default)", padding: "12px 20px" }}>
+                                        <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "8px" }}>
+                                          Skills
+                                        </span>
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                          {userDetail.skills.map((s: string) => (
+                                            <Pill key={s} label={s} />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   )}

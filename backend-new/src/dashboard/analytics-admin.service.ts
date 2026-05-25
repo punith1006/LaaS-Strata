@@ -145,6 +145,40 @@ export interface AnalyticsUsersResponse {
   totalPages: number;
 }
 
+export interface UserDetailResponse {
+  // Identity
+  id: string;
+  displayName: string | null;
+  phone: string | null;
+  authType: string;
+  oauthProvider: string | null;
+  emailVerified: boolean;
+  roles: string[];
+
+  // Academic (only populated for students)
+  collegeName: string | null;
+  departmentName: string | null;
+  courseName: string | null;
+  academicYear: number | null;
+  operationalDomains: string[];
+  useCasePurposes: string[];
+  expertiseLevel: string | null;
+
+  // Links & Skills
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  websiteUrl: string | null;
+  skills: string[];
+
+  // Session / Activity
+  hasActiveSession: boolean;
+  lastLoginAt: string | null;
+  runningComputeSessions: number;
+
+  // Storage
+  storageProvisioningStatus: string | null;
+}
+
 export interface AnalyticsClientsResponse {
   clients: Array<{ id: string; name: string }>;
 }
@@ -2486,6 +2520,74 @@ export class AnalyticsAdminService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Admin: Get detailed user profile for the accordion panel in Users tab.
+   * Includes identity, academic, links/skills, session status, and storage info.
+   */
+  async getUserDetail(userId: string): Promise<UserDetailResponse> {
+    // 1. Fetch user + profile + roles + running compute sessions (with lastActivityAt)
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+        userOrgRoles: {
+          include: { role: { select: { name: true } } },
+        },
+        sessions: {
+          where: { status: 'running' },
+          select: { id: true, lastActivityAt: true },
+        },
+      },
+    });
+
+    // 2. Determine if user is active now based on recency (15 min threshold)
+    const FIFTEEN_MIN_MS = 15 * 60 * 1000;
+    const now = Date.now();
+
+    // Signal A: Running compute session with recent activity
+    const hasRecentSessionActivity =
+      user?.sessions?.some(
+        (s) => s.lastActivityAt && now - s.lastActivityAt.getTime() < FIFTEEN_MIN_MS
+      ) ?? false;
+
+    // Signal B: Recent login
+    const recentLogin =
+      user?.lastLoginAt && now - user.lastLoginAt.getTime() < FIFTEEN_MIN_MS;
+
+    const hasActiveSession = hasRecentSessionActivity || !!recentLogin;
+
+    // 3. Get department name from UserDepartment relation
+    const userDept = await this.prisma.userDepartment.findFirst({
+      where: { userId },
+      include: { department: { select: { name: true } } },
+    });
+
+    return {
+      id: user?.id ?? '',
+      displayName: user?.displayName ?? null,
+      phone: user?.phone ?? null,
+      authType: user?.authType ?? 'email',
+      oauthProvider: user?.oauthProvider ?? null,
+      emailVerified: !!user?.emailVerifiedAt,
+      roles: user?.userOrgRoles?.map((r) => r.role.name) ?? [],
+      collegeName: user?.profile?.collegeName ?? null,
+      departmentName: userDept?.department?.name ?? null,
+      courseName: user?.profile?.courseName ?? null,
+      academicYear: user?.profile?.academicYear ?? null,
+      operationalDomains: user?.profile?.operationalDomains ?? [],
+      useCasePurposes: user?.profile?.useCasePurposes ?? [],
+      expertiseLevel: user?.profile?.expertiseLevel ?? null,
+      githubUrl: user?.profile?.githubUrl ?? null,
+      linkedinUrl: user?.profile?.linkedinUrl ?? null,
+      websiteUrl: user?.profile?.websiteUrl ?? null,
+      skills: user?.profile?.skills ?? [],
+      hasActiveSession,
+      lastLoginAt: user?.lastLoginAt?.toISOString() ?? null,
+      runningComputeSessions: user?.sessions?.length ?? 0,
+      storageProvisioningStatus: user?.storageProvisioningStatus ?? null,
     };
   }
 

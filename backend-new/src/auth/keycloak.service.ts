@@ -16,6 +16,8 @@ interface KeycloakUserInfo {
   given_name?: string;
   family_name?: string;
   name?: string;
+  /** Identity provider alias (e.g. "google", "github") for brokered identities */
+  identity_provider?: string;
 }
 
 @Injectable()

@@ -174,6 +174,12 @@ export class DashboardController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('analytics/users/:userId/detail')
+  async getUserDetail(@Param('userId') userId: string) {
+    return this.analyticsAdminService.getUserDetail(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('analytics/clients')
   async getAnalyticsClients() {
     return this.analyticsAdminService.getAnalyticsClients();

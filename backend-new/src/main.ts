@@ -13,13 +13,14 @@ import { map } from 'rxjs';
 const BigIntInterceptor = {
   intercept: (_context: any, next: { handle: () => any }) =>
     next.handle().pipe(
-      map((data: unknown) =>
-        JSON.parse(
+      map((data: unknown) => {
+        if (data === null || data === undefined) return data;
+        return JSON.parse(
           JSON.stringify(data, (_key: string, value: unknown) =>
             typeof value === 'bigint' ? Number(value) : value,
           ),
-        ),
-      ),
+        );
+      }),
     ),
 };
 

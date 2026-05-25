@@ -639,7 +639,7 @@ export class AuthService {
         authType = 'public_oauth';
         defaultOrgId = publicOrg.id;
         roleName = 'public_user';
-        oauthProvider = this.detectProvider(userInfo.sub);
+        oauthProvider = this.detectProvider(userInfo, idpHint);
       }
       const isInstitution = authType === 'university_sso';
       const storageUid = isInstitution
@@ -1040,9 +1040,18 @@ export class AuthService {
       : { status: 'failed', error: result.error };
   }
 
-  private detectProvider(keycloakSub: string): string {
-    if (keycloakSub.includes('google')) return 'google';
-    if (keycloakSub.includes('github')) return 'github';
+  private detectProvider(
+    userInfo: { sub: string; identity_provider?: string },
+    idpHint?: string,
+  ): string {
+    // 1. Check identity_provider claim from Keycloak userinfo (most reliable)
+    if (userInfo.identity_provider) return userInfo.identity_provider;
+    // 2. Check idpHint passed from the frontend callback
+    if (idpHint) return idpHint;
+    // 3. Fallback to sub string matching (less reliable, opaque UUID in most Keycloak configs)
+    if (userInfo.sub.includes('google')) return 'google';
+    if (userInfo.sub.includes('github')) return 'github';
+    // 4. Default
     return 'keycloak';
   }
 
