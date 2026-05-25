@@ -11,6 +11,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 const ROW_HEIGHT = 48;
 const PAGINATION_ROW_HEIGHT = 52;
 const TABLE_HEADER_HEIGHT = 48;
+const LAYOUT_BUFFER = 12; // px of extra safety to prevent bottom clipping
 
 type UsersTab = "users" | "dept";
 
@@ -76,6 +77,12 @@ interface UserDetail {
   lastLoginAt: string | null;
   runningComputeSessions: number;
   storageProvisioningStatus: string | null;
+  // Wallet / Billing
+  balanceCents: number | null;
+  currency: string | null;
+  lifetimeSpentCents: number | null;
+  spendLimitCents: number | null;
+  spendLimitEnabled: boolean;
 }
 
 function formatISTDate(isoString: string | null | undefined): string {
@@ -173,6 +180,75 @@ function getAuthBadge(oauthProvider: string | null, authType: string): { bg: str
   if (oauthProvider === "keycloak") return { bg: "#4F46E5", label: "Keycloak" };
   if (authType === "university_sso" || authType === "institution_local") return { bg: "#6366F1", label: "SSO" };
   return { bg: "#52525B", label: "Email" };
+}
+
+/** Metric card for Balance Summary — matches billing-tab-content MetricCard */
+function MetricCard({ icon, label, value, subValue, highlight }: { icon: React.ReactNode; label: string; value: string; subValue?: string; highlight?: boolean }) {
+  return (
+    <div
+      style={{
+        backgroundColor: highlight ? "var(--bgColor-info, #cedeff)" : "var(--bgColor-mild)",
+        border: highlight ? "1px solid var(--borderColor-info, #3a73ff)" : "1px solid var(--borderColor-default)",
+        borderRadius: "4px",
+        padding: "16px",
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        flex: 1,
+        minWidth: "140px",
+      }}
+    >
+      <div
+        style={{
+          width: "40px",
+          height: "40px",
+          borderRadius: "4px",
+          backgroundColor: highlight ? "transparent" : "var(--bgColor-muted)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </div>
+      <div>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-xs)",
+            color: highlight ? "var(--fgColor-info, #3a73ff)" : "var(--fgColor-muted)",
+            marginBottom: "2px",
+          }}
+        >
+          {label}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-h4)",
+            fontWeight: 600,
+            color: "var(--fgColor-default)",
+            lineHeight: 1.2,
+          }}
+        >
+          {value}
+        </div>
+        {subValue && (
+          <div
+            style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-xs)",
+              color: "var(--fgColor-muted)",
+              marginTop: "2px",
+            }}
+          >
+            {subValue}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** A small pill tag matching the profile page PillTag style */
@@ -457,6 +533,10 @@ export function UsersSection() {
   const panelRef = useRef<HTMLDivElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const filtersRowRef = useRef<HTMLDivElement>(null);
+  const outerContainerRef = useRef<HTMLDivElement>(null);
+  const calcLayoutRef = useRef<() => void>(() => {});
+  const firstRowRef = useRef<HTMLDivElement>(null);
+  const paginationRowRef = useRef<HTMLDivElement>(null);
 
   // User detail (fetched when accordion opens)
   const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
@@ -600,14 +680,29 @@ export function UsersSection() {
 
       const containerTop = tableContainerRef.current.getBoundingClientRect().top;
 
+      // Measure actual rendered heights from DOM (fall back to constants when no data yet)
+      const actualRowHeight = firstRowRef.current
+        ? firstRowRef.current.getBoundingClientRect().height
+        : ROW_HEIGHT;
+
+      const actualPaginationHeight = paginationRowRef.current
+        ? paginationRowRef.current.getBoundingClientRect().height
+        : PAGINATION_ROW_HEIGHT;
+
+      const headerEl = tableContainerRef.current.firstElementChild as HTMLElement | null;
+      const actualHeaderHeight = headerEl
+        ? headerEl.getBoundingClientRect().height
+        : TABLE_HEADER_HEIGHT;
+
       // --- Page size: how many data rows fit with pagination row at the bottom ---
       const availableForRows =
         window.innerHeight -
         containerTop -
         2 - // table border-top + border-bottom
-        TABLE_HEADER_HEIGHT -
-        PAGINATION_ROW_HEIGHT;
-      const rows = Math.max(1, Math.floor(availableForRows / ROW_HEIGHT));
+        actualHeaderHeight -
+        actualPaginationHeight -
+        LAYOUT_BUFFER;
+      const rows = Math.max(1, Math.floor(availableForRows / actualRowHeight));
       setDynamicPageSize(rows);
 
       // --- Panel height: space from expanded row bottom to pagination row top ---
@@ -615,16 +710,33 @@ export function UsersSection() {
         window.innerHeight -
         containerTop -
         2 - // border top/bottom
-        TABLE_HEADER_HEIGHT -
-        ROW_HEIGHT - // expanded row
-        PAGINATION_ROW_HEIGHT -
+        actualHeaderHeight -
+        actualRowHeight - // expanded row
+        actualPaginationHeight -
         8; // small buffer
       setPanelMaxHeight(Math.max(200, Math.floor(panelH)));
     };
 
+    calcLayoutRef.current = calcLayout;
     calcLayout();
     window.addEventListener("resize", calcLayout);
     return () => window.removeEventListener("resize", calcLayout);
+  }, []);
+
+  // Recalculate when data finishes loading (real rows render at 48px, not skeleton height)
+  useEffect(() => {
+    if (!isLoading && users.length > 0) {
+      requestAnimationFrame(() => calcLayoutRef.current());
+    }
+  }, [isLoading, users]);
+
+  // ResizeObserver on outer container for responsive container-level changes
+  useEffect(() => {
+    const el = outerContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => calcLayoutRef.current());
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   // Animate panel open: after mount, set max-height to trigger CSS transition
@@ -742,7 +854,7 @@ export function UsersSection() {
   ];
 
   return (
-    <div style={{ padding: "15px", fontFamily: "var(--font-sans)", overflow: "hidden", height: "100%" }}>
+    <div ref={outerContainerRef} style={{ padding: "15px", fontFamily: "var(--font-sans)", overflow: "hidden", height: "100%" }}>
       {/* Page Header — exact billing page styling */}
       <h1
         style={{
@@ -1001,7 +1113,7 @@ export function UsersSection() {
               No users found
             </div>
           ) : (
-            orderedUsers.map((u) => {
+            orderedUsers.map((u, i) => {
               const fullName =
                 `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || "—";
               const isExpanded = expandedUserId === u.id;
@@ -1011,6 +1123,7 @@ export function UsersSection() {
                 <div key={u.id}>
                   {/* Row */}
                   <div
+                    ref={i === 0 ? firstRowRef : undefined}
                     style={{
                       display: "grid",
                       gridTemplateColumns: GRID_TEMPLATE,
@@ -1390,7 +1503,7 @@ export function UsersSection() {
                               {/* Left Column */}
                               <div style={{ display: "flex", flexDirection: "column", gap: "16px", overflow: "auto" }}>
                                 {/* Account Card — SectionCard style */}
-                                <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden" }}>
+                                <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
                                   <div
                                     style={{
                                       background: "var(--bgColor-muted)",
@@ -1414,7 +1527,7 @@ export function UsersSection() {
                                       Account
                                     </span>
                                   </div>
-                                  <div style={{ padding: "0" }}>
+                                  <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
                                     <InfoRow label="Account ID" value={<span style={{ display: "flex", alignItems: "center", gap: "8px" }}><code style={{ fontFamily: '"Suisse Intl Mono", ui-monospace, monospace', fontSize: "0.875rem", background: "var(--bgColor-muted)", padding: "4px 8px", borderRadius: "4px" }}>{userDetail.id}</code><button onClick={() => navigator.clipboard.writeText(userDetail.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--fgColor-muted)", fontSize: "0.75rem" }}>Copy</button></span>} isLast={false} />
                                     <InfoRow label="Auth Type" value={userDetail.oauthProvider === "google" ? "Google OAuth" : userDetail.oauthProvider === "github" ? "GitHub OAuth" : userDetail.authType === "university_sso" || userDetail.authType === "institution_local" ? "Institutional SSO" : "Email & Password"} isLast={false} />
                                     <InfoRow label="Phone" value={userDetail.phone || "Not set"} isLast={true} />
@@ -1426,7 +1539,7 @@ export function UsersSection() {
                               {/* Right Column */}
                               <div style={{ display: "flex", flexDirection: "column", gap: "16px", overflow: "auto" }}>
                                 {/* Links & Skills Card — SectionCard style */}
-                                <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden" }}>
+                                <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
                                   <div
                                     style={{
                                       background: "var(--bgColor-muted)",
@@ -1450,7 +1563,7 @@ export function UsersSection() {
                                       Links & Skills
                                     </span>
                                   </div>
-                                  <div style={{ padding: "0" }}>
+                                  <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
                                     <InfoRow label="GitHub" value={userDetail.githubUrl || "Not set"} isLast={false} />
                                     <InfoRow label="LinkedIn" value={userDetail.linkedinUrl || "Not set"} isLast={false} />
                                     <InfoRow label="Website" value={userDetail.websiteUrl || "Not set"} isLast={userDetail.skills.length === 0} />
@@ -1470,6 +1583,84 @@ export function UsersSection() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* Balance Summary Section */}
+                            <div
+                              style={{
+                                background: "var(--bgColor-mild)",
+                                border: "1px solid var(--borderColor-default)",
+                                borderRadius: "4px",
+                                padding: "24px",
+                              }}
+                            >
+                              <h3
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "var(--text-h4)",
+                                  fontWeight: 600,
+                                  color: "var(--fgColor-default)",
+                                  margin: 0,
+                                  marginBottom: "4px",
+                                }}
+                              >
+                                Balance Summary
+                              </h3>
+                              <p
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "var(--text-sm)",
+                                  color: "var(--fgColor-muted)",
+                                  margin: 0,
+                                  marginBottom: "16px",
+                                }}
+                              >
+                                Spending overview
+                              </p>
+                              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                                <MetricCard
+                                  highlight
+                                  icon={
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--fgColor-info, #3a73ff)" }}>
+                                      <rect x="2" y="6" width="20" height="12" rx="2" />
+                                      <path d="M2 10h20" />
+                                    </svg>
+                                  }
+                                  label="Credit balance"
+                                  value={`₹${((userDetail.balanceCents ?? 0) / 100).toFixed(2)}`}
+                                />
+                                <MetricCard
+                                  icon={
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--fgColor-muted)" }}>
+                                      <circle cx="12" cy="12" r="10" />
+                                      <path d="M12 6v6l4 2" />
+                                    </svg>
+                                  }
+                                  label="Burn rate"
+                                  value="₹0.00/hr"
+                                />
+                                <MetricCard
+                                  icon={
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--fgColor-muted)" }}>
+                                      <circle cx="12" cy="12" r="10" />
+                                      <path d="M12 6v6l4 2" />
+                                    </svg>
+                                  }
+                                  label="Runway"
+                                  value="∞"
+                                />
+                                <MetricCard
+                                  icon={
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--fgColor-muted)" }}>
+                                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                      <line x1="12" y1="9" x2="12" y2="13" />
+                                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                  }
+                                  label="Spend limit"
+                                  value={userDetail.spendLimitEnabled ? `₹${((userDetail.spendLimitCents ?? 0) / 100).toFixed(2)}` : "Not set"}
+                                />
+                              </div>
+                            </div>
                           </div>
                         ) : null}
                       </div>
@@ -1483,6 +1674,7 @@ export function UsersSection() {
           {/* Pagination footer inside table */}
           {total > 0 && (
             <div
+              ref={paginationRowRef}
               style={{
                 display: "flex",
                 justifyContent: "space-between",

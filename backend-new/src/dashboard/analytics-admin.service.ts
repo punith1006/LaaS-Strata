@@ -177,6 +177,13 @@ export interface UserDetailResponse {
 
   // Storage
   storageProvisioningStatus: string | null;
+
+  // Wallet / Billing
+  balanceCents: number | null;
+  currency: string | null;
+  lifetimeSpentCents: number | null;
+  spendLimitCents: number | null;
+  spendLimitEnabled: boolean;
 }
 
 export interface AnalyticsClientsResponse {
@@ -2565,6 +2572,11 @@ export class AnalyticsAdminService {
       include: { department: { select: { name: true } } },
     });
 
+    // 4. Fetch wallet data
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+
     return {
       id: user?.id ?? '',
       displayName: user?.displayName ?? null,
@@ -2588,6 +2600,13 @@ export class AnalyticsAdminService {
       lastLoginAt: user?.lastLoginAt?.toISOString() ?? null,
       runningComputeSessions: user?.sessions?.length ?? 0,
       storageProvisioningStatus: user?.storageProvisioningStatus ?? null,
+
+      // Wallet / Billing
+      balanceCents: wallet ? Number(wallet.balanceCents) : null,
+      currency: wallet?.currency ?? null,
+      lifetimeSpentCents: wallet ? Number(wallet.lifetimeSpentCents) : null,
+      spendLimitCents: wallet?.spendLimitCents ?? null,
+      spendLimitEnabled: wallet?.spendLimitEnabled ?? false,
     };
   }
 

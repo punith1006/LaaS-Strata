@@ -55,22 +55,26 @@ export class PaymentService {
 
     const amountInPaise = Math.round(amountInRupees * 100);
 
+    // UAT OVERRIDE: Razorpay charges only ₹1 regardless of selected credit amount.
+    // The full amountInPaise is stored in PaymentTransaction and credited to wallet on verification.
+    const razorpayChargePaise = 100; // ₹1 for UAT
+
     // Create Razorpay order
     const receipt = `rcpt_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
 
     const razorpayOrder = await this.razorpay.orders.create({
-      amount: amountInPaise,
+      amount: razorpayChargePaise, // User pays ₹1 (UAT)
       currency: 'INR',
       receipt: receipt,
     });
 
-    // Create PaymentTransaction record
+    // Store full credit amount — this is what gets added to wallet on verification
     const paymentTransaction = await this.prisma.paymentTransaction.create({
       data: {
         userId,
         gateway: 'razorpay',
         gatewayOrderId: razorpayOrder.id,
-        amountCents: amountInPaise,
+        amountCents: amountInPaise, // Full credit amount (e.g., 100000 for ₹1000)
         currency: 'INR',
         status: 'pending',
       },
@@ -78,7 +82,7 @@ export class PaymentService {
 
     return {
       orderId: razorpayOrder.id,
-      amount: amountInPaise,
+      amount: razorpayChargePaise, // Frontend passes ₹1 to Razorpay checkout (UAT)
       currency: 'INR',
       keyId: process.env.RAZORPAY_KEY_ID || '',
       transactionId: paymentTransaction.id,
