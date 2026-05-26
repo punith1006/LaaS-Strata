@@ -1,225 +1,524 @@
-ai1@aiserver1:~$ sudo journalctl -b -1 | grep -A20 "May 19 05:24"
-May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503546: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: usage: realm=<selkies>, username=<>, rp=277, rb=5540, sp=277, sb=25484
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: peer usage: realm=<selkies>, username=<>, rp=0, rb=0, sp=0, sb=0
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000934: closed (2nd stage), user <> realm <selkies> origin <>, local 0.0.0.0:3478, remote 57.131.35.132:46448, reason: allocation watchdog determined stale session state
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503547: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503548: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503548: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503548: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503565: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503565: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503565: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503566: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503567: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:03 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503568: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503569: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503570: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503571: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503572: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503573: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:09 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503574: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503575: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503576: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503577: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503578: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503579: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:15 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503580: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503581: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503582: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503583: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503584: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503585: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:21 aiserver1 turnserver[1548]: 503586: : session 009000000000000935: realm <selkies> user <>: incoming packet BINDING processed, success
-May 19 05:24:28 aiserver1 kernel: igc 0000:0a:00.0 enp10s0: PCIe link lost, device now detached
-May 19 05:24:28 aiserver1 kernel: ------------[ cut here ]------------
-May 19 05:24:28 aiserver1 kernel: igc: Failed to read reg 0xc030!
-May 19 05:24:28 aiserver1 kernel: WARNING: CPU: 13 PID: 2556497 at drivers/net/ethernet/intel/igc/igc_main.c:6652 igc_rd32+0xa4/0xc0 [igc]
-May 19 05:24:28 aiserver1 kernel: Modules linked in: xt_recent tls nf_conntrack_netlink veth br_netfilter bridge stp llc xfrm_user xfrm_algo xt_set ip_set sctp ip6_udp_tunnel udp_tunnel nvme_fabrics overlay nft_chain_nat xt_nat xt_MASQUERADE nf_nat xt_addrtype xt_tcpudp xt_mark xt_connmark xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 nft_compat nf_tables nfnetlink binfmt_misc zfs(PO) spl(O) intel_rapl_msr intel_rapl_common nls_iso8859_1 edac_mce_amd kvm_amd snd_hda_codec_realtek btusb snd_hda_codec_generic snd_hda_codec_hdmi btrtl btintel btbcm kvm btmtk snd_hda_intel snd_intel_dspcfg snd_intel_sdw_acpi irqbypass snd_hda_codec snd_hda_core snd_hwdep rapl snd_pcm bluetooth snd_timer snd eeepc_wmi wmi_bmof joydev k10temp input_leds ccp ecdh_generic soundcore nvidia_uvm(OE) mac_hid acpi_pad sch_fq_codel nfsd nvmet_tcp dm_multipath scsi_dh_rdac nvmet scsi_dh_emc auth_rpcgss scsi_dh_alua nvme_keyring nfs_acl lockd grace msr efi_pstore sunrpc ip_tables x_tables autofs4 btrfs blake2b_generic raid10 raid456 async_raid6_recov
-May 19 05:24:28 aiserver1 kernel:  async_memcpy async_pq async_xor async_tx xor raid6_pq libcrc32c raid1 raid0 hid_generic amdgpu amdxcp drm_exec gpu_sched drm_buddy i2c_algo_bit drm_suballoc_helper drm_ttm_helper mfd_aaeon crct10dif_pclmul crc32_pclmul ttm nvidia_drm(OE) asus_wmi usbhid polyval_clmulni hid nvidia_modeset(OE) drm_display_helper polyval_generic ledtrig_audio ghash_clmulni_intel cec nvme sparse_keymap sha256_ssse3 nvidia(OE) platform_profile sha1_ssse3 atlantic thunderbolt ahci xhci_pci i2c_piix4 rc_core igc nvme_core macsec xhci_pci_renesas libahci ecc nvme_auth video ucsi_acpi typec_ucsi wmi gpio_amdpt typec aesni_intel crypto_simd cryptd
-May 19 05:24:28 aiserver1 kernel: CPU: 13 PID: 2556497 Comm: kworker/13:2 Tainted: P           OE      6.8.0-111-generic #111~22.04.1-Ubuntu
-May 19 05:24:28 aiserver1 kernel: Hardware name: ASUS System Product Name/ProArt X870E-CREATOR WIFI, BIOS 1512 06/05/2025
-May 19 05:24:28 aiserver1 kernel: Workqueue: events igc_watchdog_task [igc]
-May 19 05:24:28 aiserver1 kernel: RIP: 0010:igc_rd32+0xa4/0xc0 [igc]
-May 19 05:24:28 aiserver1 kernel: Code: c7 c6 68 47 44 c0 e8 9b 40 ad c9 48 8b bb 28 ff ff ff e8 3f fe 53 c9 84 c0 74 b4 44 89 e6 48 c7 c7 90 47 44 c0 e8 dc 84 ce c8 <0f> 0b eb a1 b8 ff ff ff ff 31 d2 31 f6 31 ff c3 cc cc cc cc 0f 1f
-May 19 05:24:28 aiserver1 kernel: RSP: 0018:ffffd1ce392dfd88 EFLAGS: 00010246
-May 19 05:24:28 aiserver1 kernel: RAX: 0000000000000000 RBX: ffff8aa233314cd8 RCX: 0000000000000000
-May 19 05:24:28 aiserver1 kernel: RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
-May 19 05:24:28 aiserver1 kernel: RBP: ffffd1ce392dfda0 R08: 0000000000000000 R09: 0000000000000000
-May 19 05:24:28 aiserver1 kernel: R10: 0000000000000000 R11: 0000000000000000 R12: 000000000000c030
-May 19 05:24:28 aiserver1 kernel: R13: ffff8aa233314000 R14: 0000000000000000 R15: ffff8aa2332f0d80
-May 19 05:24:28 aiserver1 kernel: FS:  0000000000000000(0000) GS:ffff8ab0bf480000(0000) knlGS:0000000000000000
-May 19 05:24:28 aiserver1 kernel: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-May 19 05:24:28 aiserver1 kernel: CR2: 000071b7441991a0 CR3: 00000002e7a3c000 CR4: 0000000000f50ef0
-May 19 05:24:28 aiserver1 kernel: PKRU: 55555554
-May 19 05:24:28 aiserver1 kernel: Call Trace:
-May 19 05:24:28 aiserver1 kernel:  <TASK>
-May 19 05:24:28 aiserver1 kernel:  igc_update_stats+0xab/0x770 [igc]
-May 19 05:24:28 aiserver1 kernel:  igc_watchdog_task+0xa4/0x540 [igc]
-May 19 05:24:28 aiserver1 kernel:  ? __schedule+0x284/0x6a0
-May 19 05:24:28 aiserver1 kernel:  process_one_work+0x181/0x3a0
-May 19 05:24:28 aiserver1 kernel:  worker_thread+0x306/0x440
-May 19 05:24:28 aiserver1 kernel:  ? __pfx_worker_thread+0x10/0x10
-May 19 05:24:28 aiserver1 kernel:  kthread+0xef/0x120
-May 19 05:24:28 aiserver1 kernel:  ? __pfx_kthread+0x10/0x10
-May 19 05:24:28 aiserver1 kernel:  ret_from_fork+0x44/0x70
-May 19 05:24:28 aiserver1 kernel:  ? __pfx_kthread+0x10/0x10
-May 19 05:24:28 aiserver1 kernel:  ret_from_fork_asm+0x1b/0x30
-May 19 05:24:28 aiserver1 kernel:  </TASK>
-May 19 05:24:28 aiserver1 kernel: ---[ end trace 0000000000000000 ]---
-May 19 05:25:01 aiserver1 CRON[3571861]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
-May 19 05:25:01 aiserver1 CRON[3571862]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
-May 19 05:25:01 aiserver1 CRON[3571861]: pam_unix(cron:session): session closed for user root
-May 19 05:25:27 aiserver1 dockerd[2026]: time="2026-05-19T05:25:27.774353127Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:49831" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:49831->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
-May 19 05:25:27 aiserver1 dockerd[2026]: time="2026-05-19T05:25:27.774381570Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:39493" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:39493->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:27 aiserver1 dockerd[2026]: time="2026-05-19T05:25:27.787875891Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:60442" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:60442->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:31 aiserver1 dockerd[2026]: time="2026-05-19T05:25:31.775059515Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:52487" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:52487->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
-May 19 05:25:31 aiserver1 dockerd[2026]: time="2026-05-19T05:25:31.775085925Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:51868" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:51868->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:31 aiserver1 dockerd[2026]: time="2026-05-19T05:25:31.788019863Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:47266" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:47266->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:32 aiserver1 dockerd[2026]: time="2026-05-19T05:25:32.779477814Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:39693" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:39693->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:32 aiserver1 dockerd[2026]: time="2026-05-19T05:25:32.779509393Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:54110" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:54110->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
-May 19 05:25:32 aiserver1 dockerd[2026]: time="2026-05-19T05:25:32.794342571Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:40251" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:40251->8.8.8.8:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:35 aiserver1 dockerd[2026]: time="2026-05-19T05:25:35.777309242Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:56646" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:56646->8.8.8.8:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
-May 19 05:25:35 aiserver1 dockerd[2026]: time="2026-05-19T05:25:35.788649946Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:47100" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:47100->8.8.8.8:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
-May 19 05:25:36 aiserver1 dockerd[2026]: time="2026-05-19T05:25:36.780168481Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:43228" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:43228->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:36 aiserver1 dockerd[2026]: time="2026-05-19T05:25:36.780199159Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:33306" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:33306->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t HTTPS"
-May 19 05:25:36 aiserver1 dockerd[2026]: time="2026-05-19T05:25:36.795192797Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:51012" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:51012->8.8.4.4:53: i/o timeout" question=";share.cello.so.\tIN\t A"
-May 19 05:25:39 aiserver1 dockerd[2026]: time="2026-05-19T05:25:39.778151933Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:50826" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:50826->8.8.4.4:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
-May 19 05:25:39 aiserver1 dockerd[2026]: time="2026-05-19T05:25:39.788789786Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:56261" dns-server="udp:8.8.4.4:53" error="read udp 172.31.0.2:56261->8.8.4.4:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
-May 19 05:25:40 aiserver1 dockerd[2026]: time="2026-05-19T05:25:40.781065051Z" level=error msg="[resolver] failed to query external DNS server" client-addr="udp:172.31.0.2:33916" dns-server="udp:8.8.8.8:53" error="read udp 172.31.0.2:33916->8.8.8.8:53: i/o timeout" question=";share.cello.so.tailbdaa59.ts.net.\tIN\t A"
-ai1@aiserver1:~$ grep "linux-image" /var/log/dpkg.log | grep "install " | tail -10
-2026-05-04 07:58:16 install linux-image-5.15.0-177-generic:amd64 <none> 5.15.0-177.187
-2026-05-11 04:40:34 install linux-image-6.8.0-111-generic:amd64 <none> 6.8.0-111.111~22.04.1
-2026-05-11 04:40:36 install linux-image-generic-hwe-22.04:amd64 <none> 6.8.0-111.111~22.04.1
-2026-05-20 06:15:27 install linux-image-5.15.0-179-generic:amd64 <none> 5.15.0-179.189
-ai1@aiserver1:~$ sudo journalctl -b -1 -k | grep -i "panic\|oops\|bug\|error\|call trace"
-May 13 09:30:51 aiserver1 kernel: PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
-May 13 09:30:51 aiserver1 kernel: RAS: Correctable Errors collector initialized.
-May 13 09:30:51 aiserver1 systemd[1]: Mounting Kernel Debug File System...
-May 13 09:30:51 aiserver1 systemd[1]: Mounted Kernel Debug File System.
-May 13 09:30:51 aiserver1 kernel: Disabling lock debugging due to kernel taint
-May 13 09:32:54 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/opaque-bug-check282439539/l2' does not support file handles, falling back to xino=off.
-May 13 16:35:08 aiserver1 kernel: overlayfs: fs on '/home/ai1/.local/share/containers/storage/overlay/opaque-bug-check3280208271/l2' does not support file handles, falling back to xino=off.
-May 19 05:24:28 aiserver1 kernel: Call Trace:
-ai1@aiserver1:~$
+ai1@aiserver1:~/jitsi-meet/docker-jitsi-meet-stable-10978$ nano docker-compose.yml
+ai1@aiserver1:~/jitsi-meet/docker-jitsi-meet-stable-10978$ cat docker-compose.yml
+services:
+    # Frontend
+    web:
+        image: jitsi/web:${JITSI_IMAGE_VERSION:-stable-10978}
+        restart: ${RESTART_POLICY:-unless-stopped}
+        ports:
+            - '${HTTP_PORT}:80'
+            - '${HTTPS_PORT}:443'
+        volumes:
+            - ${CONFIG}/web:/config:Z
+            - ${CONFIG}/web/crontabs:/var/spool/cron/crontabs:Z
+            - ${CONFIG}/transcripts:/usr/share/jitsi-meet/transcripts:Z
+            - ${CONFIG}/web/load-test:/usr/share/jitsi-meet/load-test:Z
+        labels:
+            service: "jitsi-web"
+        environment:
+            - AMPLITUDE_ID
+            - ANALYTICS_SCRIPT_URLS
+            - ANALYTICS_WHITELISTED_EVENTS
+            - AUDIO_QUALITY_OPUS_BITRATE
+            - AUTO_CAPTION_ON_RECORD
+            - BRANDING_DATA_URL
+            - BWE_ESTIMATOR_ENGINE
+            - BOSH_RELATIVE
+            - CHROME_EXTENSION_BANNER_JSON
+            - CODEC_ORDER_JVB
+            - CODEC_ORDER_JVB_MOBILE
+            - CODEC_ORDER_P2P
+            - CODEC_ORDER_P2P_MOBILE
+            - COLIBRI_WEBSOCKET_PORT
+            - COLIBRI_WEBSOCKET_JVB_LOOKUP_NAME
+            - COLIBRI_WEBSOCKET_REGEX
+            - CONFCODE_URL
+            - CORS_HEADER_ACCESS_CONTROL_ALLOW_ORIGIN
+            - CSP_HEADER
+            - DEFAULT_LANGUAGE
+            - DEPLOYMENTINFO_ENVIRONMENT
+            - DEPLOYMENTINFO_ENVIRONMENT_TYPE
+            - DEPLOYMENTINFO_REGION
+            - DEPLOYMENTINFO_SHARD
+            - DESKTOP_SHARING_FRAMERATE_AUTO
+            - DESKTOP_SHARING_FRAMERATE_MIN
+            - DESKTOP_SHARING_FRAMERATE_MAX
+            - DIALIN_NUMBERS_URL
+            - DIALOUT_AUTH_URL
+            - DIALOUT_CODES_URL
+            - DISABLE_AUDIO_LEVELS
+            - DISABLE_COLIBRI_WEBSOCKET_JVB_LOOKUP
+            - DISABLE_DEEP_LINKING
+            - DISABLE_GRANT_MODERATOR
+            - DISABLE_HTTPS
+            - DISABLE_KICKOUT
+            - DISABLE_LOCAL_RECORDING
+            - DISABLE_POLLS
+            - DISABLE_PRIVATE_CHAT
+            - DISABLE_PROFILE
+            - DISABLE_REACTIONS
+            - DISABLE_REMOTE_VIDEO_MENU
+            - DISABLE_START_FOR_ALL
+            - DROPBOX_APPKEY
+            - DROPBOX_REDIRECT_URI
+            - DYNAMIC_BRANDING_URL
+            - ENABLE_ADAPTIVE_MODE
+            - ENABLE_AUDIO_PROCESSING
+            - ENABLE_AUTOMATIC_GAIN_CONTROL
+            - ENABLE_AUTH
+            - ENABLE_AUTH_DOMAIN
+            - ENABLE_BREAKOUT_ROOMS
+            - ENABLE_CALENDAR
+            - ENABLE_COLIBRI_WEBSOCKET
+            - ENABLE_COLIBRI_WEBSOCKET_UNSAFE_REGEX
+            - ENABLE_E2EPING
+            - ENABLE_FILE_RECORDING_SHARING
+            - ENABLE_GUESTS
+            - ENABLE_HSTS
+            - ENABLE_HTTP_REDIRECT
+            - ENABLE_IPV6
+            - ENABLE_LETSENCRYPT
+            - ENABLE_NO_AUDIO_DETECTION
+            - ENABLE_NOISY_MIC_DETECTION
+            - ENABLE_OCTO
+            - ENABLE_OPUS_RED
+            - ENABLE_PREJOIN_PAGE
+            - ENABLE_P2P
+            - ENABLE_WELCOME_PAGE
+            - ENABLE_CLOSE_PAGE
+            - ENABLE_LIVESTREAMING
+            - ENABLE_LIVESTREAMING_DATA_PRIVACY_LINK
+            - ENABLE_LIVESTREAMING_HELP_LINK
+            - ENABLE_LIVESTREAMING_TERMS_LINK
+            - ENABLE_LIVESTREAMING_VALIDATOR_REGEXP_STRING
+            - ENABLE_LOAD_TEST_CLIENT
+            - ENABLE_LOCAL_RECORDING_NOTIFY_ALL_PARTICIPANT
+            - ENABLE_LOCAL_RECORDING_SELF_START
+            - ENABLE_RECORDING
+            - ENABLE_REMB
+            - ENABLE_REQUIRE_DISPLAY_NAME
+            - ENABLE_SERVICE_RECORDING
+            - ENABLE_SIMULCAST
+            - ENABLE_STATS_ID
+            - ENABLE_STEREO
+            - ENABLE_SUBDOMAINS
+            - ENABLE_TALK_WHILE_MUTED
+            - ENABLE_TCC
+            - ENABLE_TRANSCRIPTIONS
+            - ENABLE_VLA
+            - ENABLE_XMPP_WEBSOCKET
+            - ENABLE_JAAS_COMPONENTS
+            - ETHERPAD_PUBLIC_URL
+            - ETHERPAD_URL_BASE
+            - E2EPING_NUM_REQUESTS
+            - E2EPING_MAX_CONFERENCE_SIZE
+            - E2EPING_MAX_MESSAGE_PER_SECOND
+            - GOOGLE_ANALYTICS_ID
+            - GOOGLE_API_APP_CLIENT_ID
+            - HIDE_PREMEETING_BUTTONS
+            - HIDE_PREJOIN_DISPLAY_NAME
+            - HIDE_PREJOIN_EXTRA_BUTTONS
+            - INVITE_SERVICE_URL
+            - JVB_PREFER_SCTP
+            - LETSENCRYPT_DOMAIN
+            - LETSENCRYPT_EMAIL
+            - LETSENCRYPT_USE_STAGING
+            - LETSENCRYPT_ACME_SERVER
+            - MATOMO_ENDPOINT
+            - MATOMO_SITE_ID
+            - MICROSOFT_API_APP_CLIENT_ID
+            - NGINX_KEEPALIVE_TIMEOUT
+            - NGINX_RESOLVER
+            - NGINX_WORKER_PROCESSES
+            - NGINX_WORKER_CONNECTIONS
+            - PEOPLE_SEARCH_URL
+            - PREFERRED_LANGUAGE
+            - PUBLIC_URL
+            - P2P_PREFERRED_CODEC
+            - P2P_STUN_SERVERS
+            - RESOLUTION
+            - RESOLUTION_MIN
+            - RESOLUTION_WIDTH
+            - RESOLUTION_WIDTH_MIN
+            - RTCSTATS_ENABLED
+            - RTCSTATS_STORE_LOGS
+            - RTCSTATS_POLL_INTERVAL
+            - RTCSTATS_SEND_SDP
+            - RTCSTATS_URL_BASE
+            - RTC_VISUALIZER_URL_BASE
+            - RTC_VISUALIZER_PATH
+            - START_AUDIO_MUTED
+            - START_AUDIO_ONLY
+            - START_SILENT
+            - START_WITH_AUDIO_MUTED
+            - START_VIDEO_MUTED
+            - START_WITH_VIDEO_MUTED
+            - TOKEN_AUTH_URL
+            - TOOLBAR_BUTTONS
+            - TRANSLATION_LANGUAGES
+            - TRANSLATION_LANGUAGES_HEAD
+            - TZ
+            - USE_APP_LANGUAGE
+            - VIDEOQUALITY_BITRATE_H264_LOW
+            - VIDEOQUALITY_BITRATE_H264_STANDARD
+            - VIDEOQUALITY_BITRATE_H264_HIGH
+            - VIDEOQUALITY_BITRATE_H264_FULL
+            - VIDEOQUALITY_BITRATE_H264_ULTRA
+            - VIDEOQUALITY_BITRATE_H264_SS_HIGH
+            - VIDEOQUALITY_BITRATE_VP8_LOW
+            - VIDEOQUALITY_BITRATE_VP8_STANDARD
+            - VIDEOQUALITY_BITRATE_VP8_HIGH
+            - VIDEOQUALITY_BITRATE_VP8_FULL
+            - VIDEOQUALITY_BITRATE_VP8_ULTRA
+            - VIDEOQUALITY_BITRATE_VP8_SS_HIGH
+            - VIDEOQUALITY_BITRATE_VP9_LOW
+            - VIDEOQUALITY_BITRATE_VP9_STANDARD
+            - VIDEOQUALITY_BITRATE_VP9_HIGH
+            - VIDEOQUALITY_BITRATE_VP9_FULL
+            - VIDEOQUALITY_BITRATE_VP9_ULTRA
+            - VIDEOQUALITY_BITRATE_VP9_SS_HIGH
+            - VIDEOQUALITY_BITRATE_AV1_LOW
+            - VIDEOQUALITY_BITRATE_AV1_STANDARD
+            - VIDEOQUALITY_BITRATE_AV1_HIGH
+            - VIDEOQUALITY_BITRATE_AV1_FULL
+            - VIDEOQUALITY_BITRATE_AV1_ULTRA
+            - VIDEOQUALITY_BITRATE_AV1_SS_HIGH
+            - VIDEOQUALITY_PREFERRED_CODEC
+            - XMPP_AUTH_DOMAIN
+            - XMPP_BOSH_URL_BASE
+            - XMPP_DOMAIN
+            - XMPP_GUEST_DOMAIN
+            - XMPP_MUC_DOMAIN
+            - XMPP_HIDDEN_DOMAIN
+            - XMPP_PORT
+            - XMPP_RECORDER_DOMAIN
+            - WHITEBOARD_COLLAB_SERVER_PUBLIC_URL
+            - WHITEBOARD_COLLAB_SERVER_URL_BASE
+        networks:
+            meet.jitsi:
+        depends_on:
+            - jvb
+
+    # XMPP server
+    prosody:
+        image: jitsi/prosody:${JITSI_IMAGE_VERSION:-stable-10978}
+        restart: ${RESTART_POLICY:-unless-stopped}
+        expose:
+            - '${XMPP_PORT:-5222}'
+            - '${PROSODY_S2S_PORT:-5269}'
+            - '5347'
+            - '${PROSODY_HTTP_PORT:-5280}'
+        labels:
+            service: "jitsi-prosody"
+        volumes:
+            - ${CONFIG}/prosody/config:/config:Z
+            - ${CONFIG}/prosody/prosody-plugins-custom:/prosody-plugins-custom:Z
+        environment:
+            - AUTH_TYPE
+            - DISABLE_POLLS
+            - ENABLE_AUTH
+            - ENABLE_AV_MODERATION
+            - ENABLE_BREAKOUT_ROOMS
+            - ENABLE_END_CONFERENCE
+            - ENABLE_GUESTS
+            - ENABLE_IPV6
+            - ENABLE_LOBBY
+            - ENABLE_RECORDING
+            - ENABLE_S2S
+            - ENABLE_TRANSCRIPTIONS
+            - ENABLE_VISITORS
+            - ENABLE_XMPP_WEBSOCKET
+            - ENABLE_JAAS_COMPONENTS
+            - GC_TYPE
+            - GC_INC_TH
+            - GC_INC_SPEED
+            - GC_INC_STEP_SIZE
+            - GC_GEN_MIN_TH
+            - GC_GEN_MAX_TH
+            - GLOBAL_CONFIG
+            - GLOBAL_MODULES
+            - JIBRI_RECORDER_USER
+            - JIBRI_RECORDER_PASSWORD
+            - JIBRI_SIP_BREWERY_MUC
+            - JIBRI_XMPP_USER
+            - JIBRI_XMPP_PASSWORD
+            - JICOFO_AUTH_PASSWORD
+            - JICOFO_COMPONENT_SECRET
+            - JIGASI_TRANSCRIBER_PASSWORD
+            - JIGASI_TRANSCRIBER_USER
+            - JIGASI_XMPP_USER
+            - JIGASI_XMPP_PASSWORD
+            - JVB_AUTH_USER
+            - JVB_AUTH_PASSWORD
+            - JWT_APP_ID
+            - JWT_APP_SECRET
+            - JWT_ACCEPTED_ISSUERS
+            - JWT_ACCEPTED_AUDIENCES
+            - JWT_ASAP_KEYSERVER
+            - JWT_ALLOW_EMPTY
+            - JWT_AUTH_TYPE
+            - JWT_ENABLE_DOMAIN_VERIFICATION
+            - JWT_SIGN_TYPE
+            - JWT_TOKEN_AUTH_MODULE
+            - MATRIX_UVS_URL
+            - MATRIX_UVS_ISSUER
+            - MATRIX_UVS_AUTH_TOKEN
+            - MATRIX_UVS_SYNC_POWER_LEVELS
+            - MATRIX_LOBBY_BYPASS
+            - LOG_LEVEL
+            - LDAP_AUTH_METHOD
+            - LDAP_BASE
+            - LDAP_BINDDN
+            - LDAP_BINDPW
+            - LDAP_FILTER
+            - LDAP_VERSION
+            - LDAP_TLS_CIPHERS
+            - LDAP_TLS_CHECK_PEER
+            - LDAP_TLS_CACERT_FILE
+            - LDAP_TLS_CACERT_DIR
+            - LDAP_START_TLS
+            - LDAP_URL
+            - LDAP_USE_TLS
+            - MAX_PARTICIPANTS
+            - PROSODY_ADMINS
+            - PROSODY_AUTH_TYPE
+            - PROSODY_C2S_LIMIT
+            - PROSODY_C2S_REQUIRE_ENCRYPTION
+            - PROSODY_RESERVATION_ENABLED
+            - PROSODY_RESERVATION_REST_BASE_URL
+            - PROSODY_DISABLE_C2S_LIMIT
+            - PROSODY_DISABLE_S2S_LIMIT
+            - PROSODY_ENABLE_FILTER_MESSAGES
+            - PROSODY_ENABLE_MUC_RESOURCE_VALIDATE
+            - PROSODY_MUC_RESOURCE_VALIDATE_ANONYMOUS_STRICT
+            - PROSODY_MUC_RESOURCE_VALIDATE_ANON_METHODS
+            - PROSODY_ENABLE_RATE_LIMITS
+            - PROSODY_ENABLE_RECORDING_METADATA
+            - PROSODY_ENABLE_STANZA_COUNTS
+            - PROSODY_ENABLE_S2S
+            - PROSODY_ENABLE_METRICS
+            - PROSODY_GUEST_AUTH_TYPE
+            - PROSODY_HTTP_PORT
+            - PROSODY_LOG_CONFIG
+            - PROSODY_METRICS_ALLOWED_CIDR
+            - PROSODY_MODE
+            - PROSODY_RATE_LIMIT_LOGIN_RATE
+            - PROSODY_RATE_LIMIT_SESSION_RATE
+            - PROSODY_RATE_LIMIT_TIMEOUT
+            - PROSODY_RATE_LIMIT_ALLOW_RANGES
+            - PROSODY_RATE_LIMIT_CACHE_SIZE
+            - PROSODY_S2S_LIMIT
+            - PROSODY_S2S_PORT
+            - PROSODY_TRUSTED_PROXIES
+            - PROSODY_VISITOR_INDEX
+            - PROSODY_VISITORS_MUC_PREFIX
+            - PROSODY_VISITORS_S2S_VHOSTS
+            - PUBLIC_URL
+            - STUN_HOST
+            - STUN_PORT
+            - TURN_CREDENTIALS
+            - TURN_USERNAME
+            - TURN_PASSWORD
+            - TURN_HOST
+            - TURNS_HOST
+            - TURN_PORT
+            - TURNS_PORT
+            - TURN_TRANSPORT
+            - TURN_TTL
+            - TZ
+            - VISITORS_MAX_VISITORS_PER_NODE
+            - VISITORS_XMPP_DOMAIN
+            - VISITORS_XMPP_SERVER
+            - VISITORS_XMPP_PORT
+            - WAIT_FOR_HOST_DISABLE_AUTO_OWNERS
+            - XMPP_BREAKOUT_MUC_MODULES
+            - XMPP_CONFIGURATION
+            - XMPP_DOMAIN
+            - XMPP_AUTH_DOMAIN
+            - XMPP_GUEST_DOMAIN
+            - XMPP_MUC_DOMAIN
+            - XMPP_INTERNAL_MUC_DOMAIN
+            - XMPP_LOBBY_MUC_MODULES
+            - XMPP_MODULES
+            - XMPP_MUC_MODULES
+            - XMPP_MUC_CONFIGURATION
+            - XMPP_INTERNAL_MUC_MODULES
+            - XMPP_HIDDEN_DOMAIN
+            - XMPP_PORT
+            - XMPP_RECORDER_DOMAIN
+            - XMPP_SERVER_S2S_PORT
+            - XMPP_SPEAKERSTATS_MODULES
+        networks:
+            meet.jitsi:
+                aliases:
+                    - ${XMPP_SERVER:-xmpp.meet.jitsi}
+
+    # Focus component
+    jicofo:
+        image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable-10978}
+        restart: ${RESTART_POLICY:-unless-stopped}
+        ports:
+            - '127.0.0.1:${JICOFO_REST_PORT:-8888}:8888'
+        volumes:
+            - ${CONFIG}/jicofo:/config:Z
+        labels:
+            service: "jitsi-jicofo"
+        environment:
+            - AUTH_TYPE
+            - BRIDGE_AVG_PARTICIPANT_STRESS
+            - BRIDGE_STRESS_THRESHOLD
+            - ENABLE_AUTH
+            - ENABLE_AUTO_OWNER
+            - ENABLE_MODERATOR_CHECKS
+            - ENABLE_CODEC_VP8
+            - ENABLE_CODEC_VP9
+            - ENABLE_CODEC_AV1
+            - ENABLE_CODEC_H264
+            - ENABLE_CODEC_OPUS_RED
+            - ENABLE_JVB_XMPP_SERVER
+            - ENABLE_OCTO
+            - ENABLE_OCTO_SCTP
+            - ENABLE_RECORDING
+            - ENABLE_SCTP
+            - ENABLE_SHARED_DOCUMENT_RANDOM_NAME
+            - ENABLE_TRANSCRIPTIONS
+            - ENABLE_VISITORS
+            - ENABLE_AUTO_LOGIN
+            - JICOFO_AUTH_LIFETIME
+            - JICOFO_AUTH_PASSWORD
+            - JICOFO_AUTH_TYPE
+            - JICOFO_BRIDGE_REGION_GROUPS
+            - JICOFO_ENABLE_AUTH
+            - JICOFO_ENABLE_BRIDGE_HEALTH_CHECKS
+            - JICOFO_CONF_INITIAL_PARTICIPANT_WAIT_TIMEOUT
+            - JICOFO_CONF_SINGLE_PARTICIPANT_TIMEOUT
+            - JICOFO_CONF_SOURCE_SIGNALING_DELAYS
+            - JICOFO_CONF_MAX_AUDIO_SENDERS
+            - JICOFO_CONF_MAX_VIDEO_SENDERS
+            - JICOFO_CONF_STRIP_SIMULCAST
+            - JICOFO_CONF_SSRC_REWRITING
+            - JICOFO_ENABLE_HEALTH_CHECKS
+            - JICOFO_ENABLE_ICE_FAILURE_DETECTION
+            - JICOFO_ENABLE_LOAD_REDISTRIBUTION
+            - JICOFO_ENABLE_REST
+            - JICOFO_HEALTH_CHECKS_USE_PRESENCE
+            - JICOFO_ICE_FAILURE_INTERVAL
+            - JICOFO_ICE_FAILURE_MIN_ENDPOINTS
+            - JICOFO_ICE_FAILURE_THRESHOLD
+            - JICOFO_MAX_MEMORY
+            - JICOFO_MULTI_STREAM_BACKWARD_COMPAT
+            - JICOFO_OCTO_REGION
+            - JICOFO_RESTART_REQUEST_MAX
+            - JICOFO_RESTART_REQUEST_INTERVAL
+            - JICOFO_TRUSTED_DOMAINS
+            - JIBRI_BREWERY_MUC
+            - JIBRI_REQUEST_RETRIES
+            - JIBRI_PENDING_TIMEOUT
+            - JIGASI_BREWERY_MUC
+            - JIGASI_SIP_URI
+            - JIGASI_TRUSTED_DOMAINS
+            - JVB_BREWERY_MUC
+            - JVB_XMPP_AUTH_DOMAIN
+            - JVB_XMPP_INTERNAL_MUC_DOMAIN
+            - JVB_XMPP_PORT
+            - JVB_XMPP_SERVER
+            - MAX_BRIDGE_PARTICIPANTS
+            - OCTO_BRIDGE_SELECTION_STRATEGY
+            - PROSODY_VISITORS_MUC_PREFIX
+            - SENTRY_DSN="${JICOFO_SENTRY_DSN:-0}"
+            - SENTRY_ENVIRONMENT
+            - SENTRY_RELEASE
+            - TZ
+            - VISITORS_MAX_PARTICIPANTS
+            - VISITORS_MAX_VISITORS_PER_NODE
+            - VISITORS_XMPP_AUTH_DOMAIN
+            - VISITORS_XMPP_SERVER
+            - VISITORS_XMPP_DOMAIN
+            - XMPP_DOMAIN
+            - XMPP_AUTH_DOMAIN
+            - XMPP_INTERNAL_MUC_DOMAIN
+            - XMPP_MUC_DOMAIN
+            - XMPP_HIDDEN_DOMAIN
+            - XMPP_SERVER
+            - XMPP_PORT
+            - XMPP_RECORDER_DOMAIN
+            - MAX_SSRCS_PER_USER
+            - MAX_SSRC_GROUPS_PER_USER
+        depends_on:
+            - prosody
+        networks:
+            meet.jitsi:
+
+    # Video bridge
+    jvb:
+        image: jitsi/jvb:${JITSI_IMAGE_VERSION:-stable-10978}
+        restart: ${RESTART_POLICY:-unless-stopped}
+        ports:
+            - '${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp'
+            - '127.0.0.1:${JVB_COLIBRI_PORT:-8080}:8080'
+        volumes:
+            - ${CONFIG}/jvb:/config:Z
+        labels:
+            service: "jitsi-jvb"
+        environment:
+            - AUTOSCALER_SIDECAR_KEY_FILE
+            - AUTOSCALER_SIDECAR_KEY_ID
+            - AUTOSCALER_SIDECAR_GROUP_NAME
+            - AUTOSCALER_SIDECAR_HOST_ID
+            - AUTOSCALER_SIDECAR_INSTANCE_ID
+            - AUTOSCALER_SIDECAR_PORT
+            - AUTOSCALER_SIDECAR_REGION
+            - AUTOSCALER_SIDECAR_SHUTDOWN_POLLING_INTERVAL
+            - AUTOSCALER_SIDECAR_STATS_POLLING_INTERVAL
+            - DISABLE_AWS_HARVESTER
+            - DOCKER_HOST_ADDRESS
+            - ENABLE_COLIBRI_WEBSOCKET
+            - ENABLE_JVB_XMPP_SERVER
+            - ENABLE_OCTO
+            - ENABLE_SCTP
+            - JVB_ADVERTISE_IPS
+            - JVB_ADVERTISE_PRIVATE_CANDIDATES
+            - JVB_AUTH_USER
+            - JVB_AUTH_PASSWORD
+            - JVB_BREWERY_MUC
+            - JVB_CC_TRUST_BWE
+            - JVB_DISABLE_STUN
+            - JVB_DISABLE_XMPP
+            - JVB_INSTANCE_ID
+            - JVB_PORT
+            - JVB_MUC_NICKNAME
+            - JVB_STUN_SERVERS
+            - JVB_LOG_FILE
+            - JVB_OCTO_BIND_ADDRESS
+            - JVB_OCTO_REGION
+            - JVB_OCTO_RELAY_ID
+            - JVB_REQUIRE_VALID_ADDRESS
+            - JVB_USE_USRSCTP
+            - JVB_WS_DOMAIN
+            - JVB_WS_SERVER_ID
+            - JVB_WS_TLS
+            - JVB_XMPP_AUTH_DOMAIN
+            - JVB_XMPP_INTERNAL_MUC_DOMAIN
+            - JVB_XMPP_PORT
+            - JVB_XMPP_SERVER
+            - PUBLIC_URL
+            - SENTRY_DSN="${JVB_SENTRY_DSN:-0}"
+            - SENTRY_ENVIRONMENT
+            - SENTRY_RELEASE
+            - COLIBRI_REST_ENABLED
+            - SHUTDOWN_REST_ENABLED
+            - TZ
+            - VIDEOBRIDGE_MAX_MEMORY
+            - XMPP_AUTH_DOMAIN
+            - XMPP_INTERNAL_MUC_DOMAIN
+            - XMPP_SERVER
+            - XMPP_PORT
+        depends_on:
+            - prosody
+        networks:
+            meet.jitsi:
+
+# Custom network so all services can communicate using a FQDN
+networks:
+    meet.jitsi:
+ai1@aiserver1:~/jitsi-meet/docker-jitsi-meet-stable-10978$
