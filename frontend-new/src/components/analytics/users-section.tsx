@@ -1657,6 +1657,24 @@ export function UsersSection() {
                                 >
                                   Spending overview
                                 </p>
+                                <span
+                                  style={{
+                                    marginLeft: "auto",
+                                    fontFamily: "var(--font-sans)",
+                                    fontSize: "var(--text-h4)",
+                                    fontWeight: 600,
+                                    color: "var(--fgColor-default)",
+                                  }}
+                                >
+                                  Lifetime Spent:{" "}
+                                  <span
+                                    style={{
+                                      color: (userDetail.lifetimeSpentCents ?? 0) > 0 ? "#34D399" : "var(--fgColor-muted)",
+                                    }}
+                                  >
+                                    ₹{((userDetail.lifetimeSpentCents ?? 0) / 100).toFixed(2)}
+                                  </span>
+                                </span>
                               </div>
                               <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
                                 <MetricCard
@@ -1768,30 +1786,8 @@ export function UsersSection() {
                                 </p>
                               </div>
 
-                              {/* Right: Billing Summary — styled like profile page SectionCard with accent */}
-                              <div style={{ flex: 2, alignSelf: "flex-start", minWidth: 0, background: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden" }}>
-                                {/* Header — accent style */}
-                                <div style={{ background: "var(--bgColor-info, #cedeff)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-info, #3a73ff)" }}>
-                                  <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
-                                    Billing Summary
-                                  </span>
-                                </div>
-                                {/* Body */}
-                                <div style={{ padding: 0 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "16px", minHeight: "48px", padding: "0 20px", borderBottom: "1px solid var(--borderColor-default)" }}>
-                                    <span style={{ width: "160px", flexShrink: 0, color: "var(--fgColor-muted)", fontSize: "0.75rem", fontWeight: 400, lineHeight: "1rem", fontFamily: "var(--font-sans)" }}>Current Balance</span>
-                                    <div style={{ flex: 1, fontSize: "0.875rem", lineHeight: "1.375rem", fontWeight: 400, color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
-                                      ₹{((userDetail.balanceCents ?? 0) / 100).toFixed(2)}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: "16px", minHeight: "48px", padding: "0 20px" }}>
-                                    <span style={{ width: "160px", flexShrink: 0, color: "var(--fgColor-muted)", fontSize: "0.75rem", fontWeight: 400, lineHeight: "1rem", fontFamily: "var(--font-sans)" }}>Lifetime Spent</span>
-                                    <div style={{ flex: 1, fontSize: "0.875rem", lineHeight: "1.375rem", fontWeight: 400, color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
-                                      ₹{((userDetail.lifetimeSpentCents ?? 0) / 100).toFixed(2)}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                              {/* Right: empty placeholder to maintain layout */}
+                              <div style={{ flex: 2 }} />
                             </div>
                           </div>
                         ) : null}
