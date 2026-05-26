@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getAccessToken } from "@/lib/token";
 import { getOnboardingStatus } from "@/lib/api";
@@ -12,10 +12,18 @@ export default function ConsoleLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
 
   useEffect(() => {
+    // Skip auth for the public calendar embed page
+    if (pathname === "/calendar") {
+      setIsCheckingOnboarding(false);
+      setIsAuthenticated(true);
+      return;
+    }
+
     const checkAuthAndOnboarding = async () => {
       // Check if user has a valid access token
       const token = getAccessToken();
@@ -43,7 +51,7 @@ export default function ConsoleLayout({
     };
 
     checkAuthAndOnboarding();
-  }, [router]);
+  }, [router, pathname]);
 
   // Show nothing while checking authentication and onboarding status
   if (isAuthenticated === null || isCheckingOnboarding) {
