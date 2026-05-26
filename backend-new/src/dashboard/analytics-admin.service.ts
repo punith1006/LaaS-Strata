@@ -184,6 +184,11 @@ export interface UserDetailResponse {
   lifetimeSpentCents: number | null;
   spendLimitCents: number | null;
   spendLimitEnabled: boolean;
+
+  // Computed billing fields (rupee values, not cents)
+  burnRateRupees: number;      // Total burn rate (compute + storage) in rupees/hour
+  dailySpendRupees: number;    // Recent 12h spend in rupees
+  runwayHours: number | null;  // Hours of runway remaining (null = no active burn)
 }
 
 export interface AnalyticsClientsResponse {
@@ -2577,6 +2582,61 @@ export class AnalyticsAdminService {
       where: { userId },
     });
 
+    // 5. Fetch active compute sessions for burn rate calculation
+    const activeRunningSessions = await this.prisma.session.findMany({
+      where: { userId, status: 'running' },
+      include: { computeConfig: true },
+    });
+
+    // 6. Calculate compute burn rate (cents per hour)
+    const computeSpendRateCentsPerHour = activeRunningSessions.reduce(
+      (total, s) => total + (s.computeConfig?.basePricePerHourCents ?? 0), 0
+    );
+
+    // 7. Fetch active storage volumes for storage burn rate
+    const activeVolumes = await this.prisma.$queryRaw<Array<{
+      quota_bytes: bigint; price_per_gb_cents_month: number; allocation_type: string;
+    }>>`
+      SELECT quota_bytes, price_per_gb_cents_month, allocation_type
+      FROM user_storage_volumes
+      WHERE user_id = ${userId}::uuid AND status = 'active'
+    `;
+
+    // 8. Calculate storage hourly rate (cents per hour)
+    const chargeableVolumes = activeVolumes.filter(
+      v => v.allocation_type !== 'sso_default' && v.allocation_type !== 'institution_signup'
+    );
+    let storageRateCentsPerHour = 0;
+    for (const vol of chargeableVolumes) {
+      const quotaGb = Number(vol.quota_bytes) / (1024 * 1024 * 1024);
+      storageRateCentsPerHour += (vol.price_per_gb_cents_month * quotaGb) / 730;
+    }
+
+    // 9. Total burn rate + daily spend
+    const totalSpendRateCentsPerHour = computeSpendRateCentsPerHour + storageRateCentsPerHour;
+
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const recentCharges = await this.prisma.billingCharge.findMany({
+      where: { userId, createdAt: { gte: twelveHoursAgo } },
+    });
+    const dailySpendCents = recentCharges.reduce((t, c) => t + Number(c.amountCents), 0);
+
+    // 10. Runway calculation (same logic as getBillingData)
+    let runwayHours: number | null = null;
+    if (totalSpendRateCentsPerHour > 0 && wallet) {
+      const balanceCents = Number(wallet.balanceCents);
+      let spendLimitCentsVal: number | null = null;
+      if (wallet.spendLimitEnabled && (wallet.spendLimitCents ?? 0) > 0) {
+        spendLimitCentsVal = Number(wallet.spendLimitCents);
+      }
+      const effectiveRemainingCents = spendLimitCentsVal !== null
+        ? Math.min(spendLimitCentsVal - dailySpendCents, balanceCents)
+        : balanceCents;
+      runwayHours = effectiveRemainingCents > 0
+        ? effectiveRemainingCents / totalSpendRateCentsPerHour
+        : 0;
+    }
+
     return {
       id: user?.id ?? '',
       displayName: user?.displayName ?? null,
@@ -2607,6 +2667,215 @@ export class AnalyticsAdminService {
       lifetimeSpentCents: wallet ? Number(wallet.lifetimeSpentCents) : null,
       spendLimitCents: wallet?.spendLimitCents ?? null,
       spendLimitEnabled: wallet?.spendLimitEnabled ?? false,
+
+      // Computed billing fields (rupee values)
+      burnRateRupees: totalSpendRateCentsPerHour / 100,
+      dailySpendRupees: dailySpendCents / 100,
+      runwayHours,
+    };
+  }
+
+  /**
+   * Get compute activity data for a specific user (for user accordion in analytics dashboard).
+   * Same logic as getComputeActivityData but filtered by a single userId.
+   */
+  async getUserComputeActivityData(
+    userId: string,
+    timeRange: '24H' | '7D' | '30D' | 'All',
+  ): Promise<ComputeActivityResponse> {
+    const now = new Date();
+    const { periodStart, priorStart, priorEnd } = this.getPeriodBounds(
+      timeRange,
+      now,
+    );
+
+    const periodStartTs = periodStart.toISOString().replace('Z', '');
+
+    // Query ended sessions — filtered by specific userId
+    const endedSessions = await this.prisma.$queryRaw<
+      Array<{ started_at: Date | null; ended_at: Date | null; duration_seconds: bigint }>
+    >`
+      SELECT
+        s.started_at,
+        s.ended_at,
+        CASE
+          WHEN s.started_at IS NULL OR s.started_at >= ${periodStartTs}::timestamp
+          THEN s.duration_seconds
+          ELSE EXTRACT(EPOCH FROM s."ended_at" - ${periodStartTs}::timestamp)
+        END as duration_seconds
+      FROM "sessions" s
+      WHERE s.user_id = ${userId}::uuid
+        AND s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
+        AND s.ended_at >= ${periodStartTs}::timestamp
+    `;
+
+    // Include running sessions — filtered by userId
+    const runningSessions = await this.prisma.session.findMany({
+      where: {
+        userId,
+        status: 'running',
+        startedAt: { not: null },
+      },
+      select: { startedAt: true, durationSeconds: true },
+    });
+
+    // Build a map of day -> hours, splitting each session's effective duration across IST day boundaries
+    const dayMap = new Map<string, number>();
+    const periodStartMs = periodStart.getTime();
+
+    // Add ended sessions — split across IST day boundaries
+    for (const s of endedSessions) {
+      const startedAtMs = s.started_at?.getTime() ?? periodStartMs;
+      const endedAtMs = s.ended_at?.getTime() ?? periodStartMs;
+      const effectiveStartMs = Math.max(startedAtMs, periodStartMs);
+      const durSeconds = Number(s.duration_seconds);
+
+      if (effectiveStartMs >= endedAtMs || durSeconds <= 0) continue;
+
+      // Fast path: same IST date -> attribute directly
+      const startIstDay = new Date(effectiveStartMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+      const endIstDay = new Date(endedAtMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+
+      if (startIstDay === endIstDay) {
+        dayMap.set(startIstDay, (dayMap.get(startIstDay) || 0) + durSeconds / 3600);
+      } else {
+        const split = this.splitDurationAcrossISTDays(effectiveStartMs, endedAtMs, durSeconds);
+        for (const [day, hours] of split) {
+          dayMap.set(day, (dayMap.get(day) || 0) + hours);
+        }
+      }
+    }
+
+    // Add running sessions — split across IST day boundaries
+    for (const session of runningSessions) {
+      if (!session.startedAt) continue;
+      const effectiveStartMs = Math.max(periodStartMs, session.startedAt.getTime());
+      const effectiveEndMs = now.getTime();
+
+      if (effectiveStartMs >= effectiveEndMs) continue;
+      const elapsedSeconds = Math.floor((effectiveEndMs - effectiveStartMs) / 1000);
+      if (elapsedSeconds <= 0) continue;
+
+      // Fast path: same IST date
+      const startIstDay = new Date(effectiveStartMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+      const endIstDay = new Date(effectiveEndMs + this.IST_OFFSET_MS).toISOString().split('T')[0];
+
+      if (startIstDay === endIstDay) {
+        dayMap.set(startIstDay, (dayMap.get(startIstDay) || 0) + elapsedSeconds / 3600);
+      } else {
+        const split = this.splitDurationAcrossISTDays(effectiveStartMs, effectiveEndMs, elapsedSeconds);
+        for (const [day, hours] of split) {
+          dayMap.set(day, (dayMap.get(day) || 0) + hours);
+        }
+      }
+    }
+
+    // Always return exactly 7 days (Mon-Sun), aggregating by day of week
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const dayHours = new Array(7).fill(0);
+
+    // Determine today's IST day-of-week index
+    const nowIst = new Date(now.getTime() + this.IST_OFFSET_MS);
+    const todayJsDay = nowIst.getUTCDay();
+    const todayIndex = todayJsDay === 0 ? 6 : todayJsDay - 1; // 0=Mon..6=Sun
+
+    // Aggregate all data by day of week (0=Mon, 6=Sun)
+    for (const [dateStr, hours] of dayMap.entries()) {
+      const date = new Date(dateStr);
+      // JavaScript getDay(): 0=Sun, 1=Mon, ..., 6=Sat
+      // We want: 0=Mon, 1=Tue, ..., 6=Sun
+      const jsDay = date.getDay();
+      const dayIndex = jsDay === 0 ? 6 : jsDay - 1;
+
+      // For 24H, all data goes into today's bucket
+      if (timeRange === '24H') {
+        dayHours[todayIndex] += hours;
+      } else {
+        dayHours[dayIndex] += hours;
+      }
+    }
+
+    // Build the breakdown array
+    const dailyBreakdown = dayNames.map((dayName, index) => ({
+      date: '',
+      dayName,
+      hours: Math.round(dayHours[index] * 10) / 10,
+    }));
+
+    // Calculate totals
+    const totalHours = dailyBreakdown.reduce((sum, d) => sum + d.hours, 0);
+
+    let priorTotalHours = 0;
+    if (priorStart && priorEnd) {
+      const priorStartTs = priorStart.toISOString().replace('Z', '');
+      const priorEndTs = priorEnd.toISOString().replace('Z', '');
+      const priorData = await this.prisma.$queryRaw<
+        Array<{ total_hours: number }>
+      >`
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN s."started_at" IS NULL OR s."started_at" >= ${priorStartTs}::timestamp
+            THEN s."duration_seconds"
+            ELSE EXTRACT(EPOCH FROM s."ended_at" - ${priorStartTs}::timestamp)
+          END
+        ), 0) / 3600.0 as total_hours
+        FROM "sessions" s
+        WHERE s.user_id = ${userId}::uuid
+          AND s.status IN ('ended', 'terminated_idle', 'terminated_overuse')
+          AND s."ended_at" >= ${priorStartTs}::timestamp
+          AND s."ended_at" < ${priorEndTs}::timestamp
+      `;
+      priorTotalHours = Number(priorData[0]?.total_hours || 0);
+    }
+
+    // Generate comparison text
+    let comparisonText: string;
+    const delta = Math.round((totalHours - priorTotalHours) * 10) / 10;
+    const deltaText =
+      priorStart && priorEnd
+        ? delta >= 0
+          ? `up ${delta} hrs from prior period`
+          : `down ${Math.abs(delta)} hrs from prior period`
+        : '';
+
+    switch (timeRange) {
+      case '24H':
+        comparisonText = `You served ${totalHours.toFixed(1)} GPU hours today`;
+        break;
+      case '7D':
+        comparisonText = `You served ${totalHours.toFixed(1)} GPU hours this week, ${deltaText.toLowerCase()}`;
+        break;
+      case '30D':
+        comparisonText = `You served ${totalHours.toFixed(1)} GPU hours this month, ${deltaText.toLowerCase()}`;
+        break;
+      case 'All':
+      default:
+        comparisonText = `You have served ${totalHours.toFixed(1)} GPU hours in total`;
+    }
+
+    // Generate period label
+    let periodLabel: string;
+    switch (timeRange) {
+      case '24H':
+        periodLabel = 'Today';
+        break;
+      case '7D':
+        periodLabel = 'This Week';
+        break;
+      case '30D':
+        periodLabel = 'This Month';
+        break;
+      case 'All':
+      default:
+        periodLabel = 'All Time';
+    }
+
+    return {
+      dailyBreakdown,
+      totalHours,
+      priorTotalHours,
+      comparisonText,
+      periodLabel,
     };
   }
 

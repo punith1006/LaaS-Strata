@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Search } from "lucide-react";
 import { getAnalyticsAccessToken } from "@/lib/token";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer,
+} from "recharts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -83,6 +86,19 @@ interface UserDetail {
   lifetimeSpentCents: number | null;
   spendLimitCents: number | null;
   spendLimitEnabled: boolean;
+
+  // Computed billing fields (rupee values)
+  burnRateRupees: number;      // Total burn rate in rupees/hour
+  dailySpendRupees: number;    // Recent 12h spend in rupees
+  runwayHours: number | null;  // Hours of runway remaining
+}
+
+interface ComputeActivityData {
+  dailyBreakdown: Array<{ date: string; dayName: string; hours: number }>;
+  totalHours: number;
+  priorTotalHours: number;
+  comparisonText: string;
+  periodLabel: string;
 }
 
 function formatISTDate(isoString: string | null | undefined): string {
@@ -545,6 +561,8 @@ export function UsersSection() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [departments, setDepartments] = useState<DeptOption[]>([]);
 
+  const [userComputeActivity, setUserComputeActivity] = useState<ComputeActivityData | null>(null);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -793,6 +811,23 @@ export function UsersSection() {
     return () => {
       cancelled = true;
     };
+  }, [expandedUserId]);
+
+  // Fetch user-specific compute activity when accordion expands
+  useEffect(() => {
+    if (!expandedUserId) {
+      setUserComputeActivity(null);
+      return;
+    }
+    const token = getAnalyticsAccessToken();
+    if (!token) return;
+    fetch(
+      `${API_BASE}/api/dashboard/analytics/users/compute-activity?userId=${expandedUserId}&timeRange=30D`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setUserComputeActivity(data))
+      .catch(() => setUserComputeActivity(null));
   }, [expandedUserId]);
 
   // Click handler for row expand/collapse
@@ -1593,29 +1628,36 @@ export function UsersSection() {
                                 padding: "24px",
                               }}
                             >
-                              <h3
+                              <div
                                 style={{
-                                  fontFamily: "var(--font-sans)",
-                                  fontSize: "var(--text-h4)",
-                                  fontWeight: 600,
-                                  color: "var(--fgColor-default)",
-                                  margin: 0,
-                                  marginBottom: "4px",
-                                }}
-                              >
-                                Balance Summary
-                              </h3>
-                              <p
-                                style={{
-                                  fontFamily: "var(--font-sans)",
-                                  fontSize: "var(--text-sm)",
-                                  color: "var(--fgColor-muted)",
-                                  margin: 0,
+                                  display: "flex",
+                                  alignItems: "baseline",
+                                  gap: "12px",
                                   marginBottom: "16px",
                                 }}
                               >
-                                Spending overview
-                              </p>
+                                <h3
+                                  style={{
+                                    fontFamily: "var(--font-sans)",
+                                    fontSize: "var(--text-h4)",
+                                    fontWeight: 600,
+                                    color: "var(--fgColor-default)",
+                                    margin: 0,
+                                  }}
+                                >
+                                  Balance Summary
+                                </h3>
+                                <p
+                                  style={{
+                                    fontFamily: "var(--font-sans)",
+                                    fontSize: "var(--text-sm)",
+                                    color: "var(--fgColor-muted)",
+                                    margin: 0,
+                                  }}
+                                >
+                                  Spending overview
+                                </p>
+                              </div>
                               <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
                                 <MetricCard
                                   highlight
@@ -1636,7 +1678,7 @@ export function UsersSection() {
                                     </svg>
                                   }
                                   label="Burn rate"
-                                  value="₹0.00/hr"
+                                  value={`₹${userDetail.burnRateRupees.toFixed(2)}/hr`}
                                 />
                                 <MetricCard
                                   icon={
@@ -1646,7 +1688,16 @@ export function UsersSection() {
                                     </svg>
                                   }
                                   label="Runway"
-                                  value="∞"
+                                  value={(() => {
+                                    const h = userDetail.runwayHours;
+                                    const r = userDetail.burnRateRupees;
+                                    if (h === null || h === undefined) return r <= 0 ? "∞" : "--";
+                                    if (h <= 0) return "0 hrs";
+                                    if (h > 8760) return "∞";
+                                    const days = Math.floor(h / 24);
+                                    const rem = Math.floor(h % 24);
+                                    return days > 0 ? (rem > 0 ? `${days}d ${rem}h` : `${days}d`) : `${rem}h`;
+                                  })()}
                                 />
                                 <MetricCard
                                   icon={
@@ -1659,6 +1710,87 @@ export function UsersSection() {
                                   label="Spend limit"
                                   value={userDetail.spendLimitEnabled ? `₹${((userDetail.spendLimitCents ?? 0) / 100).toFixed(2)}` : "Not set"}
                                 />
+                              </div>
+                            </div>
+
+                            {/* Two-column row: Compute Activity | Billing Summary */}
+                            <div style={{ display: "flex", gap: "24px" }}>
+                              {/* Left: Compute Activity */}
+                              <div style={{ flex: 3, background: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", padding: "20px" }}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                                  <div>
+                                    <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-h4)", fontWeight: 600, color: "var(--fgColor-default)" }}>Compute Activity</div>
+                                    <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", color: "var(--fgColor-muted)", marginTop: "2px" }}>{userComputeActivity?.periodLabel || 'This Month'}</div>
+                                  </div>
+                                </div>
+                                <div style={{ height: "200px" }}>
+                                  {userComputeActivity && userComputeActivity.dailyBreakdown.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <BarChart data={userComputeActivity.dailyBreakdown} margin={{ top: 15, right: 10, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                                        <XAxis dataKey="dayName" stroke="#555" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#555" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}h`} />
+                                        <Tooltip cursor={{ fill: 'transparent' }}
+                                          contentStyle={{ backgroundColor: "var(--fgColor-default)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", fontSize: "0.875rem", fontWeight: 500, color: "var(--fgColor-inverse)", padding: "6px 16px" }}
+                                          labelStyle={{ color: "var(--fgColor-inverse)", fontWeight: 600, marginBottom: 2 }}
+                                          itemStyle={{ color: "var(--fgColor-inverse)" }}
+                                          formatter={(value: unknown) => [`${value} hrs`, "GPU Hours"]}
+                                        />
+                                        <Bar dataKey="hours" radius={[4, 4, 0, 0]} activeBar={{ fill: '#6366f1', fillOpacity: 0.8, stroke: '#6366f1', strokeWidth: 1 }} label={{ position: "top", fill: "#a1a1aa", fontSize: 10, formatter: (v: unknown) => `${v}h` }}>
+                                          {userComputeActivity.dailyBreakdown.map((item, index) => {
+                                            const today = new Date();
+                                            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                            const todayDayName = dayNames[today.getDay()];
+                                            const isToday = item.dayName === todayDayName;
+                                            return (
+                                              <Cell key={`cell-${index}`} fill={isToday ? "#6366f1" : "#3f3f46"}
+                                                style={{ cursor: 'pointer', transition: 'fill 0.2s ease' }} />
+                                            );
+                                          })}
+                                        </Bar>
+                                      </BarChart>
+                                    </ResponsiveContainer>
+                                  ) : (
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontFamily: "var(--font-sans)", fontSize: "0.875rem", color: "var(--fgColor-muted)" }}>
+                                      No compute activity data
+                                    </div>
+                                  )}
+                                </div>
+                                <p style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", margin: "8px 0 0 0" }}>
+                                  {userComputeActivity ? (
+                                    <span dangerouslySetInnerHTML={{
+                                      __html: userComputeActivity.comparisonText.replace(
+                                        /(\d+\.?\d* GPU hours?)/g,
+                                        '<span style="color:var(--fgColor-default);font-weight:500">$1</span>'
+                                      )
+                                    }} />
+                                  ) : 'Loading...'}
+                                </p>
+                              </div>
+
+                              {/* Right: Billing Summary — styled like profile page SectionCard with accent */}
+                              <div style={{ flex: 2, alignSelf: "flex-start", minWidth: 0, background: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden" }}>
+                                {/* Header — accent style */}
+                                <div style={{ background: "var(--bgColor-info, #cedeff)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-info, #3a73ff)" }}>
+                                  <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
+                                    Billing Summary
+                                  </span>
+                                </div>
+                                {/* Body */}
+                                <div style={{ padding: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "16px", minHeight: "48px", padding: "0 20px", borderBottom: "1px solid var(--borderColor-default)" }}>
+                                    <span style={{ width: "160px", flexShrink: 0, color: "var(--fgColor-muted)", fontSize: "0.75rem", fontWeight: 400, lineHeight: "1rem", fontFamily: "var(--font-sans)" }}>Current Balance</span>
+                                    <div style={{ flex: 1, fontSize: "0.875rem", lineHeight: "1.375rem", fontWeight: 400, color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
+                                      ₹{((userDetail.balanceCents ?? 0) / 100).toFixed(2)}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "16px", minHeight: "48px", padding: "0 20px" }}>
+                                    <span style={{ width: "160px", flexShrink: 0, color: "var(--fgColor-muted)", fontSize: "0.75rem", fontWeight: 400, lineHeight: "1rem", fontFamily: "var(--font-sans)" }}>Lifetime Spent</span>
+                                    <div style={{ flex: 1, fontSize: "0.875rem", lineHeight: "1.375rem", fontWeight: 400, color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
+                                      ₹{((userDetail.lifetimeSpentCents ?? 0) / 100).toFixed(2)}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>

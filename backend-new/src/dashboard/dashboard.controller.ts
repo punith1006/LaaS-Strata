@@ -90,6 +90,18 @@ export class DashboardController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('analytics/users/compute-activity')
+  async getUserComputeActivity(
+    @Query('userId') userId: string,
+    @Query('timeRange') timeRange: string,
+  ) {
+    return this.analyticsAdminService.getUserComputeActivityData(
+      userId,
+      (timeRange as '24H' | '7D' | '30D' | 'All') || '30D',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('analytics/active-sessions')
   async getActiveSessions(@Query('clientId') clientId?: string) {
     return this.analyticsAdminService.getActiveSessionsByTier(clientId);
