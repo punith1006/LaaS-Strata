@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { isStudentRole } from '../common/role.helper';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PDFDocument = require('pdfkit');
@@ -2621,20 +2622,37 @@ export class AnalyticsAdminService {
     });
     const dailySpendCents = recentCharges.reduce((t, c) => t + Number(c.amountCents), 0);
 
-    // 10. Runway calculation (same logic as getBillingData)
+    // 10. Runway calculation (same logic as getBillingData, including student exemption)
+    const isComputeStorageExempt = await isStudentRole(this.prisma, userId);
+
     let runwayHours: number | null = null;
     if (totalSpendRateCentsPerHour > 0 && wallet) {
       const balanceCents = Number(wallet.balanceCents);
+
       let spendLimitCentsVal: number | null = null;
       if (wallet.spendLimitEnabled && (wallet.spendLimitCents ?? 0) > 0) {
         spendLimitCentsVal = Number(wallet.spendLimitCents);
       }
-      const effectiveRemainingCents = spendLimitCentsVal !== null
-        ? Math.min(spendLimitCentsVal - dailySpendCents, balanceCents)
-        : balanceCents;
-      runwayHours = effectiveRemainingCents > 0
-        ? effectiveRemainingCents / totalSpendRateCentsPerHour
-        : 0;
+
+      if (spendLimitCentsVal !== null) {
+        const remainingBudget = spendLimitCentsVal - dailySpendCents;
+        const effectiveRemainingCents = isComputeStorageExempt
+          ? remainingBudget
+          : Math.min(remainingBudget, balanceCents);
+        runwayHours = effectiveRemainingCents > 0
+          ? effectiveRemainingCents / totalSpendRateCentsPerHour
+          : 0;
+      } else {
+        if (isComputeStorageExempt) {
+          // Student with no spend limit — exempt, runway stays null
+          runwayHours = null;
+        } else {
+          const effectiveRemainingCents = balanceCents;
+          runwayHours = effectiveRemainingCents > 0
+            ? effectiveRemainingCents / totalSpendRateCentsPerHour
+            : 0;
+        }
+      }
     }
 
     return {
@@ -2931,6 +2949,22 @@ export class AnalyticsAdminService {
    * Generate invoice PDF for any transaction (admin access; no userId filter).
    * Mirrors PaymentService.generateInvoicePdf logic but bypasses ownership check.
    */
+  /**
+   * Admin: Get active (running) sessions for a specific user.
+   * Used by the analytics user accordion's "Active Instances" table view.
+   */
+  async getUserSessions(userId: string) {
+    const sessions = await this.prisma.session.findMany({
+      where: { userId, status: { in: ['running', 'pending', 'starting', 'reconnecting', 'stopping'] } },
+      include: {
+        computeConfig: true,
+        node: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return sessions;
+  }
+
   async generateAdminInvoicePdf(transactionId: string): Promise<Buffer> {
     const transaction = await this.prisma.paymentTransaction.findFirst({
       where: { id: transactionId },

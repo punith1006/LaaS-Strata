@@ -192,6 +192,12 @@ export class DashboardController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('analytics/users/:userId/sessions')
+  async getUserSessions(@Param('userId') userId: string) {
+    return this.analyticsAdminService.getUserSessions(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('analytics/clients')
   async getAnalyticsClients() {
     return this.analyticsAdminService.getAnalyticsClients();

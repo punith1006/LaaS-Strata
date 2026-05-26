@@ -173,6 +173,73 @@ function InfoRow({ label, value, valueColor, isLast = false }: { label: string; 
   );
 }
 
+// --- Active sessions table helpers (mirrored from instances page) ---
+const ACTIVE_STATUSES = ["pending", "starting", "running", "reconnecting", "stopping"];
+const ENDED_STATUSES = ["ended", "failed", "terminated_idle", "terminated_overuse"];
+
+function formatUptime(startedAt: string | null, status: string): string {
+  if (!startedAt || ENDED_STATUSES.includes(status)) return "-";
+  const start = new Date(startedAt).getTime();
+  const now = Date.now();
+  const diff = now - start;
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function formatCostRupees(cents: number): string {
+  const rupees = cents / 100;
+  const formatted = rupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `\u20B9${formatted}`;
+}
+
+function calculateLiveCost(session: any): number {
+  if (ENDED_STATUSES.includes(session.status)) return session.cumulativeCostCents;
+  if (!session.startedAt || !session.computeConfig) return 0;
+  if (!ACTIVE_STATUSES.includes(session.status) || session.status === 'pending') return 0;
+  const elapsedMs = Date.now() - new Date(session.startedAt).getTime();
+  const elapsedHours = elapsedMs / 3600000;
+  return elapsedHours * session.computeConfig.basePricePerHourCents;
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case "running": return "#009C00";
+    case "pending": case "starting": case "reconnecting": return "#D4A017";
+    case "stopping": return "#E76742";
+    case "failed": return "var(--fgColor-critical, #E70000)";
+    case "ended": case "terminated_idle": case "terminated_overuse": return "var(--fgColor-muted)";
+    default: return "var(--fgColor-muted)";
+  }
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case "running": return "Running";
+    case "pending": return "Pending";
+    case "starting": return "Starting";
+    case "reconnecting": return "Reconnecting";
+    case "stopping": return "Stopping";
+    case "ended": return "Ended";
+    case "failed": return "Failed";
+    case "terminated_idle": return "Terminated (Idle)";
+    case "terminated_overuse": return "Terminated (Overuse)";
+    default: return status;
+  }
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const isPulsing = status === "pending" || status === "starting";
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.875rem", fontWeight: 400, color: "var(--fgColor-default)" }}>
+      <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: getStatusColor(status), animation: isPulsing ? "pulse 1.5s ease-in-out infinite" : "none", flexShrink: 0 }} />
+      {getStatusLabel(status)}
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+    </span>
+  );
+}
+
 /** Color palette for expertise level tags (avoids green/red/blue/grey used elsewhere) */
 function getExpertiseColor(level: string): { bg: string; text: string } {
   switch (level.toLowerCase()) {
@@ -563,6 +630,11 @@ export function UsersSection() {
 
   const [userComputeActivity, setUserComputeActivity] = useState<ComputeActivityData | null>(null);
 
+  // Active sessions table state
+  const [showActiveSessions, setShowActiveSessions] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<any[] | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -829,6 +901,24 @@ export function UsersSection() {
       .then(data => setUserComputeActivity(data))
       .catch(() => setUserComputeActivity(null));
   }, [expandedUserId]);
+
+  // Fetch active sessions when table view is toggled
+  useEffect(() => {
+    if (!showActiveSessions || !expandedUserId) {
+      if (!showActiveSessions) setActiveSessions(null);
+      return;
+    }
+    const token = getAnalyticsAccessToken();
+    if (!token) return;
+    setSessionsLoading(true);
+    fetch(
+      `${API_BASE}/api/dashboard/analytics/users/${expandedUserId}/sessions`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+      .then(res => res.ok ? res.json() : [])
+      .then(data => { setActiveSessions(data); setSessionsLoading(false); })
+      .catch(() => { setActiveSessions([]); setSessionsLoading(false); });
+  }, [showActiveSessions, expandedUserId]);
 
   // Click handler for row expand/collapse
   const handleRowClick = (userId: string) => {
@@ -1735,55 +1825,164 @@ export function UsersSection() {
                             <div style={{ display: "flex", gap: "24px" }}>
                               {/* Left: Compute Activity */}
                               <div style={{ flex: 3, background: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", padding: "20px" }}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                                <style>{`@keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }`}</style>
+                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "12px" }}>
                                   <div>
                                     <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-h4)", fontWeight: 600, color: "var(--fgColor-default)" }}>Compute Activity</div>
                                     <div style={{ fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", color: "var(--fgColor-muted)", marginTop: "2px" }}>{userComputeActivity?.periodLabel || 'This Month'}</div>
                                   </div>
+                                  <button
+                                    style={{
+                                      fontFamily: "var(--font-sans)",
+                                      fontSize: "var(--text-sm)",
+                                      color: "var(--fgColor-default)",
+                                      background: "none",
+                                      border: "none",
+                                      cursor: "pointer",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                      padding: 0,
+                                    }}
+                                    onClick={() => setShowActiveSessions(prev => !prev)}
+                                  >
+                                    <span
+                                      style={{
+                                        display: "inline-block",
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: "50%",
+                                        backgroundColor: (userDetail?.runningComputeSessions ?? 0) > 0 ? "#34D399" : "var(--fgColor-muted)",
+                                        animation: (userDetail?.runningComputeSessions ?? 0) > 0 ? "dotPulse 1.5s ease-in-out infinite" : "none",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                    Active Instances:{" "}
+                                    <span
+                                      style={{
+                                        color: (userDetail?.runningComputeSessions ?? 0) > 0 ? "var(--fgColor-default)" : "var(--fgColor-muted)",
+                                      }}
+                                    >
+                                      {userDetail?.runningComputeSessions ?? 0}
+                                    </span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--fgColor-default)" }}>
+                                      <path d="M5 12h14" />
+                                      <path d="M12 5l7 7-7 7" />
+                                    </svg>
+                                  </button>
                                 </div>
-                                <div style={{ height: "200px" }}>
-                                  {userComputeActivity && userComputeActivity.dailyBreakdown.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                      <BarChart data={userComputeActivity.dailyBreakdown} margin={{ top: 15, right: 10, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                                        <XAxis dataKey="dayName" stroke="#555" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="#555" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}h`} />
-                                        <Tooltip cursor={{ fill: 'transparent' }}
-                                          contentStyle={{ backgroundColor: "var(--fgColor-default)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", fontSize: "0.875rem", fontWeight: 500, color: "var(--fgColor-inverse)", padding: "6px 16px" }}
-                                          labelStyle={{ color: "var(--fgColor-inverse)", fontWeight: 600, marginBottom: 2 }}
-                                          itemStyle={{ color: "var(--fgColor-inverse)" }}
-                                          formatter={(value: unknown) => [`${value} hrs`, "GPU Hours"]}
-                                        />
-                                        <Bar dataKey="hours" radius={[4, 4, 0, 0]} activeBar={{ fill: '#6366f1', fillOpacity: 0.8, stroke: '#6366f1', strokeWidth: 1 }} label={{ position: "top", fill: "#a1a1aa", fontSize: 10, formatter: (v: unknown) => `${v}h` }}>
-                                          {userComputeActivity.dailyBreakdown.map((item, index) => {
-                                            const today = new Date();
-                                            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                                            const todayDayName = dayNames[today.getDay()];
-                                            const isToday = item.dayName === todayDayName;
-                                            return (
-                                              <Cell key={`cell-${index}`} fill={isToday ? "#6366f1" : "#3f3f46"}
-                                                style={{ cursor: 'pointer', transition: 'fill 0.2s ease' }} />
-                                            );
-                                          })}
-                                        </Bar>
-                                      </BarChart>
-                                    </ResponsiveContainer>
-                                  ) : (
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontFamily: "var(--font-sans)", fontSize: "0.875rem", color: "var(--fgColor-muted)" }}>
-                                      No compute activity data
-                                    </div>
-                                  )}
-                                </div>
-                                <p style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", margin: "8px 0 0 0" }}>
-                                  {userComputeActivity ? (
+                                {showActiveSessions ? (
+                                  <div style={{ height: "200px", overflowY: "auto" }}>
+                                    <div style={{ overflowX: "auto" }}>
+                                    {sessionsLoading ? (
+                                      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "80px 24px", color: "var(--fgColor-muted)", fontSize: "0.875rem" }}>
+                                        Loading sessions...
+                                      </div>
+                                    ) : !activeSessions || activeSessions.length === 0 ? (
+                                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontFamily: "var(--font-sans)", fontSize: "0.875rem", color: "var(--fgColor-muted)" }}>
+                                        No active instances
+                                      </div>
+                                    ) : (
+                                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                        <thead>
+                                          <tr style={{ borderBottom: "1px solid var(--borderColor-default)" }}>
+                                            {["Name", "Config", "GPU", "Status", "Uptime", "Cost", "Cost/hr"].map((header, idx) => (
+                                              <th key={header} style={{ textAlign: idx >= 5 ? "right" : "left", padding: "12px 16px", paddingLeft: idx === 6 ? "24px" : "16px", fontSize: "0.75rem", fontWeight: 600, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                                                {header}
+                                              </th>
+                                            ))}
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {activeSessions.map((session: any) => (
+                                            <tr key={session.id} style={{ borderBottom: "1px solid var(--borderColor-default)", height: "48px" }}>
+                                              <td style={{ padding: "12px 16px" }}>
+                                                <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--fgColor-default)" }}>
+                                                  {session.instanceName || (session.containerName ? <span style={{ fontFamily: "var(--font-mono)" }}>{session.containerName}</span> : "-")}
+                                                </span>
+                                              </td>
+                                              <td style={{ padding: "12px 16px", fontSize: "0.875rem", color: "var(--fgColor-default)" }}>
+                                                {session.computeConfig?.name || "-"}
+                                              </td>
+                                              <td style={{ padding: "12px 16px", fontSize: "0.875rem", color: "var(--fgColor-default)" }}>
+                                                {session.allocatedGpuVramMb ? `${(session.allocatedGpuVramMb / 1024).toFixed(0)} GB VRAM` : "-"}
+                                              </td>
+                                              <td style={{ padding: "12px 16px" }}>
+                                                <StatusBadge status={session.status} />
+                                              </td>
+                                              <td style={{ padding: "12px 16px", fontSize: "0.875rem", color: "var(--fgColor-muted)" }}>
+                                                {formatUptime(session.startedAt, session.status)}
+                                              </td>
+                                              <td style={{ padding: "12px 16px", textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "0.875rem" }}>
+                                                {(() => {
+                                                  const isLive = ACTIVE_STATUSES.includes(session.status) && session.status !== 'pending' && session.startedAt;
+                                                  const costCents = calculateLiveCost(session);
+                                                  if (session.status === 'pending' || (!session.startedAt && ACTIVE_STATUSES.includes(session.status))) {
+                                                    return <span style={{ color: "var(--fgColor-muted)" }}>—</span>;
+                                                  }
+                                                  return (
+                                                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: isLive ? "var(--fgColor-default)" : "var(--fgColor-muted)" }}>
+                                                      {isLive && <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#009C00", animation: "pulse 1.5s ease-in-out infinite" }} />}
+                                                      {formatCostRupees(costCents)}
+                                                    </span>
+                                                  );
+                                                })()}
+                                              </td>
+                                              <td style={{ padding: "12px 16px", paddingLeft: "24px", fontSize: "0.875rem", color: "var(--fgColor-default)", textAlign: "right", whiteSpace: "nowrap" }}>
+                                                {session.computeConfig ? `₹${(session.computeConfig.basePricePerHourCents / 100).toFixed(0)}/hr` : "-"}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
+                                  </div>
+                                  </div>
+                                ) : (
+                                  <div style={{ height: "200px" }}>
+                                    {userComputeActivity && userComputeActivity.dailyBreakdown.length > 0 ? (
+                                      <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={userComputeActivity.dailyBreakdown} margin={{ top: 15, right: 10, left: 0, bottom: 0 }}>
+                                          <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                                          <XAxis dataKey="dayName" stroke="#555" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} />
+                                          <YAxis stroke="#555" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}h`} />
+                                          <Tooltip cursor={{ fill: 'transparent' }}
+                                            contentStyle={{ backgroundColor: "var(--fgColor-default)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", fontSize: "0.875rem", fontWeight: 500, color: "var(--fgColor-inverse)", padding: "6px 16px" }}
+                                            labelStyle={{ color: "var(--fgColor-inverse)", fontWeight: 600, marginBottom: 2 }}
+                                            itemStyle={{ color: "var(--fgColor-inverse)" }}
+                                            formatter={(value: unknown) => [`${value} hrs`, "GPU Hours"]}
+                                          />
+                                          <Bar dataKey="hours" radius={[4, 4, 0, 0]} activeBar={{ fill: '#6366f1', fillOpacity: 0.8, stroke: '#6366f1', strokeWidth: 1 }} label={{ position: "top", fill: "#a1a1aa", fontSize: 10, formatter: (v: unknown) => `${v}h` }}>
+                                            {userComputeActivity.dailyBreakdown.map((item, index) => {
+                                              const today = new Date();
+                                              const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                              const todayDayName = dayNames[today.getDay()];
+                                              const isToday = item.dayName === todayDayName;
+                                              return (
+                                                <Cell key={`cell-${index}`} fill={isToday ? "#6366f1" : "#3f3f46"}
+                                                  style={{ cursor: 'pointer', transition: 'fill 0.2s ease' }} />
+                                              );
+                                            })}
+                                          </Bar>
+                                        </BarChart>
+                                      </ResponsiveContainer>
+                                    ) : (
+                                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontFamily: "var(--font-sans)", fontSize: "0.875rem", color: "var(--fgColor-muted)" }}>
+                                        No compute activity data
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                <div style={{ marginTop: "8px", minHeight: "22px", fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)" }}>
+                                  {!showActiveSessions ? (userComputeActivity ? (
                                     <span dangerouslySetInnerHTML={{
                                       __html: userComputeActivity.comparisonText.replace(
                                         /(\d+\.?\d* GPU hours?)/g,
                                         '<span style="color:var(--fgColor-default);font-weight:500">$1</span>'
                                       )
                                     }} />
-                                  ) : 'Loading...'}
-                                </p>
+                                  ) : 'Loading...') : null}
+                                </div>
                               </div>
 
                               {/* Right: empty placeholder to maintain layout */}
