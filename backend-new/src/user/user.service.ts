@@ -23,6 +23,8 @@ interface UpdateProfileDto {
   githubUrl?: string;
   linkedinUrl?: string;
   websiteUrl?: string;
+  xUrl?: string;
+  substackUrl?: string;
   skills?: string[];
 }
 
@@ -204,6 +206,8 @@ export class UserService {
       githubUrl: profile?.githubUrl,
       linkedinUrl: profile?.linkedinUrl,
       websiteUrl: profile?.websiteUrl,
+      xUrl: profile?.xUrl,
+      substackUrl: profile?.substackUrl,
       country: profile?.country,
       operationalDomains: profile?.operationalDomains,
       useCasePurposes: profile?.useCasePurposes,
@@ -253,6 +257,8 @@ export class UserService {
       if (data.githubUrl !== undefined) profileUpdateData.githubUrl = data.githubUrl;
       if (data.linkedinUrl !== undefined) profileUpdateData.linkedinUrl = data.linkedinUrl;
       if (data.websiteUrl !== undefined) profileUpdateData.websiteUrl = data.websiteUrl;
+      if (data.xUrl !== undefined) profileUpdateData.xUrl = data.xUrl;
+      if (data.substackUrl !== undefined) profileUpdateData.substackUrl = data.substackUrl;
       if (data.skills !== undefined) profileUpdateData.skills = data.skills;
 
       if (Object.keys(profileUpdateData).length > 0) {

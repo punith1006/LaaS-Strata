@@ -29,6 +29,8 @@ export interface ProfileData {
   githubUrl: string | null;
   linkedinUrl: string | null;
   websiteUrl: string | null;
+  xUrl: string | null;
+  substackUrl: string | null;
   country: string | null;
   operationalDomains: string[];
   useCasePurposes: string[];
@@ -64,6 +66,8 @@ export interface EditableProfileData {
   githubUrl?: string;
   linkedinUrl?: string;
   websiteUrl?: string;
+  xUrl?: string;
+  substackUrl?: string;
   skills?: string[];
 }
 

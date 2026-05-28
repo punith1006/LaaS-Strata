@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getUserProfile, updateUserProfile, updateMentorProfile, getMe } from "@/lib/api";
+import AvailabilityManager from "@/components/mentor/availability-manager";
 import type { ProfileData, EditableProfileData, EditableMentorProfileData } from "@/types/auth";
 
 // Helper to format currency
@@ -400,6 +401,9 @@ export default function ProfilePage() {
   const [editingExpertise, setEditingExpertise] = useState(false);
   const [editingAddress, setEditingAddress] = useState(false);
   const [editingSkills, setEditingSkills] = useState(false);
+  const [editingMentorLinks, setEditingMentorLinks] = useState(false);
+  const [showingServices, setShowingServices] = useState(false);
+  const [activeServicesTab, setActiveServicesTab] = useState<"availability" | "services">("availability");
 
   // Form states
   const [personalForm, setPersonalForm] = useState({
@@ -438,6 +442,13 @@ export default function ProfilePage() {
   });
   const [skillsForm, setSkillsForm] = useState<string[]>([]);
   const [newMentorSkill, setNewMentorSkill] = useState("");
+  const [mentorLinksForm, setMentorLinksForm] = useState({
+    xUrl: "",
+    substackUrl: "",
+    githubUrl: "",
+    linkedinUrl: "",
+    websiteUrl: "",
+  });
 
   // Fetch profile on mount
   useEffect(() => {
@@ -481,6 +492,13 @@ export default function ProfilePage() {
             country: data.mentorCountry || "",
           });
           setSkillsForm(data.skills || []);
+          setMentorLinksForm({
+            xUrl: data.xUrl || "",
+            substackUrl: data.substackUrl || "",
+            githubUrl: data.githubUrl || "",
+            linkedinUrl: data.linkedinUrl || "",
+            websiteUrl: data.websiteUrl || "",
+          });
         }
       }
       setLoading(false);
@@ -734,6 +752,51 @@ export default function ProfilePage() {
     setEditingSkills(false);
   };
 
+  const handleSaveMentorLinks = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const profileUpdates: Partial<EditableProfileData> = {};
+    if (mentorLinksForm.xUrl !== (profile.xUrl || "")) {
+      profileUpdates.xUrl = mentorLinksForm.xUrl || undefined;
+    }
+    if (mentorLinksForm.substackUrl !== (profile.substackUrl || "")) {
+      profileUpdates.substackUrl = mentorLinksForm.substackUrl || undefined;
+    }
+    if (mentorLinksForm.githubUrl !== (profile.githubUrl || "")) {
+      profileUpdates.githubUrl = mentorLinksForm.githubUrl || undefined;
+    }
+    if (mentorLinksForm.linkedinUrl !== (profile.linkedinUrl || "")) {
+      profileUpdates.linkedinUrl = mentorLinksForm.linkedinUrl || undefined;
+    }
+    if (mentorLinksForm.websiteUrl !== (profile.websiteUrl || "")) {
+      profileUpdates.websiteUrl = mentorLinksForm.websiteUrl || undefined;
+    }
+    // Only call if there are actual changes
+    if (Object.keys(profileUpdates).length > 0) {
+      const updated = await updateUserProfile(profileUpdates);
+      if (updated) {
+        setProfile(updated);
+        setEditingMentorLinks(false);
+        setToast("Profile updated");
+      }
+    } else {
+      setEditingMentorLinks(false);
+    }
+    setSaving(false);
+  };
+
+  const handleCancelMentorLinks = () => {
+    if (!profile) return;
+    setMentorLinksForm({
+      xUrl: profile.xUrl || "",
+      substackUrl: profile.substackUrl || "",
+      githubUrl: profile.githubUrl || "",
+      linkedinUrl: profile.linkedinUrl || "",
+      websiteUrl: profile.websiteUrl || "",
+    });
+    setEditingMentorLinks(false);
+  };
+
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -790,16 +853,19 @@ export default function ProfilePage() {
           >
             Manage your mentor profile and account settings
           </p>
+        </div>
 
-          {/* Profile Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "16px",
-              marginBottom: "24px",
-            }}
-          >
+        {/* Profile Header - full width row with button at far right */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "16px",
+            marginBottom: "24px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <div
               style={{
                 width: "56px",
@@ -817,7 +883,7 @@ export default function ProfilePage() {
             >
               {getInitials(profile.firstName, profile.lastName)}
             </div>
-            <div style={{ flex: 1 }}>
+            <div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
                 <h2
                   style={{
@@ -861,8 +927,124 @@ export default function ProfilePage() {
               </p>
             </div>
           </div>
+          <button
+            onClick={() => setShowingServices(!showingServices)}
+            style={{
+              background: "none",
+              border: "none",
+              fontFamily: "var(--font-outfit), sans-serif",
+              fontSize: "1.125rem",
+              fontWeight: 400,
+              color: "var(--fgColor-default)",
+              cursor: "pointer",
+              padding: 0,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ borderBottom: showingServices ? "2px solid #C8AA6E" : "1px solid #C8AA6E" }}>
+              Manage Your Services →
+            </span>
+          </button>
         </div>
 
+        {showingServices ? (
+          <div style={{ marginTop: "24px" }}>
+            {/* Tabs — matching billing page pattern */}
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                height: "40px",
+                borderBottom: "1px solid var(--borderColor-default)",
+              }}
+            >
+              {/* Availability Slots tab */}
+              <button
+                onClick={() => setActiveServicesTab("availability")}
+                style={{
+                  position: "relative",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  height: "40px",
+                  background: "transparent",
+                  border: "none",
+                  padding: "0 0 12px 0",
+                  marginBottom: "-1px",
+                  marginRight: "24px",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-outfit), sans-serif",
+                    fontSize: "1rem",
+                    fontWeight: activeServicesTab === "availability" ? 600 : 400,
+                    lineHeight: "1.5rem",
+                    display: "block",
+                    color: activeServicesTab === "availability"
+                      ? "var(--fgColor-default)"
+                      : "var(--fgColor-muted)",
+                    transition: "color 0.15s ease",
+                  }}
+                >
+                  Availability Slots
+                </span>
+                {activeServicesTab === "availability" && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      zIndex: 1,
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "2px",
+                      backgroundColor: "#C8AA6E",
+                      transition: "all 0.2s ease",
+                    }}
+                  />
+                )}
+              </button>
+
+              {/* Services tab — inactive dummy */}
+              <span
+                style={{
+                  position: "relative",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  height: "40px",
+                  background: "transparent",
+                  border: "none",
+                  padding: "0 0 12px 0",
+                  marginBottom: "-1px",
+                  cursor: "not-allowed",
+                  opacity: 0.45,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-outfit), sans-serif",
+                    fontSize: "1rem",
+                    fontWeight: 400,
+                    lineHeight: "1.5rem",
+                    display: "block",
+                    color: "var(--fgColor-muted)",
+                  }}
+                >
+                  Services
+                </span>
+              </span>
+            </div>
+
+            {/* Tab content */}
+            <div style={{ marginTop: "24px" }}>
+              {activeServicesTab === "availability" && (
+                <AvailabilityManager />
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
         {/* Personal Information || About (with Languages) — side by side */}
         <div style={{ display: "flex", gap: "24px", marginTop: "24px" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1163,6 +1345,158 @@ export default function ProfilePage() {
                 isLast={true}
               />
             </SectionCard>
+            <div style={{ marginTop: "24px" }}>
+              <SectionCard
+                title="Links"
+                action={
+                  editingMentorLinks ? (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <Button variant="ghost" size="compact" onClick={handleCancelMentorLinks} disabled={saving}>
+                        Cancel
+                      </Button>
+                      <Button size="compact" onClick={handleSaveMentorLinks} disabled={saving}>
+                        {saving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="primary" size="compact" onClick={() => setEditingMentorLinks(true)}>
+                      Edit
+                    </Button>
+                  )
+                }
+              >
+                <InfoRow
+                  label="X (Twitter)"
+                  value={
+                    profile.xUrl ? (
+                      <a
+                        href={profile.xUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--fgColor-default)", textDecoration: "underline" }}
+                      >
+                        {profile.xUrl}
+                      </a>
+                    ) : (
+                      "Not set"
+                    )
+                  }
+                  isEditing={editingMentorLinks}
+                  editComponent={
+                    <TextInput
+                      value={mentorLinksForm.xUrl}
+                      onChange={(v) => setMentorLinksForm((p) => ({ ...p, xUrl: v }))}
+                      placeholder="https://x.com/username"
+                    />
+                  }
+                  isLast={false}
+                />
+                <InfoRow
+                  label="Substack"
+                  value={
+                    profile.substackUrl ? (
+                      <a
+                        href={profile.substackUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--fgColor-default)", textDecoration: "underline" }}
+                      >
+                        {profile.substackUrl}
+                      </a>
+                    ) : (
+                      "Not set"
+                    )
+                  }
+                  isEditing={editingMentorLinks}
+                  editComponent={
+                    <TextInput
+                      value={mentorLinksForm.substackUrl}
+                      onChange={(v) => setMentorLinksForm((p) => ({ ...p, substackUrl: v }))}
+                      placeholder="https://substack.com/@username"
+                    />
+                  }
+                  isLast={false}
+                />
+                <InfoRow
+                  label="GitHub"
+                  value={
+                    profile.githubUrl ? (
+                      <a
+                        href={profile.githubUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--fgColor-default)", textDecoration: "underline" }}
+                      >
+                        {profile.githubUrl}
+                      </a>
+                    ) : (
+                      "Not set"
+                    )
+                  }
+                  isEditing={editingMentorLinks}
+                  editComponent={
+                    <TextInput
+                      value={mentorLinksForm.githubUrl}
+                      onChange={(v) => setMentorLinksForm((p) => ({ ...p, githubUrl: v }))}
+                      placeholder="https://github.com/username"
+                    />
+                  }
+                  isLast={false}
+                />
+                <InfoRow
+                  label="LinkedIn"
+                  value={
+                    profile.linkedinUrl ? (
+                      <a
+                        href={profile.linkedinUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--fgColor-default)", textDecoration: "underline" }}
+                      >
+                        {profile.linkedinUrl}
+                      </a>
+                    ) : (
+                      "Not set"
+                    )
+                  }
+                  isEditing={editingMentorLinks}
+                  editComponent={
+                    <TextInput
+                      value={mentorLinksForm.linkedinUrl}
+                      onChange={(v) => setMentorLinksForm((p) => ({ ...p, linkedinUrl: v }))}
+                      placeholder="https://linkedin.com/in/username"
+                    />
+                  }
+                  isLast={false}
+                />
+                <InfoRow
+                  label="Website"
+                  value={
+                    profile.websiteUrl ? (
+                      <a
+                        href={profile.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--fgColor-default)", textDecoration: "underline" }}
+                      >
+                        {profile.websiteUrl}
+                      </a>
+                    ) : (
+                      "Not set"
+                    )
+                  }
+                  isEditing={editingMentorLinks}
+                  editComponent={
+                    <TextInput
+                      value={mentorLinksForm.websiteUrl}
+                      onChange={(v) => setMentorLinksForm((p) => ({ ...p, websiteUrl: v }))}
+                      placeholder="https://yourwebsite.com"
+                    />
+                  }
+                  isLast={true}
+                />
+              </SectionCard>
+            </div>
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -1455,6 +1789,8 @@ export default function ProfilePage() {
             </SectionCard>
           </div>
         </div>
+          </>
+        )}
 
         {/* Toast */}
         {toast && <Toast message={toast} onClose={() => setToast(null)} />}

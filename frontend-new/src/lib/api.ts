@@ -2040,3 +2040,68 @@ export async function cancelMentorSession(sessionId: string, reason?: string): P
   return res.ok;
 }
 
+// ── Mentor Calendar ─────────────────────────────────────────
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  status: string;
+  domain: string;
+  serviceType: string;
+  durationMinutes: number;
+  earningsCents: number;
+  userName: string;
+}
+
+/** Fetch all sessions for calendar view */
+export async function getMentorCalendar(): Promise<CalendarEvent[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/calendar`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// ── Mentor Availability Slots ──────────────────────────────
+
+export interface AvailabilitySlot {
+  id: string;
+  dayOfWeek: number | null;
+  specificDate: string | null;
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
+}
+
+/** Fetch all availability slots for the logged-in mentor */
+export async function getMentorAvailability(): Promise<AvailabilitySlot[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor/availability`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Create a new availability slot */
+export async function createMentorSlot(data: {
+  dayOfWeek?: number;
+  specificDate?: string;
+  startTime: string;
+  endTime: string;
+  isRecurring: boolean;
+}): Promise<AvailabilitySlot | null> {
+  const res = await apiFetch(`${API_BASE}/api/mentor/availability`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+/** Delete an availability slot */
+export async function deleteMentorSlot(id: string): Promise<boolean> {
+  const res = await apiFetch(`${API_BASE}/api/mentor/availability/${id}`, {
+    method: 'DELETE',
+  });
+  return res.ok;
+}
+

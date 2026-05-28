@@ -43,6 +43,19 @@ export interface PastEntry {
   status: 'Expired' | 'Approved' | 'Rejected' | 'Completed' | 'Cancelled' | 'Missed' | 'Rescheduled' | 'Disputed';
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  status: string;
+  domain: string;
+  serviceType: string;
+  durationMinutes: number;
+  earningsCents: number;
+  userName: string;
+}
+
 @Injectable()
 export class MentorSessionsService {
   private readonly logger = new Logger(MentorSessionsService.name);
@@ -194,6 +207,47 @@ export class MentorSessionsService {
       createdAt: s.createdAt.toISOString(),
       status: statusMap[s.status] || 'Completed',
     }));
+  }
+
+  /** Get all sessions for calendar view (scheduled, live, and past with start/end times) */
+  async getCalendar(userId: string): Promise<CalendarEvent[]> {
+    const profile = await this.findMentorProfile(userId);
+
+    // Fetch sessions that have scheduled times (exclude pending/request_expired/rejected without times)
+    const statuses = ['scheduled', 'live', 'completed', 'cancelled', 'missed', 'rescheduled'];
+
+    const sessions = await (this.prisma.mentorSession.findMany as any)({
+      where: {
+        mentorProfileId: profile.id,
+        status: { in: statuses },
+        scheduledFrom: { not: null },
+        scheduledTo: { not: null },
+      },
+      include: {
+        student: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+      orderBy: { scheduledFrom: 'asc' },
+    });
+
+    return sessions
+      .filter((s: any) => s.scheduledFrom && s.scheduledTo)
+      .map((s: any) => {
+        const studentName = `${s.student.firstName || ''} ${s.student.lastName || ''}`.trim() || 'Unknown';
+        return {
+          id: s.id,
+          title: `${studentName} — ${s.domain}`,
+          start: new Date(s.scheduledFrom).toISOString(),
+          end: new Date(s.scheduledTo).toISOString(),
+        status: s.status,
+        domain: s.domain,
+        serviceType: s.serviceType,
+        durationMinutes: s.durationMinutes,
+        earningsCents: s.earningsCents,
+        userName: studentName,
+      };
+    });
   }
 
   /** Approve a pending session request */

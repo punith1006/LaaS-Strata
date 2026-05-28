@@ -18,6 +18,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
 import { NodeModule } from './node/node.module';
 
 import { MentorSessionsModule } from './mentor-sessions/mentor-sessions.module';
+import { MentorAvailabilityModule } from './mentor-availability/mentor-availability.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { MentorSessionsModule } from './mentor-sessions/mentor-sessions.module';
     WaitlistModule,
     NodeModule,
     MentorSessionsModule,
+    MentorAvailabilityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

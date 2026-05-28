@@ -638,6 +638,8 @@ model UserProfile {
   githubUrl               String?   @map("github_url")
   linkedinUrl             String?   @map("linkedin_url")
   websiteUrl              String?   @map("website_url")
+  xUrl                    String?   @map("x_url")
+  substackUrl             String?   @map("substack_url")
   skills                  String[]
   themePreference         String    @default("dark") @map("theme_preference")
   notificationPreferences Json      @default("{}") @map("notification_preferences")

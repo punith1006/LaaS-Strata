@@ -28,6 +28,12 @@ export class MentorSessionsController {
   constructor(private readonly service: MentorSessionsService) {}
 
   @UseGuards(JwtAuthGuard)
+  @Get('calendar')
+  async getCalendar(@Req() req: { user: { id: string } }) {
+    return this.service.getCalendar(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('requests')
   async getRequests(@Req() req: { user: { id: string } }) {
     return this.service.getRequests(req.user.id);
