@@ -19,6 +19,7 @@ import { NodeModule } from './node/node.module';
 
 import { MentorSessionsModule } from './mentor-sessions/mentor-sessions.module';
 import { MentorAvailabilityModule } from './mentor-availability/mentor-availability.module';
+import { JitsiDemoModule } from './jitsi-demo/jitsi-demo.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { MentorAvailabilityModule } from './mentor-availability/mentor-availabil
     NodeModule,
     MentorSessionsModule,
     MentorAvailabilityModule,
+    JitsiDemoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

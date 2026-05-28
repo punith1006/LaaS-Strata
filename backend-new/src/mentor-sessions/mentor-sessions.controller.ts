@@ -58,6 +58,12 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('billing-stats')
+  async getBillingStats(@Req() req: { user: { id: string } }) {
+    return this.service.getMentorBillingStats(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':id/approve')
   async approve(
     @Param('id') id: string,

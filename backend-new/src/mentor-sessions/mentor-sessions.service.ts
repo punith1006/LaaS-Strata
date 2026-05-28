@@ -56,6 +56,17 @@ export interface CalendarEvent {
   userName: string;
 }
 
+export interface MentorBillingStats {
+  totalEarningsCents: number;
+  sessionsCompleted: number;
+  mentoringHoursTotal: number;
+  avgEarningsPerSessionCents: number;
+  completionRate: number;
+  effectiveHourlyRateCents: number;
+  dailyEarnings: { date: string; earningsCents: number }[];
+  dailyHours: { dayName: string; hours: number }[];
+}
+
 @Injectable()
 export class MentorSessionsService {
   private readonly logger = new Logger(MentorSessionsService.name);
@@ -353,5 +364,97 @@ export class MentorSessionsService {
     });
 
     return { success: true };
+  }
+
+  /** Get mentor billing stats (earnings, sessions, hours, daily breakdowns) */
+  async getMentorBillingStats(userId: string): Promise<MentorBillingStats> {
+    const profile = await this.findMentorProfile(userId);
+
+    // Aggregate totals from completed sessions
+    const completedAgg = await this.prisma.mentorSession.aggregate({
+      where: { mentorProfileId: profile.id, status: 'completed' },
+      _sum: { earningsCents: true, durationMinutes: true },
+      _count: true,
+    });
+
+    const totalEarningsCents = completedAgg._sum.earningsCents ?? 0;
+    const sessionsCompleted = completedAgg._count;
+    const totalMinutes = completedAgg._sum.durationMinutes ?? 0;
+    const mentoringHoursTotal = Math.round((totalMinutes / 60) * 100) / 100;
+    const avgEarningsPerSessionCents =
+      sessionsCompleted > 0 ? Math.round(totalEarningsCents / sessionsCompleted) : 0;
+
+    // Completion rate: completed / (completed + cancelled + missed)
+    const terminalStatuses = await this.prisma.mentorSession.groupBy({
+      by: ['status'],
+      where: {
+        mentorProfileId: profile.id,
+        status: { in: ['completed', 'cancelled', 'missed'] },
+      },
+      _count: true,
+    });
+    const completedCount =
+      terminalStatuses.find((g) => g.status === 'completed')?._count ?? 0;
+    const totalTerminal = terminalStatuses.reduce((s, g) => s + g._count, 0);
+    const completionRate =
+      totalTerminal > 0 ? Math.round((completedCount / totalTerminal) * 100) : 0;
+
+    // Daily earnings — last 30 days grouped by IST date
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const dailyRows: { date: string; earnings_cents: number }[] =
+      await this.prisma.$queryRaw`
+        SELECT
+          TO_CHAR(DATE(scheduled_from AT TIME ZONE 'Asia/Kolkata'), 'YYYY-MM-DD') AS date,
+          COALESCE(SUM(earnings_cents), 0)::int AS earnings_cents
+        FROM mentor_sessions
+        WHERE mentor_profile_id = ${profile.id}::uuid
+          AND status = 'completed'
+          AND scheduled_from >= ${thirtyDaysAgo}
+        GROUP BY DATE(scheduled_from AT TIME ZONE 'Asia/Kolkata')
+        ORDER BY date ASC
+      `;
+
+    const dailyEarnings = dailyRows.map((r) => ({
+      date: r.date,
+      earningsCents: r.earnings_cents,
+    }));
+
+    // Daily hours — last 30 days grouped by day-of-week name
+    const hourRows: { dow: number; total_minutes: number }[] =
+      await this.prisma.$queryRaw`
+        SELECT
+          EXTRACT(ISODOW FROM scheduled_from AT TIME ZONE 'Asia/Kolkata')::int AS dow,
+          COALESCE(SUM(duration_minutes), 0)::int AS total_minutes
+        FROM mentor_sessions
+        WHERE mentor_profile_id = ${profile.id}::uuid
+          AND status = 'completed'
+          AND scheduled_from >= ${thirtyDaysAgo}
+        GROUP BY EXTRACT(ISODOW FROM scheduled_from AT TIME ZONE 'Asia/Kolkata')
+        ORDER BY dow ASC
+      `;
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const dailyHours = dayNames.map((name, idx) => {
+      const row = hourRows.find((r) => r.dow === idx + 1);
+      return {
+        dayName: name,
+        hours: row ? Math.round((row.total_minutes / 60) * 100) / 100 : 0,
+      };
+    });
+
+    return {
+      totalEarningsCents,
+      sessionsCompleted,
+      mentoringHoursTotal,
+      avgEarningsPerSessionCents,
+      completionRate,
+      effectiveHourlyRateCents:
+        totalMinutes > 0 ? Math.round(totalEarningsCents / (totalMinutes / 60)) : 0,
+      dailyEarnings,
+      dailyHours,
+    };
   }
 }

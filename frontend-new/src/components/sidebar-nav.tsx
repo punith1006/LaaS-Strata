@@ -82,6 +82,7 @@ const mentorNavSections: NavSection[] = [
     items: [
             { id: "profile", label: "Profile", href: "/profile" },
             { id: "calendar", label: "Calendar", href: "/calendar" },
+            { id: "billing", label: "Billing", href: "/billing" },
     ],
   },
 ];

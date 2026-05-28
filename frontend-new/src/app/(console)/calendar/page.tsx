@@ -207,6 +207,7 @@ export default function CalendarPage() {
 
       {/* Calendar Container */}
       <div
+        className={`calendar-view-${currentView}`}
         style={{
           flex: 1,
           minHeight: 0,

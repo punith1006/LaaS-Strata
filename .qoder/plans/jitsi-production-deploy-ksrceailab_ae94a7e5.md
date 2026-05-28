@@ -88,8 +88,11 @@ HTTPS_PORT=8443
 TZ=Asia/Kolkata
 
 # ---- Auth (disabled for initial testing; enable for production) ----
-ENABLE_AUTH=0
-ENABLE_GUESTS=1
+# CRITICAL: AUTH_TYPE selects the Prosody auth mode. Without AUTH_TYPE=jwt,
+# ENABLE_AUTH=1 enables internal_hashed (username/password), NOT JWT.
+AUTH_TYPE=jwt
+ENABLE_AUTH=1
+ENABLE_GUESTS=0
 JWT_APP_ID=laas-platform
 JWT_APP_SECRET=<generated hex>
 
@@ -264,9 +267,11 @@ The Jitsi web client derives the XMPP WebSocket URL from `PUBLIC_URL`. If `PUBLI
 
 The network only allows UDP `49152–65535` for WebRTC media. Default JVB port `10000` is **outside** this range. Set `JVB_PORT=50000` in `.env`.
 
-### 3. Auth changes require full `down` + `up`
+### 3. Auth changes require full `down -v` + `up`
 
-Changing `ENABLE_AUTH` or `ENABLE_GUESTS` requires `docker compose down && docker compose up -d` — a simple `restart` is NOT sufficient. Prosody's config is generated at container startup and persists across restarts.
+Changing `ENABLE_AUTH`, `ENABLE_GUESTS`, or `AUTH_TYPE` requires `docker compose down -v && docker compose up -d` — a simple `restart` or `down` (without `-v`) is NOT sufficient. Prosody's config is generated at container creation via Go templates and **persists in volumes across restarts and plain down/up cycles**.
+
+Error symptom with stale auth: `authentication = "internal_hashed"` in Prosody config even though `ENABLE_AUTH=1` is set. The `AUTH_TYPE` variable is what actually controls the auth mode (`jwt`, `internal`, `ldap`, `matrix`).
 
 Error symptom with stale auth: `x-strophe-bad-non-anon-jid` in browser console, login prompt appears.
 
@@ -286,6 +291,21 @@ Jitsi's web nginx uses a self-signed cert (since `ENABLE_LETSENCRYPT=0`). The ho
 
 The host nginx must pass `Upgrade` and `Connection` headers for XMPP WebSocket connections to work. Without them, you get connection failures.
 
+### 8. `AUTH_TYPE=jwt` is required — `ENABLE_AUTH=1` alone is NOT enough
+
+The Docker Jitsi image (stable-10978) uses Go templates to generate Prosody config. The `$PROSODY_AUTH_TYPE` variable (which defaults to `$AUTH_TYPE`) controls the authentication mode:
+- `AUTH_TYPE=jwt` → `authentication = "token"` (JWT-based, what we want)
+- `AUTH_TYPE=internal` (or unset) → `authentication = "internal_hashed"` (username/password)
+
+`ENABLE_AUTH=1` only enables authentication in general — without `AUTH_TYPE=jwt`, it enables the **wrong type**. The template logic is:
+```go
+if and $ENABLE_AUTH (or (eq $PROSODY_AUTH_TYPE "jwt") (eq $PROSODY_AUTH_TYPE "hybrid_matrix_token"))
+```
+
+### 9. Volume cleanup (`-v`) is required when changing auth config
+
+Prosody's generated config lives in a Docker volume. Running `docker compose down` without `-v` preserves the volume, so the old config persists. Always use `docker compose down -v` when changing `AUTH_TYPE`, `ENABLE_AUTH`, or `JWT_APP_SECRET`.
+
 ---
 
 ## Authentication: Enabling JWT for Production
@@ -298,13 +318,23 @@ cd ~/jitsi-meet/docker-jitsi-meet-stable-10978
 
 Update `.env`:
 ```ini
+# CRITICAL: AUTH_TYPE=jwt is what switches Prosody to token auth.
+# ENABLE_AUTH=1 alone only enables internal_hashed (username/password).
+AUTH_TYPE=jwt
 ENABLE_AUTH=1
 ENABLE_GUESTS=0
 ```
 
-Then full recreate:
+Then full recreate **with volume cleanup**:
 ```bash
-docker compose down && docker compose up -d
+docker compose down -v && docker compose up -d
+```
+
+Verify JWT auth is active:
+```bash
+sleep 15
+docker compose exec prosody cat /config/conf.d/jitsi-meet.cfg.lua | grep -A5 "authentication\|app_id\|app_secret\|token_verification"
+# Expected: authentication = "token", app_id = "laas-platform", app_secret = "...", "token_verification" in MUC modules
 ```
 
 The backend generates JWTs signed with `JWT_APP_SECRET`. The frontend passes the JWT as a query parameter when creating/joining rooms. See the [Jitsi Meet Self-Hosting Setup Guide](Jitsi_Meet_Setup_Guide_ae94a7e5.md) for backend integration details.

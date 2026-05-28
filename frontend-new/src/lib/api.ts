@@ -2139,3 +2139,23 @@ export async function unblockDate(id: string): Promise<boolean> {
   return res.ok;
 }
 
+// ── Mentor Billing Stats ──
+
+export interface MentorBillingStats {
+  totalEarningsCents: number;
+  sessionsCompleted: number;
+  mentoringHoursTotal: number;
+  avgEarningsPerSessionCents: number;
+  completionRate: number;
+  effectiveHourlyRateCents: number;
+  dailyEarnings: { date: string; earningsCents: number }[];
+  dailyHours: { dayName: string; hours: number }[];
+}
+
+/** Fetch mentor billing/earnings stats */
+export async function getMentorBillingStats(): Promise<MentorBillingStats | null> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/billing-stats`);
+  if (!res.ok) return null;
+  return res.json();
+}
+

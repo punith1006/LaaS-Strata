@@ -270,6 +270,15 @@ header > div:hover {
   background: rgba(60, 100, 160, 0.22) !important;
 }
 
+/* Day view — remove today column blue background (single column doesn't need highlighting) */
+.calendar-view-day .rbc-today {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.calendar-view-day .rbc-day-slot.rbc-today .rbc-time-slot {
+  background: #0B0B0B !important;
+}
+
 /* Time content area */
 .rbc-time-content {
   background: #0B0B0B;
