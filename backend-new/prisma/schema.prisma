@@ -255,6 +255,7 @@ model User {
   billingCharges      BillingCharge[]
   paymentTransactions PaymentTransaction[]
   invoices            Invoice[]
+  withdrawalRequests  WithdrawalRequest[]
 
   // Domain 9: Academic / LMS
   coursesInstructed Course[]             @relation("CourseInstructor")
@@ -1218,6 +1219,7 @@ model Wallet {
   user               User                @relation(fields: [userId], references: [id], onDelete: Restrict)
   walletHolds        WalletHold[]
   walletTransactions WalletTransaction[]
+  withdrawalRequests WithdrawalRequest[]
 
   @@index([balanceCents])
   @@map("wallets")
@@ -1278,6 +1280,31 @@ model WalletTransaction {
   @@index([walletId, createdAt])
   @@index([userId, createdAt])
   @@map("wallet_transactions")
+}
+
+// AUDIT: Records must NEVER be deleted — required for financial audit trail
+model WithdrawalRequest {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  walletId          String    @map("wallet_id") @db.Uuid
+  amountCents       Int       @map("amount_cents")        // Gross amount user requested
+  platformFeeCents  Int       @map("platform_fee_cents")  // 20% platform fee
+  netPayoutCents    Int       @map("net_payout_cents")    // 80% actual payout
+  status            String    @default("pending")          // pending|processing|processed|failed
+  razorpayPayoutId  String?   @map("razorpay_payout_id") @db.VarChar(64)
+  razorpayContactId String?   @map("razorpay_contact_id") @db.VarChar(64)
+  utr               String?   @db.VarChar(64)
+  failureReason     String?   @map("failure_reason")
+  idempotencyKey    String    @unique @map("idempotency_key") @db.VarChar(64)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("withdrawal_requests")
 }
 
 model CreditPackage {

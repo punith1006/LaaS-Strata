@@ -20,6 +20,7 @@ import { NodeModule } from './node/node.module';
 import { MentorSessionsModule } from './mentor-sessions/mentor-sessions.module';
 import { MentorAvailabilityModule } from './mentor-availability/mentor-availability.module';
 import { JitsiDemoModule } from './jitsi-demo/jitsi-demo.module';
+import { WithdrawalModule } from './withdrawal/withdrawal.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { JitsiDemoModule } from './jitsi-demo/jitsi-demo.module';
     MentorSessionsModule,
     MentorAvailabilityModule,
     JitsiDemoModule,
+    WithdrawalModule,
   ],
   controllers: [AppController],
   providers: [AppService],

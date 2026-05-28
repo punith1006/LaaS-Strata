@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { BillingTabContent } from "@/components/home/billing-tab-content";
 import { PaymentHistoryTab } from "@/components/billing/payment-history-tab";
 import { AddCreditsModal } from "@/components/billing/add-credits-modal";
+import { WithdrawModal } from "@/components/billing/withdraw-modal";
 import MentorBillingOverview from "@/components/mentor/mentor-billing-overview";
 import { getMe } from "@/lib/api";
 import type { User } from "@/types/auth";
@@ -155,10 +156,12 @@ function MentorBillingTabs({
   activeTab,
   onTabChange,
   onAddCreditsClick,
+  onWithdrawClick,
 }: {
   activeTab: MentorBillingTab;
   onTabChange: (tab: MentorBillingTab) => void;
   onAddCreditsClick: () => void;
+  onWithdrawClick: () => void;
 }) {
   const tabs: { id: MentorBillingTab; label: string }[] = [
     { id: "overview", label: "Overview" },
@@ -241,9 +244,9 @@ function MentorBillingTabs({
 
       {/* Action Buttons */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        {/* Withdraw Button (dummy) */}
+        {/* Withdraw Button */}
         <button
-          onClick={() => console.log("Withdraw functionality coming soon")}
+          onClick={onWithdrawClick}
           style={{
             display: "flex",
             alignItems: "center",
@@ -270,7 +273,7 @@ function MentorBillingTabs({
             e.currentTarget.style.borderColor = "var(--borderColor-default)";
           }}
         >
-          {/* Arrow Up Icon */}
+          {/* Banknote Icon */}
           <svg
             width="16"
             height="16"
@@ -281,8 +284,9 @@ function MentorBillingTabs({
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M12 19V5" />
-            <path d="M5 12l7-7 7 7" />
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <circle cx="12" cy="12" r="2" />
+            <path d="M6 12h.01M18 12h.01" />
           </svg>
           Withdraw
         </button>
@@ -339,6 +343,7 @@ export default function BillingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isAddCreditsOpen, setIsAddCreditsOpen] = useState(false);
+  const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [user, setUser] = useState<User | null>(null);
 
@@ -404,6 +409,7 @@ export default function BillingPage() {
           activeTab={currentTab as MentorBillingTab}
           onTabChange={(tab) => handleTabChange(tab)}
           onAddCreditsClick={() => setIsAddCreditsOpen(true)}
+          onWithdrawClick={() => setIsWithdrawOpen(true)}
         />
       ) : (
         <BillingTabs
@@ -432,6 +438,13 @@ export default function BillingPage() {
       <AddCreditsModal
         isOpen={isAddCreditsOpen}
         onClose={() => setIsAddCreditsOpen(false)}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      {/* Withdraw Modal */}
+      <WithdrawModal
+        isOpen={isWithdrawOpen}
+        onClose={() => setIsWithdrawOpen(false)}
         onSuccess={handlePaymentSuccess}
       />
     </div>

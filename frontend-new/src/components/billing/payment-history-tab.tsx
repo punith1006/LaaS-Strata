@@ -38,6 +38,10 @@ function getStatusLabel(status: string): string {
   }
 }
 
+function isWithdrawal(transaction: PaymentTransactionItem): boolean {
+  return transaction.gateway === 'razorpayx';
+}
+
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString("en-IN", {
@@ -550,7 +554,7 @@ export function PaymentHistoryTab() {
                 whiteSpace: "nowrap",
               }}
             >
-              {"Credit Recharge"}
+              {isWithdrawal(transaction) ? "Withdrawal to Bank" : "Credit Recharge"}
             </span>
 
             {/* Order Type */}
@@ -561,7 +565,7 @@ export function PaymentHistoryTab() {
                 color: "var(--fgColor-muted)",
               }}
             >
-              Purchase
+              {isWithdrawal(transaction) ? "Withdrawal" : "Purchase"}
             </span>
 
             {/* Actions */}

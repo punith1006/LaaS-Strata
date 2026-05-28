@@ -2159,3 +2159,51 @@ export async function getMentorBillingStats(): Promise<MentorBillingStats | null
   return res.json();
 }
 
+// ── Withdrawal ──
+
+export interface WithdrawalRecord {
+  id: string;
+  amountCents: number;
+  platformFeeCents: number;
+  netPayoutCents: number;
+  status: string;
+  utr: string | null;
+  failureReason: string | null;
+  createdAt: string;
+}
+
+/** Request a withdrawal to bank account */
+export async function requestWithdrawal(
+  amountCents: number,
+  accountNumber: string,
+  ifscCode: string,
+  accountHolderName: string,
+): Promise<{ success: boolean; withdrawal?: WithdrawalRecord; error?: string }> {
+  const res = await apiFetch(`${API_BASE}/api/withdrawal/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amountCents, accountNumber, ifscCode, accountHolderName }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Withdrawal request failed' }));
+    return { success: false, error: err.message || 'Withdrawal request failed' };
+  }
+  return res.json();
+}
+
+/** Get paginated withdrawal history */
+export async function getWithdrawalHistory(
+  page: number = 1,
+  limit: number = 10,
+): Promise<{ withdrawals: WithdrawalRecord[]; total: number; totalPages: number }> {
+  const res = await apiFetch(`${API_BASE}/api/withdrawal/history?page=${page}&limit=${limit}`);
+  if (!res.ok) return { withdrawals: [], total: 0, totalPages: 0 };
+  return res.json();
+}
+
+/** Get withdrawable balance */
+export async function getWithdrawableBalance(): Promise<{ balanceCents: number } | null> {
+  const res = await apiFetch(`${API_BASE}/api/withdrawal/balance`);
+  if (!res.ok) return null;
+  return res.json();
+}
