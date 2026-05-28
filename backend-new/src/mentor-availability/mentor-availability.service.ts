@@ -18,6 +18,17 @@ export interface AvailabilitySlotResponse {
   isRecurring: boolean;
 }
 
+export interface BlockedDateResponse {
+  id: string;
+  blockedDate: string;
+  reason: string | null;
+}
+
+export interface BlockDateDto {
+  date: string;
+  reason?: string;
+}
+
 @Injectable()
 export class MentorAvailabilityService {
   private readonly logger = new Logger(MentorAvailabilityService.name);
@@ -135,6 +146,91 @@ export class MentorAvailabilityService {
     });
 
     this.logger.log(`Slot deleted: ${slotId} by user ${userId}`);
+
+    return { success: true };
+  }
+
+  // ── Blocked Dates (Day Off) ──
+
+  /** Get all blocked dates for the logged-in mentor */
+  async getBlockedDates(userId: string): Promise<BlockedDateResponse[]> {
+    const profile = await this.findMentorProfile(userId);
+
+    const blocked = await this.prisma.mentorBlockedDate.findMany({
+      where: { mentorProfileId: profile.id },
+      orderBy: { blockedDate: 'asc' },
+    });
+
+    return blocked.map((b) => ({
+      id: b.id,
+      blockedDate: b.blockedDate.toISOString().split('T')[0],
+      reason: b.reason,
+    }));
+  }
+
+  /** Block a date (Day Off) */
+  async blockDate(userId: string, dto: BlockDateDto): Promise<BlockedDateResponse> {
+    const profile = await this.findMentorProfile(userId);
+
+    if (!dto.date) {
+      throw new ConflictException('Date is required');
+    }
+
+    const parsedDate = new Date(dto.date);
+    if (isNaN(parsedDate.getTime())) {
+      throw new ConflictException('Invalid date format');
+    }
+
+    // Check for duplicate
+    const existing = await this.prisma.mentorBlockedDate.findUnique({
+      where: {
+        mentorProfileId_blockedDate: {
+          mentorProfileId: profile.id,
+          blockedDate: parsedDate,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('This date is already blocked');
+    }
+
+    const blocked = await this.prisma.mentorBlockedDate.create({
+      data: {
+        mentorProfileId: profile.id,
+        blockedDate: parsedDate,
+        reason: dto.reason || null,
+        createdBy: userId,
+        updatedBy: userId,
+      },
+    });
+
+    this.logger.log(`Date blocked: ${blocked.blockedDate.toISOString()} by user ${userId}`);
+
+    return {
+      id: blocked.id,
+      blockedDate: blocked.blockedDate.toISOString().split('T')[0],
+      reason: blocked.reason,
+    };
+  }
+
+  /** Unblock a date */
+  async unblockDate(userId: string, blockId: string): Promise<{ success: boolean }> {
+    const profile = await this.findMentorProfile(userId);
+
+    const blocked = await this.prisma.mentorBlockedDate.findFirst({
+      where: { id: blockId, mentorProfileId: profile.id },
+    });
+
+    if (!blocked) {
+      throw new NotFoundException('Blocked date not found');
+    }
+
+    await this.prisma.mentorBlockedDate.delete({
+      where: { id: blockId },
+    });
+
+    this.logger.log(`Date unblocked: ${blockId} by user ${userId}`);
 
     return { success: true };
   }

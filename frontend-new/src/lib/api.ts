@@ -2105,3 +2105,37 @@ export async function deleteMentorSlot(id: string): Promise<boolean> {
   return res.ok;
 }
 
+// ── Blocked Dates (Day Off) ──
+
+export interface BlockedDate {
+  id: string;
+  blockedDate: string;
+  reason: string | null;
+}
+
+/** Fetch all blocked dates for the logged-in mentor */
+export async function getBlockedDates(): Promise<BlockedDate[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor/availability/blocked-dates`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Block a date (Day Off) */
+export async function blockDate(date: string, reason?: string): Promise<BlockedDate | null> {
+  const res = await apiFetch(`${API_BASE}/api/mentor/availability/blocked-dates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date, reason }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+/** Unblock a date */
+export async function unblockDate(id: string): Promise<boolean> {
+  const res = await apiFetch(`${API_BASE}/api/mentor/availability/blocked-dates/${id}`, {
+    method: 'DELETE',
+  });
+  return res.ok;
+}
+

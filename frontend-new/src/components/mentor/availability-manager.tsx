@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getMentorAvailability, createMentorSlot, deleteMentorSlot } from "@/lib/api";
-import type { AvailabilitySlot } from "@/lib/api";
+import { getMentorAvailability, createMentorSlot, deleteMentorSlot, getBlockedDates, blockDate, unblockDate } from "@/lib/api";
+import type { AvailabilitySlot, BlockedDate } from "@/lib/api";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -43,6 +43,10 @@ export default function AvailabilityManager() {
 
   // Add-mode state for date-specific
   const [dateForm, setDateForm] = useState({ date: "", start: "09:00", end: "10:00" });
+  const [blockReason, setBlockReason] = useState("");
+
+  // Blocked dates
+  const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
 
   // Collapsible sections
   const [weeklyOpen, setWeeklyOpen] = useState(true);
@@ -58,9 +62,15 @@ export default function AvailabilityManager() {
     setLoading(false);
   }, []);
 
+  const fetchBlockedDates = useCallback(async () => {
+    const data = await getBlockedDates();
+    setBlockedDates(data);
+  }, []);
+
   useEffect(() => {
     fetchSlots();
-  }, [fetchSlots]);
+    fetchBlockedDates();
+  }, [fetchSlots, fetchBlockedDates]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -206,9 +216,49 @@ export default function AvailabilityManager() {
     }
   };
 
+  // ── Blocked date (Day Off) handlers ──
+  const saveBlockDate = async () => {
+    if (!dateForm.date) {
+      showToast("Please select a date");
+      return;
+    }
+    // Warn if date already has a custom slot
+    const hasCustom = dateSpecific.some((s) => s.specificDate && s.specificDate.startsWith(dateForm.date));
+    if (hasCustom) {
+      if (!confirm("This date already has a custom time slot. Block it anyway?")) return;
+    }
+    setSaving(true);
+    const result = await blockDate(dateForm.date, blockReason || undefined);
+    setSaving(false);
+    if (result) {
+      showToast("Day Off added");
+      await fetchBlockedDates();
+      setBlockReason("");
+    } else {
+      showToast("Failed to block date — may already be blocked");
+    }
+  };
+
+  const deleteBlockedDate = async (blockId: string) => {
+    if (confirmDeleteId !== blockId) {
+      setConfirmDeleteId(blockId);
+      return;
+    }
+    setConfirmDeleteId(null);
+    setSaving(true);
+    const ok = await unblockDate(blockId);
+    setSaving(false);
+    if (ok) {
+      showToast("Day Off removed");
+      await fetchBlockedDates();
+    } else {
+      showToast("Failed to remove Day Off");
+    }
+  };
+
   // ── Shared styles ──
   const sectionStyle: React.CSSProperties = {
-    background: "#0B0B0B",
+    background: "var(--bgColor-mild)",
     border: "1px solid rgba(255,255,255,0.06)",
     borderRadius: "4px",
     overflow: "hidden",
@@ -305,6 +355,7 @@ export default function AvailabilityManager() {
             >
               These slots repeat every week indefinitely. Date-specific slots on the same date will override them.
               Students can book during these times unless a date-specific slot takes precedence.
+              {"\n"}Days marked as "Day Off" will suppress all recurring slots for that date.
             </p>
           </div>
           <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{weeklyOpen ? "\u25B2" : "\u25BC"}</span>
@@ -563,7 +614,7 @@ export default function AvailabilityManager() {
                 color: "#e5e7eb",
               }}
             >
-              Date-Specific Slots
+              Date Exceptions
             </span>
             <p
               style={{
@@ -573,7 +624,7 @@ export default function AvailabilityManager() {
                 margin: "2px 0 0 0",
               }}
             >
-              One-off slots for specific dates {"\u2014"} holidays, extra availability, makeup sessions.
+              Override your weekly schedule for specific dates {"\u2014"} custom hours, extra availability, or days off.
               These take precedence over your weekly schedule for the dates listed.
             </p>
           </div>
@@ -583,7 +634,7 @@ export default function AvailabilityManager() {
         {dateOpen && (
           <div style={{ padding: "16px 20px" }}>
             {/* Add form */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
               <input
                 type="date"
                 value={dateForm.date}
@@ -648,51 +699,170 @@ export default function AvailabilityManager() {
                   cursor: "pointer",
                 }}
               >
-                Add
+                Add Custom Slot
+              </button>
+              <button
+                onClick={saveBlockDate}
+                disabled={saving}
+                style={{
+                  background: "rgba(194, 84, 76, 0.2)",
+                  color: "#f87171",
+                  border: "1px solid rgba(194, 84, 76, 0.3)",
+                  borderRadius: "4px",
+                  padding: "4px 14px",
+                  fontSize: "0.8125rem",
+                  fontWeight: 500,
+                  fontFamily: "var(--font-outfit), sans-serif",
+                  cursor: "pointer",
+                }}
+              >
+                Block Day
               </button>
             </div>
+            {/* Optional reason for Block Day */}
+            <div style={{ marginBottom: "16px" }}>
+              <input
+                type="text"
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="Reason (optional, e.g. Holiday, Travel)"
+                style={{
+                  background: "#2d333b",
+                  color: "#d1d5db",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  fontSize: "0.8125rem",
+                  fontFamily: "var(--font-outfit), sans-serif",
+                  width: "300px",
+                  maxWidth: "100%",
+                }}
+              />
+            </div>
 
-            {/* Date-specific slots list */}
-            {dateSpecific.length === 0 ? (
-              <p style={{ color: "#6b7280", fontSize: "0.875rem", fontFamily: "var(--font-outfit), sans-serif", textAlign: "center", padding: "16px 0", margin: 0 }}>
-                No date-specific slots yet
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {dateSpecific.map((slot) => (
-                  <div
-                    key={slot.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "6px 12px",
-                      background: "#2d333b",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span
-                        style={{
-                          background: "#3a3d47",
-                          color: "#d1d5db",
-                          borderRadius: "3px",
-                          padding: "2px 8px",
-                          fontSize: "0.75rem",
-                          fontFamily: "var(--font-outfit), sans-serif",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {slot.specificDate ? formatDate(slot.specificDate) : "Unknown"}
-                      </span>
-                      <span style={{ color: "#d1d5db", fontSize: "0.8125rem", fontFamily: "var(--font-outfit), sans-serif" }}>
-                        {slot.startTime}{"\u2013"}{slot.endTime}
-                      </span>
-                      {slot.specificDate && recurring.some((r) => r.dayOfWeek === getDayOfWeek(slot.specificDate!)) && (
+            {/* Custom Time Slots */}
+            <div style={{ marginBottom: "16px" }}>
+              <span style={{ color: "#9ca3af", fontSize: "0.75rem", fontFamily: "var(--font-outfit), sans-serif", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Custom Time Slots
+              </span>
+              {dateSpecific.length === 0 ? (
+                <p style={{ color: "#6b7280", fontSize: "0.875rem", fontFamily: "var(--font-outfit), sans-serif", textAlign: "center", padding: "16px 0", margin: 0 }}>
+                  No custom time slots yet
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
+                  {dateSpecific.map((slot) => (
+                    <div
+                      key={slot.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "6px 12px",
+                        background: "#2d333b",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <span
                           style={{
-                            background: "rgba(200,170,110,0.18)",
-                            color: "#C8AA6E",
+                            background: "#3a3d47",
+                            color: "#d1d5db",
+                            borderRadius: "3px",
+                            padding: "2px 8px",
+                            fontSize: "0.75rem",
+                            fontFamily: "var(--font-outfit), sans-serif",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {slot.specificDate ? formatDate(slot.specificDate) : "Unknown"}
+                        </span>
+                        <span style={{ color: "#d1d5db", fontSize: "0.8125rem", fontFamily: "var(--font-outfit), sans-serif" }}>
+                          {slot.startTime}{"\u2013"}{slot.endTime}
+                        </span>
+                        {slot.specificDate && recurring.some((r) => r.dayOfWeek === getDayOfWeek(slot.specificDate!)) && (
+                          <span
+                            style={{
+                              background: "rgba(200,170,110,0.18)",
+                              color: "#C8AA6E",
+                              borderRadius: "3px",
+                              padding: "1px 7px",
+                              fontSize: "0.6875rem",
+                              fontFamily: "var(--font-outfit), sans-serif",
+                              fontWeight: 500,
+                            }}
+                          >
+                            Overrides recurring
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => deleteDateSlot(slot.id)}
+                        disabled={saving}
+                        title={confirmDeleteId === slot.id ? "Click again to confirm delete" : "Remove slot"}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: confirmDeleteId === slot.id ? "#f87171" : "#6b7280",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                          padding: "2px 6px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {confirmDeleteId === slot.id ? "?" : "\u00D7"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Days Off */}
+            <div>
+              <span style={{ color: "#9ca3af", fontSize: "0.75rem", fontFamily: "var(--font-outfit), sans-serif", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Days Off
+              </span>
+              {blockedDates.length === 0 ? (
+                <p style={{ color: "#6b7280", fontSize: "0.875rem", fontFamily: "var(--font-outfit), sans-serif", textAlign: "center", padding: "16px 0", margin: 0 }}>
+                  No days off set
+                </p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
+                  {blockedDates.map((bd) => (
+                    <div
+                      key={bd.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "6px 12px",
+                        background: "rgba(194, 84, 76, 0.12)",
+                        borderRadius: "4px",
+                        border: "1px solid rgba(194, 84, 76, 0.2)",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span
+                          style={{
+                            background: "rgba(194, 84, 76, 0.25)",
+                            color: "#f87171",
+                            borderRadius: "3px",
+                            padding: "2px 8px",
+                            fontSize: "0.75rem",
+                            fontFamily: "var(--font-outfit), sans-serif",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {formatDate(bd.blockedDate + "T00:00:00")}
+                        </span>
+                        <span style={{ color: "#d1d5db", fontSize: "0.8125rem", fontFamily: "var(--font-outfit), sans-serif" }}>
+                          {bd.reason || "Day Off"}
+                        </span>
+                        <span
+                          style={{
+                            background: "rgba(194, 84, 76, 0.18)",
+                            color: "#f87171",
                             borderRadius: "3px",
                             padding: "1px 7px",
                             fontSize: "0.6875rem",
@@ -700,30 +870,30 @@ export default function AvailabilityManager() {
                             fontWeight: 500,
                           }}
                         >
-                          Overrides recurring
+                          Blocked
                         </span>
-                      )}
+                      </div>
+                      <button
+                        onClick={() => deleteBlockedDate(bd.id)}
+                        disabled={saving}
+                        title={confirmDeleteId === bd.id ? "Click again to confirm delete" : "Remove Day Off"}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: confirmDeleteId === bd.id ? "#f87171" : "#6b7280",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                          padding: "2px 6px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {confirmDeleteId === bd.id ? "?" : "\u00D7"}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => deleteDateSlot(slot.id)}
-                      disabled={saving}
-                      title={confirmDeleteId === slot.id ? "Click again to confirm delete" : "Remove slot"}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: confirmDeleteId === slot.id ? "#f87171" : "#6b7280",
-                        cursor: "pointer",
-                        fontSize: "0.875rem",
-                        padding: "2px 6px",
-                        lineHeight: 1,
-                      }}
-                    >
-                      {confirmDeleteId === slot.id ? "?" : "\u00D7"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

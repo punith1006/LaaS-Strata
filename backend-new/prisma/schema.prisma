@@ -1763,6 +1763,7 @@ model MentorProfile {
   mentorAvailabilitySlots MentorAvailabilitySlot[]
   mentorBookings          MentorBooking[]
   mentorSessions          MentorSession[]
+  mentorBlockedDates      MentorBlockedDate[]
 
   @@map("mentor_profiles")
 }
@@ -1784,6 +1785,23 @@ model MentorAvailabilitySlot {
   mentorProfile MentorProfile @relation(fields: [mentorProfileId], references: [id], onDelete: Restrict)
 
   @@map("mentor_availability_slots")
+}
+
+model MentorBlockedDate {
+  id              String    @id @default(uuid()) @db.Uuid
+  mentorProfileId String    @map("mentor_profile_id") @db.Uuid
+  blockedDate     DateTime  @map("blocked_date") @db.Date
+  reason          String?   @db.VarChar(255)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdBy       String?   @map("created_by") @db.Uuid
+  updatedBy       String?   @map("updated_by") @db.Uuid
+
+  // Relations
+  mentorProfile   MentorProfile @relation(fields: [mentorProfileId], references: [id], onDelete: Restrict)
+
+  @@unique([mentorProfileId, blockedDate])
+  @@map("mentor_blocked_dates")
 }
 
 model MentorBooking {
