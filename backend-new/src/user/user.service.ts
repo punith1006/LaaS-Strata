@@ -26,6 +26,20 @@ interface UpdateProfileDto {
   skills?: string[];
 }
 
+interface UpdateMentorProfileDto {
+  headline?: string;
+  mentorBio?: string;
+  languages?: string[];
+  company?: string;
+  professionalRole?: string;
+  city?: string;
+  country?: string;
+  expertiseAreas?: string[];
+  experienceYears?: number;
+  pricePerHourCents?: number;
+  isAvailable?: boolean;
+}
+
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
@@ -150,6 +164,7 @@ export class UserService {
         },
         wallet: true,
         organization: true,
+        mentorProfile: true,
       },
     });
 
@@ -159,6 +174,7 @@ export class UserService {
 
     const wallet = user.wallet;
     const profile = user.profile;
+    const mentorProfile = user.mentorProfile;
 
     return {
       // From User
@@ -197,6 +213,22 @@ export class UserService {
       lifetimeSpentCents: wallet ? Number(wallet.lifetimeSpentCents) : null,
       // From Organization
       organizationName: user.organization?.name,
+      // From MentorProfile
+      headline: mentorProfile?.headline,
+      mentorBio: mentorProfile?.bio,
+      languages: mentorProfile?.languages ?? [],
+      company: mentorProfile?.company,
+      professionalRole: mentorProfile?.professionalRole,
+      city: mentorProfile?.city,
+      mentorCountry: mentorProfile?.country,
+      expertiseAreas: mentorProfile?.expertiseAreas ?? [],
+      mentorExperienceYears: mentorProfile?.experienceYears,
+      pricePerHourCents: mentorProfile?.pricePerHourCents,
+      mentorCurrency: mentorProfile?.currency,
+      isAvailable: mentorProfile?.isAvailable,
+      avgRating: mentorProfile?.avgRating ? Number(mentorProfile.avgRating) : null,
+      totalReviews: mentorProfile?.totalReviews,
+      totalSessions: mentorProfile?.totalSessions,
     };
   }
 
@@ -236,6 +268,33 @@ export class UserService {
     });
 
     // Return the updated full profile
+    return this.getFullProfile(userId);
+  }
+
+  async updateMentorProfile(userId: string, data: UpdateMentorProfileDto) {
+    const mentorData: Record<string, unknown> = {};
+    if (data.headline !== undefined) mentorData.headline = data.headline;
+    if (data.mentorBio !== undefined) mentorData.bio = data.mentorBio;
+    if (data.languages !== undefined) mentorData.languages = data.languages;
+    if (data.company !== undefined) mentorData.company = data.company;
+    if (data.professionalRole !== undefined) mentorData.professionalRole = data.professionalRole;
+    if (data.city !== undefined) mentorData.city = data.city;
+    if (data.country !== undefined) mentorData.country = data.country;
+    if (data.expertiseAreas !== undefined) mentorData.expertiseAreas = data.expertiseAreas;
+    if (data.experienceYears !== undefined) mentorData.experienceYears = data.experienceYears;
+    if (data.pricePerHourCents !== undefined) mentorData.pricePerHourCents = data.pricePerHourCents;
+    if (data.isAvailable !== undefined) mentorData.isAvailable = data.isAvailable;
+
+    await this.prisma.mentorProfile.upsert({
+      where: { userId },
+      update: mentorData,
+      create: {
+        userId,
+        ...mentorData,
+        pricePerHourCents: (mentorData.pricePerHourCents as number) ?? 0,
+      },
+    });
+
     return this.getFullProfile(userId);
   }
 }

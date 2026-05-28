@@ -66,9 +66,24 @@ const navSections: NavSection[] = [
   },
 ];
 
-// Mentor navigation: only HOME, no HUB/MANAGE/ACCOUNT sections
+// Mentor navigation
 const mentorNavSections: NavSection[] = [
   { id: "home", label: "HOME", href: "/home" },
+  {
+    id: "messages",
+    label: "MESSAGES",
+    items: [
+      { id: "chats", label: "Chats (available soon)" },
+    ],
+  },
+  {
+    id: "account",
+    label: "ACCOUNT",
+    items: [
+            { id: "profile", label: "Profile", href: "/profile" },
+            { id: "calendar", label: "Calendar", href: "/calendar" },
+    ],
+  },
 ];
 
 // Lambda-style line icons (from Lambda.ai CSS)
@@ -107,6 +122,12 @@ function NavIcon({ type, size = 22 }: { type: string; size?: number }) {
           <circle cx="12" cy="7" r="4" />
         </svg>
       );
+    case "messages":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
     default:
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -128,7 +149,7 @@ export function SidebarNav({ roles }: { roles?: string[] }) {
 function NavContent({ roles }: { roles?: string[] }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [expanded, setExpanded] = useState<string[]>(["hub"]);
+  const [expanded, setExpanded] = useState<string[]>(["hub", "messages"]);
 
   // Determine active item based on current pathname
   const getActiveItem = () => {
@@ -138,7 +159,9 @@ function NavContent({ roles }: { roles?: string[] }) {
     if (pathname === "/instances" || pathname.startsWith("/instances")) return "instances";
     if (pathname === "/referral" || pathname.startsWith("/referral")) return "referral";
     if (pathname === "/profile" || pathname.startsWith("/profile")) return "profile";
-    // Add more route matching as needed
+    if (pathname === "/calendar" || pathname.startsWith("/calendar")) return "calendar";
+        if (pathname === "/account/profile" || pathname.startsWith("/account/profile")) return "profile";
+        if (pathname === "/account/calendar" || pathname.startsWith("/account/calendar")) return "calendar";
     return "home";
   };
 

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getUserProfile, updateUserProfile } from "@/lib/api";
-import type { ProfileData, EditableProfileData } from "@/types/auth";
+import { getUserProfile, updateUserProfile, updateMentorProfile, getMe } from "@/lib/api";
+import type { ProfileData, EditableProfileData, EditableMentorProfileData } from "@/types/auth";
 
 // Helper to format currency
 function formatCurrency(cents: number | null, currency: string | null): string {
@@ -383,6 +383,7 @@ function ProfileSkeleton() {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const [isMentor, setIsMentor] = useState<boolean | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -391,6 +392,14 @@ export default function ProfilePage() {
   // Edit states
   const [editingPersonal, setEditingPersonal] = useState(false);
   const [editingLinks, setEditingLinks] = useState(false);
+
+  // Mentor edit states
+  const [editingAbout, setEditingAbout] = useState(false);
+  const [editingLanguages, setEditingLanguages] = useState(false);
+  const [editingOccupation, setEditingOccupation] = useState(false);
+  const [editingExpertise, setEditingExpertise] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [editingSkills, setEditingSkills] = useState(false);
 
   // Form states
   const [personalForm, setPersonalForm] = useState({
@@ -409,9 +418,35 @@ export default function ProfilePage() {
 
   const [newSkill, setNewSkill] = useState("");
 
+  // Mentor form states
+  const [aboutForm, setAboutForm] = useState({
+    headline: "",
+    mentorBio: "",
+  });
+  const [languagesForm, setLanguagesForm] = useState<string[]>([]);
+  const [newLanguage, setNewLanguage] = useState("");
+  const [occupationForm, setOccupationForm] = useState({
+    company: "",
+    professionalRole: "",
+    experienceYears: "",
+  });
+  const [expertiseForm, setExpertiseForm] = useState<string[]>([]);
+  const [newExpertise, setNewExpertise] = useState("");
+  const [addressForm, setAddressForm] = useState({
+    city: "",
+    country: "",
+  });
+  const [skillsForm, setSkillsForm] = useState<string[]>([]);
+  const [newMentorSkill, setNewMentorSkill] = useState("");
+
   // Fetch profile on mount
   useEffect(() => {
     async function loadProfile() {
+      // Check if user is a mentor
+      const me = await getMe();
+      const mentor = me?.roles?.includes("mentor") ?? false;
+      setIsMentor(mentor);
+
       const data = await getUserProfile();
       if (data) {
         setProfile(data);
@@ -427,6 +462,26 @@ export default function ProfilePage() {
           bio: data.bio || "",
           skills: data.skills || [],
         });
+
+        // Initialize mentor forms
+        if (mentor) {
+          setAboutForm({
+            headline: data.headline || "",
+            mentorBio: data.mentorBio || "",
+          });
+          setLanguagesForm(data.languages || []);
+          setOccupationForm({
+            company: data.company || "",
+            professionalRole: data.professionalRole || "",
+            experienceYears: data.mentorExperienceYears?.toString() || "",
+          });
+          setExpertiseForm(data.expertiseAreas || []);
+          setAddressForm({
+            city: data.city || "",
+            country: data.mentorCountry || "",
+          });
+          setSkillsForm(data.skills || []);
+        }
       }
       setLoading(false);
     }
@@ -526,6 +581,159 @@ export default function ProfilePage() {
     }));
   };
 
+  // Word count helper
+  const wordCount = (text: string): number => {
+    return text.trim() ? text.trim().split(/\s+/).length : 0;
+  };
+
+  // ── Mentor save handlers ──
+  const handleSaveAbout = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const updates: Partial<EditableMentorProfileData> = {};
+    if (aboutForm.headline !== (profile.headline || "")) {
+      updates.headline = aboutForm.headline || undefined;
+    }
+    if (aboutForm.mentorBio !== (profile.mentorBio || "")) {
+      updates.mentorBio = aboutForm.mentorBio || undefined;
+    }
+    const updated = await updateMentorProfile(updates);
+    if (updated) {
+      setProfile(updated);
+      setEditingAbout(false);
+      setToast("Profile updated");
+    }
+    setSaving(false);
+  };
+
+  const handleCancelAbout = () => {
+    if (!profile) return;
+    setAboutForm({
+      headline: profile.headline || "",
+      mentorBio: profile.mentorBio || "",
+    });
+    setEditingAbout(false);
+  };
+
+  const handleSaveLanguages = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const updated = await updateMentorProfile({ languages: languagesForm });
+    if (updated) {
+      setProfile(updated);
+      setEditingLanguages(false);
+      setToast("Profile updated");
+    }
+    setSaving(false);
+  };
+
+  const handleCancelLanguages = () => {
+    if (!profile) return;
+    setLanguagesForm(profile.languages || []);
+    setEditingLanguages(false);
+  };
+
+  const handleSaveOccupation = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const updates: Partial<EditableMentorProfileData> = {};
+    if (occupationForm.company !== (profile.company || "")) {
+      updates.company = occupationForm.company || undefined;
+    }
+    if (occupationForm.professionalRole !== (profile.professionalRole || "")) {
+      updates.professionalRole = occupationForm.professionalRole || undefined;
+    }
+    const expYears = occupationForm.experienceYears ? parseInt(occupationForm.experienceYears, 10) : undefined;
+    if (expYears !== (profile.mentorExperienceYears ?? undefined)) {
+      updates.experienceYears = expYears;
+    }
+    if (Object.keys(updates).length > 0) {
+      const updated = await updateMentorProfile(updates);
+      if (updated) {
+        setProfile(updated);
+        setEditingOccupation(false);
+        setToast("Profile updated");
+      }
+    } else {
+      setEditingOccupation(false);
+    }
+    setSaving(false);
+  };
+
+  const handleCancelOccupation = () => {
+    if (!profile) return;
+    setOccupationForm({
+      company: profile.company || "",
+      professionalRole: profile.professionalRole || "",
+      experienceYears: profile.mentorExperienceYears?.toString() || "",
+    });
+    setEditingOccupation(false);
+  };
+
+  const handleSaveExpertise = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const updated = await updateMentorProfile({ expertiseAreas: expertiseForm });
+    if (updated) {
+      setProfile(updated);
+      setEditingExpertise(false);
+      setToast("Profile updated");
+    }
+    setSaving(false);
+  };
+
+  const handleCancelExpertise = () => {
+    if (!profile) return;
+    setExpertiseForm(profile.expertiseAreas || []);
+    setEditingExpertise(false);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const updates: Partial<EditableMentorProfileData> = {};
+    if (addressForm.city !== (profile.city || "")) {
+      updates.city = addressForm.city || undefined;
+    }
+    if (addressForm.country !== (profile.mentorCountry || "")) {
+      updates.country = addressForm.country || undefined;
+    }
+    const updated = await updateMentorProfile(updates);
+    if (updated) {
+      setProfile(updated);
+      setEditingAddress(false);
+      setToast("Profile updated");
+    }
+    setSaving(false);
+  };
+
+  const handleCancelAddress = () => {
+    if (!profile) return;
+    setAddressForm({
+      city: profile.city || "",
+      country: profile.mentorCountry || "",
+    });
+    setEditingAddress(false);
+  };
+
+  const handleSaveSkills = async () => {
+    if (!profile) return;
+    setSaving(true);
+    const updated = await updateUserProfile({ skills: skillsForm });
+    if (updated) {
+      setProfile(updated);
+      setEditingSkills(false);
+      setToast("Profile updated");
+    }
+    setSaving(false);
+  };
+
+  const handleCancelSkills = () => {
+    if (!profile) return;
+    setSkillsForm(profile.skills || []);
+    setEditingSkills(false);
+  };
+
   // Copy to clipboard
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -536,6 +744,720 @@ export default function ProfilePage() {
     return (
       <div style={{ padding: "16px 24px" }}>
         <ProfileSkeleton />
+      </div>
+    );
+  }
+
+  // Mentor role — show mentor-specific profile view
+  if (isMentor) {
+    if (!profile) {
+      return (
+        <div style={{ padding: "16px 24px" }}>
+          <div style={{ maxWidth: "100%", textAlign: "center", padding: "48px" }}>
+            <p style={{ color: "var(--fgColor-muted)" }}>Failed to load profile. Please try again.</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ padding: "16px 24px" }}>
+        <div style={{ maxWidth: "50%" }}>
+          {/* Page Header */}
+          <h1
+            style={{
+              fontFamily: "var(--font-outfit), sans-serif",
+              fontSize: "2rem",
+              fontWeight: 400,
+              lineHeight: "2.5rem",
+              color: "var(--fgColor-default)",
+              letterSpacing: "-0.04em",
+              margin: 0,
+              marginBottom: "8px",
+            }}
+          >
+            Profile
+          </h1>
+          <p
+            style={{
+              fontFamily: "var(--font-outfit), sans-serif",
+              fontSize: "0.875rem",
+              color: "var(--fgColor-muted)",
+              margin: "0 0 24px 0",
+              lineHeight: "1.375rem",
+            }}
+          >
+            Manage your mentor profile and account settings
+          </p>
+
+          {/* Profile Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              marginBottom: "24px",
+            }}
+          >
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                background: "var(--bgColor-muted)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.125rem",
+                fontWeight: 600,
+                color: "var(--fgColor-default)",
+                flexShrink: 0,
+              }}
+            >
+              {getInitials(profile.firstName, profile.lastName)}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
+                <h2
+                  style={{
+                    fontSize: "1.125rem",
+                    fontWeight: 400,
+                    color: "var(--fgColor-default)",
+                    fontFamily: "var(--font-outfit), sans-serif",
+                    margin: 0,
+                  }}
+                >
+                  {profile.firstName} {profile.lastName}
+                </h2>
+                <span style={getAuthBadgeStyle(profile.oauthProvider, profile.authType)}>
+                  {profile.oauthProvider
+                    ? profile.oauthProvider.charAt(0).toUpperCase() + profile.oauthProvider.slice(1)
+                    : profile.authType === "institution_local" || profile.authType === "university_sso"
+                    ? "SSO"
+                    : "Email"}
+                </span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "0 8px",
+                    borderRadius: "2px",
+                    background: "#7C3AED",
+                    color: "#fff",
+                    fontSize: "0.75rem",
+                    fontWeight: 500,
+                    height: "22px",
+                  }}
+                >
+                  Mentor
+                </span>
+              </div>
+              <p style={{ margin: "0 0 2px 0", color: "var(--fgColor-muted)", fontSize: "0.875rem", lineHeight: "1.375rem", fontFamily: "var(--font-outfit), sans-serif" }}>
+                {profile.email}
+              </p>
+              <p style={{ margin: 0, color: "var(--fgColor-muted)", fontSize: "0.75rem", fontFamily: "var(--font-outfit), sans-serif" }}>
+                Member since {formatDate(profile.createdAt)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Personal Information || About (with Languages) — side by side */}
+        <div style={{ display: "flex", gap: "24px", marginTop: "24px" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SectionCard
+              title="Personal Information"
+              action={
+                editingPersonal ? (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button variant="ghost" size="compact" onClick={handleCancelPersonal} disabled={saving}>
+                      Cancel
+                    </Button>
+                    <Button size="compact" onClick={handleSavePersonal} disabled={saving}>
+                      {saving ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="primary" size="compact" onClick={() => setEditingPersonal(true)}>
+                    Edit
+                  </Button>
+                )
+              }
+            >
+              <InfoRow
+                label="Name"
+                value={`${profile.firstName} ${profile.lastName}`}
+                isLast={false}
+              />
+              <InfoRow
+                label="Display Name"
+                value={profile.displayName || "Not set"}
+                isEditing={editingPersonal}
+                editComponent={
+                  <TextInput
+                    value={personalForm.displayName}
+                    onChange={(v) => setPersonalForm((p) => ({ ...p, displayName: v }))}
+                    placeholder="Enter display name"
+                  />
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Email"
+                value={
+                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {profile.email}
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "0 8px",
+                        borderRadius: "2px",
+                        background: "#10B981",
+                        color: "#fff",
+                        fontSize: "0.75rem",
+                        height: "22px",
+                      }}
+                    >
+                      Verified
+                    </span>
+                  </span>
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Phone"
+                value={profile.phone || "Not set"}
+                isEditing={editingPersonal}
+                editComponent={
+                  <TextInput
+                    value={personalForm.phone}
+                    onChange={(v) => setPersonalForm((p) => ({ ...p, phone: v }))}
+                    placeholder="Enter phone number"
+                  />
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Timezone"
+                value={profile.timezone || "Not set"}
+                isEditing={editingPersonal}
+                editComponent={
+                  <TextInput
+                    value={personalForm.timezone}
+                    onChange={(v) => setPersonalForm((p) => ({ ...p, timezone: v }))}
+                    placeholder="e.g., Asia/Kolkata"
+                  />
+                }
+                isLast={true}
+              />
+            </SectionCard>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SectionCard
+              title="About"
+              action={
+                editingAbout || editingLanguages ? (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button variant="ghost" size="compact" onClick={() => { handleCancelAbout(); handleCancelLanguages(); }} disabled={saving}>
+                      Cancel
+                    </Button>
+                    <Button size="compact" onClick={async () => {
+                      if (editingAbout) await handleSaveAbout();
+                      if (editingLanguages) await handleSaveLanguages();
+                    }} disabled={saving || wordCount(aboutForm.mentorBio) > 250}>
+                      {saving ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    <Button variant="primary" size="compact" onClick={() => { setEditingAbout(true); setEditingLanguages(true); }}>
+                      Edit
+                    </Button>
+                  </div>
+                )
+              }
+            >
+              <InfoRow
+                label="Headline"
+                value={profile.headline || "Not set"}
+                isEditing={editingAbout}
+                editComponent={
+                  <TextInput
+                    value={aboutForm.headline}
+                    onChange={(v) => setAboutForm((p) => ({ ...p, headline: v }))}
+                    placeholder="e.g., Senior ML Engineer & Mentor"
+                  />
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Bio"
+                value={
+                  profile.mentorBio ? (
+                    <span style={{ whiteSpace: "pre-wrap" }}>{profile.mentorBio}</span>
+                  ) : (
+                    "Not set"
+                  )
+                }
+                isEditing={editingAbout}
+                editComponent={
+                  <div>
+                    <TextArea
+                      value={aboutForm.mentorBio}
+                      onChange={(v) => setAboutForm((p) => ({ ...p, mentorBio: v }))}
+                      placeholder="Tell potential mentees about yourself, your experience, and what you can help with"
+                      rows={5}
+                    />
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: wordCount(aboutForm.mentorBio) > 250 ? "#EF4444" : "var(--fgColor-muted)",
+                        marginTop: "4px",
+                        fontFamily: "var(--font-outfit), sans-serif",
+                      }}
+                    >
+                      {wordCount(aboutForm.mentorBio)} / 250 words
+                      {wordCount(aboutForm.mentorBio) > 250 && " (max exceeded)"}
+                    </div>
+                  </div>
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Languages"
+                value={
+                  languagesForm.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                      {languagesForm.map((lang) => (
+                        <PillTag key={lang} label={lang} />
+                      ))}
+                    </div>
+                  ) : (
+                    "Not set"
+                  )
+                }
+                isEditing={editingLanguages}
+                editComponent={
+                  <div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+                      {languagesForm.map((lang) => (
+                        <span
+                          key={lang}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "0 8px",
+                            borderRadius: "2px",
+                            background: "var(--bgColor-muted)",
+                            fontSize: "0.75rem",
+                            fontWeight: 500,
+                            height: "22px",
+                          }}
+                        >
+                          {lang}
+                          <button
+                            onClick={() => setLanguagesForm((prev) => prev.filter((l) => l !== lang))}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                              color: "var(--fgColor-muted)",
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <TextInput
+                        value={newLanguage}
+                        onChange={setNewLanguage}
+                        placeholder="Add a language"
+                      />
+                      <Button
+                        onClick={() => {
+                          if (newLanguage.trim() && !languagesForm.includes(newLanguage.trim())) {
+                            setLanguagesForm((prev) => [...prev, newLanguage.trim()]);
+                            setNewLanguage("");
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                }
+                isLast={true}
+              />
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* Occupation || Expertise Domains — side by side */}
+        <div style={{ display: "flex", gap: "24px", marginTop: "24px" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SectionCard
+              title="Occupation"
+              action={
+                editingOccupation ? (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button variant="ghost" size="compact" onClick={handleCancelOccupation} disabled={saving}>
+                      Cancel
+                    </Button>
+                    <Button size="compact" onClick={handleSaveOccupation} disabled={saving}>
+                      {saving ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="primary" size="compact" onClick={() => setEditingOccupation(true)}>
+                    Edit
+                  </Button>
+                )
+              }
+            >
+              <InfoRow
+                label="Company"
+                value={profile.company || "Not set"}
+                isEditing={editingOccupation}
+                editComponent={
+                  <TextInput
+                    value={occupationForm.company}
+                    onChange={(v) => setOccupationForm((p) => ({ ...p, company: v }))}
+                    placeholder="e.g., Google"
+                  />
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Role"
+                value={profile.professionalRole || "Not set"}
+                isEditing={editingOccupation}
+                editComponent={
+                  <TextInput
+                    value={occupationForm.professionalRole}
+                    onChange={(v) => setOccupationForm((p) => ({ ...p, professionalRole: v }))}
+                    placeholder="e.g., Senior ML Engineer"
+                  />
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Experience"
+                value={profile.mentorExperienceYears != null ? `${profile.mentorExperienceYears} years` : "Not set"}
+                isEditing={editingOccupation}
+                editComponent={
+                  <TextInput
+                    type="number"
+                    value={occupationForm.experienceYears}
+                    onChange={(v) => setOccupationForm((p) => ({ ...p, experienceYears: v }))}
+                    placeholder="e.g., 5"
+                  />
+                }
+                isLast={true}
+              />
+            </SectionCard>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SectionCard
+              title="Expertise Domains"
+              action={
+                editingExpertise ? (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button variant="ghost" size="compact" onClick={handleCancelExpertise} disabled={saving}>
+                      Cancel
+                    </Button>
+                    <Button size="compact" onClick={handleSaveExpertise} disabled={saving}>
+                      {saving ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="primary" size="compact" onClick={() => setEditingExpertise(true)}>
+                    Edit
+                  </Button>
+                )
+              }
+            >
+              <InfoRow
+                label="Domains"
+                value={
+                  expertiseForm.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                      {expertiseForm.map((domain) => (
+                        <PillTag key={domain} label={domain} />
+                      ))}
+                    </div>
+                  ) : (
+                    "Not set"
+                  )
+                }
+                isEditing={editingExpertise}
+                editComponent={
+                  <div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+                      {expertiseForm.map((domain) => (
+                        <span
+                          key={domain}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "0 8px",
+                            borderRadius: "2px",
+                            background: "var(--bgColor-muted)",
+                            fontSize: "0.75rem",
+                            fontWeight: 500,
+                            height: "22px",
+                          }}
+                        >
+                          {domain}
+                          <button
+                            onClick={() => setExpertiseForm((prev) => prev.filter((d) => d !== domain))}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                              color: "var(--fgColor-muted)",
+                              fontSize: "0.75rem",
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <TextInput
+                        value={newExpertise}
+                        onChange={setNewExpertise}
+                        placeholder="Add a domain"
+                      />
+                      <Button
+                        onClick={() => {
+                          if (newExpertise.trim() && !expertiseForm.includes(newExpertise.trim())) {
+                            setExpertiseForm((prev) => [...prev, newExpertise.trim()]);
+                            setNewExpertise("");
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                }
+                isLast={true}
+              />
+            </SectionCard>
+            <div style={{ marginTop: "8px" }}>
+              <SectionCard
+                title="Skills"
+                action={
+                  editingSkills ? (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <Button variant="ghost" size="compact" onClick={handleCancelSkills} disabled={saving}>
+                        Cancel
+                      </Button>
+                      <Button size="compact" onClick={handleSaveSkills} disabled={saving}>
+                        {saving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="primary" size="compact" onClick={() => setEditingSkills(true)}>
+                      Edit
+                    </Button>
+                  )
+                }
+              >
+                <InfoRow
+                  label="Skills"
+                  value={
+                    skillsForm.length > 0 ? (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                        {skillsForm.map((skill) => (
+                          <PillTag key={skill} label={skill} />
+                        ))}
+                      </div>
+                    ) : (
+                      "Not set"
+                    )
+                  }
+                  isEditing={editingSkills}
+                  editComponent={
+                    <div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
+                        {skillsForm.map((skill) => (
+                          <span
+                            key={skill}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "0 8px",
+                              borderRadius: "2px",
+                              background: "var(--bgColor-muted)",
+                              fontSize: "0.75rem",
+                              fontWeight: 500,
+                              height: "22px",
+                            }}
+                          >
+                            {skill}
+                            <button
+                              onClick={() => setSkillsForm((prev) => prev.filter((s) => s !== skill))}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                                color: "var(--fgColor-muted)",
+                                fontSize: "0.75rem",
+                              }}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <TextInput
+                          value={newMentorSkill}
+                          onChange={setNewMentorSkill}
+                          placeholder="Add a skill"
+                        />
+                        <Button
+                          onClick={() => {
+                            if (newMentorSkill.trim() && !skillsForm.includes(newMentorSkill.trim())) {
+                              setSkillsForm((prev) => [...prev, newMentorSkill.trim()]);
+                              setNewMentorSkill("");
+                            }
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  }
+                  isLast={true}
+                />
+              </SectionCard>
+            </div>
+          </div>
+        </div>
+
+        {/* Account & Security || Billing Summary — side by side */}
+        <div style={{ display: "flex", gap: "24px", marginTop: "24px" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SectionCard title="Account & Security">
+              <InfoRow
+                label="Account ID"
+                value={
+                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <code
+                      style={{
+                        fontFamily: '"Suisse Intl Mono", ui-monospace, monospace',
+                        fontSize: "0.875rem",
+                        background: "var(--bgColor-muted)",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      {profile.id}
+                    </code>
+                    <button
+                      onClick={() => copyToClipboard(profile.id)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--fgColor-muted)",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </span>
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Auth Method"
+                value={getAuthMethodDisplay(profile)}
+                isLast={false}
+              />
+              <InfoRow
+                label="Two-Factor Auth"
+                value={
+                  profile.twoFactorEnabled ? (
+                    <span style={{ color: "#10B981" }}>Enabled</span>
+                  ) : (
+                    <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      Not enabled
+                      <span style={{ color: "var(--fgColor-muted)", fontSize: "0.75rem" }}>
+                        Setup MFA
+                      </span>
+                    </span>
+                  )
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Last Login"
+                value={formatDate(profile.lastLoginAt)}
+                isLast={true}
+              />
+            </SectionCard>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SectionCard title="Billing Summary" accent>
+              <InfoRow
+                label="Current Balance"
+                value={
+                  <span style={{ fontSize: "1.125rem", fontWeight: 400 }}>
+                    {formatCurrency(profile.balanceCents, profile.currency)}
+                  </span>
+                }
+                isLast={false}
+              />
+              <InfoRow
+                label="Lifetime Spent"
+                value={formatCurrency(profile.lifetimeSpentCents, profile.currency)}
+                isLast={false}
+              />
+              <InfoRow
+                label=""
+                value={
+                  <button
+                    onClick={() => router.push("/billing")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "var(--fgColor-default)",
+                      textDecoration: "underline",
+                      fontSize: "0.875rem",
+                      fontFamily: "var(--font-outfit), sans-serif",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    View full billing →
+                  </button>
+                }
+                isLast={true}
+              />
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* Toast */}
+        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       </div>
     );
   }

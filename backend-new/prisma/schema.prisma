@@ -1738,6 +1738,11 @@ model MentorProfile {
   userId            String   @unique @map("user_id") @db.Uuid
   headline          String?  @db.VarChar(255)
   bio               String?
+  languages         String[]
+  company           String?  @db.VarChar(255)
+  professionalRole  String?  @map("professional_role") @db.VarChar(255)
+  city              String?  @db.VarChar(150)
+  country           String?  @db.VarChar(100)
   expertiseAreas    String[] @map("expertise_areas")
   experienceYears   Int?     @map("experience_years")
   pricePerHourCents Int      @map("price_per_hour_cents")

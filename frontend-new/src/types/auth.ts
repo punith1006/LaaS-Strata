@@ -38,6 +38,22 @@ export interface ProfileData {
   lifetimeSpentCents: number | null;
   // Org
   organizationName: string | null;
+  // Mentor
+  headline: string | null;
+  mentorBio: string | null;
+  languages: string[];
+  company: string | null;
+  professionalRole: string | null;
+  city: string | null;
+  mentorCountry: string | null;
+  expertiseAreas: string[];
+  mentorExperienceYears: number | null;
+  pricePerHourCents: number | null;
+  mentorCurrency: string | null;
+  isAvailable: boolean | null;
+  avgRating: number | null;
+  totalReviews: number | null;
+  totalSessions: number | null;
 }
 
 export interface EditableProfileData {
@@ -49,6 +65,20 @@ export interface EditableProfileData {
   linkedinUrl?: string;
   websiteUrl?: string;
   skills?: string[];
+}
+
+export interface EditableMentorProfileData {
+  headline?: string;
+  mentorBio?: string;
+  languages?: string[];
+  company?: string;
+  professionalRole?: string;
+  city?: string;
+  country?: string;
+  expertiseAreas?: string[];
+  experienceYears?: number;
+  pricePerHourCents?: number;
+  isAvailable?: boolean;
 }
 
 export interface SignupState {

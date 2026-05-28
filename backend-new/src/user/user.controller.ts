@@ -104,4 +104,13 @@ export class UserController {
   ) {
     return this.userService.updateProfile(req.user.id, data);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('mentor-profile')
+  async updateMentorProfile(
+    @Req() req: { user: { id: string } },
+    @Body() data: any,
+  ) {
+    return this.userService.updateMentorProfile(req.user.id, data);
+  }
 }

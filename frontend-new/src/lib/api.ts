@@ -1,4 +1,4 @@
-import type { AuthTokens, User, ProfileData, EditableProfileData } from "@/types/auth";
+import type { AuthTokens, User, ProfileData, EditableProfileData, EditableMentorProfileData } from "@/types/auth";
 import { saveTokens, getAccessToken, getRefreshToken, clearTokens, isTokenExpired, saveAnalyticsTokens, getAnalyticsAccessToken, clearAnalyticsTokens } from "@/lib/token";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -1729,6 +1729,28 @@ export async function updateUserProfile(data: Partial<EditableProfileData>): Pro
 
   if (API_BASE) {
     const res = await apiFetch(`${API_BASE}/api/user/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  }
+  return null;
+}
+
+// ── Mentor Profile ─────────────────────────────────────────
+export async function getMentorProfile(): Promise<ProfileData | null> {
+  // Reuses the same /api/user/profile endpoint which now includes mentorProfile fields
+  return getUserProfile();
+}
+
+export async function updateMentorProfile(data: Partial<EditableMentorProfileData>): Promise<ProfileData | null> {
+  const token = getAccessToken();
+  if (!token) return null;
+
+  if (API_BASE) {
+    const res = await apiFetch(`${API_BASE}/api/user/mentor-profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
