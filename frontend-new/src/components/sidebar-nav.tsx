@@ -66,6 +66,11 @@ const navSections: NavSection[] = [
   },
 ];
 
+// Mentor navigation: only HOME, no HUB/MANAGE/ACCOUNT sections
+const mentorNavSections: NavSection[] = [
+  { id: "home", label: "HOME", href: "/home" },
+];
+
 // Lambda-style line icons (from Lambda.ai CSS)
 function NavIcon({ type, size = 22 }: { type: string; size?: number }) {
   const strokeWidth = 1.5;
@@ -111,16 +116,16 @@ function NavIcon({ type, size = 22 }: { type: string; size?: number }) {
   }
 }
 
-export function SidebarNav() {
+export function SidebarNav({ roles }: { roles?: string[] }) {
   return (
     <>
       <style>{styles}</style>
-      <NavContent />
+      <NavContent roles={roles} />
     </>
   );
 }
 
-function NavContent() {
+function NavContent({ roles }: { roles?: string[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const [expanded, setExpanded] = useState<string[]>(["hub"]);
@@ -164,9 +169,11 @@ function NavContent() {
     setActiveItem(item.id);
   };
 
+  const sections = roles?.includes("mentor") ? mentorNavSections : navSections;
+
   return (
     <nav aria-label="Primary navigation" style={{ paddingTop: "8px", paddingBottom: "8px" }}>
-      {navSections.map((section) => {
+      {sections.map((section) => {
         const hasItems = section.items && section.items.length > 0;
         const isActive = activeItem === section.id;
         const expandedState = isExpanded(section.id);

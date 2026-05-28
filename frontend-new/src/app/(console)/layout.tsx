@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getAccessToken } from "@/lib/token";
-import { getOnboardingStatus } from "@/lib/api";
+import { getOnboardingStatus, getMe } from "@/lib/api";
 
 export default function ConsoleLayout({
   children,
@@ -35,6 +35,14 @@ export default function ConsoleLayout({
 
       // Check onboarding status as a safety net
       try {
+        // Mentor users skip onboarding (created directly in DB, no onboarding flow)
+        const user = await getMe();
+        if (user?.roles?.includes("mentor")) {
+          setIsCheckingOnboarding(false);
+          setIsAuthenticated(true);
+          return;
+        }
+
         const onboardingStatus = await getOnboardingStatus();
         if (onboardingStatus && !onboardingStatus.isOnboardingComplete) {
           // Onboarding not complete, redirect to onboarding

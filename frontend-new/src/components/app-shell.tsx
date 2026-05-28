@@ -6,7 +6,8 @@ import { SidebarNav } from "./sidebar-nav";
 import { SignOutModal } from "./sign-out-modal";
 import { SupportModal } from "./support/support-modal";
 import { getIdToken, getTokenExpiresIn, getRefreshToken, clearTokens } from "@/lib/token";
-import { getBillingData, getPlatformHealth, PlatformHealth, refreshTokens } from "@/lib/api";
+import { getBillingData, getPlatformHealth, PlatformHealth, refreshTokens, getMe } from "@/lib/api";
+import type { User } from "@/types/auth";
 
 /**
  * Base screen template — Utilitarian minimalism (Design\template.txt).
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [platformHealth, setPlatformHealth] = useState<PlatformHealth | null>(null);
   const [showHealthTooltip, setShowHealthTooltip] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   // Load dark mode preference from localStorage on mount
   useEffect(() => {
@@ -35,8 +37,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Fetch credit balance on mount
+  // Fetch user and credit balance on mount
   useEffect(() => {
+    getMe()
+      .then((u) => setUser(u))
+      .catch(() => setUser(null));
+
     getBillingData()
       .then((data) => {
         setCreditBalance(data?.creditBalance ?? null);
@@ -455,7 +461,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           {/* Navigation accordion sections */}
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <SidebarNav />
+            <SidebarNav roles={user?.roles} />
           </div>
           {/* Sidebar footer — Support, Company, Settings nav items + copyright */}
           <div

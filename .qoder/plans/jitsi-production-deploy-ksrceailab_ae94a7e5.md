@@ -26,7 +26,7 @@ Only these ports are open at the network level:
 | 49152–65535 | UDP | WebRTC media relay |
 | 2223 | TCP | SSH management |
 
-**Critical**: Port `8443` (Jitsi's default HTTPS) is **NOT** open. Port `10000/udp` (JVB default) is **NOT** open. All traffic must flow through port `443` (nginx). JVB media must use a port within `49152–65535`.
+**Critical**: Port `8443` (Jitsi's default HTTPS) is **NOT** open. Port `10000/udp` (JVB default) is **NOT** open. All traffic must flow through port `443` (nginx). JVB media must use a port within `49152–65535`. (i think i was started in 50000 as of now!)
 
 ---
 

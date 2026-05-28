@@ -1,0 +1,31 @@
+User : Mentor!
+
+Home Page 
+
+ok so lets begin with the discussion!!
+first we ll have a new user role Mentor (please look at the database for the role and auth information and their functionality)
+and as of now we dont have a mentor onboarding functionality , we ll directly create some user who are mentors in the database itself .
+(i have provide some images of the application for the regular platform user) similary for the Mentor in the navigation section we ll have 4 sections Home, Chat, Profile and Billing
+
+We ll discuss each one in breif.
+Home page (similar view as like the regular user who uses the platform, we ll have the similar header greeting, two tab view, Home and Sessions
+(in the Home tab the view and layout is the same , with the contextually persionalized dialogue box just like in the user view of the home tab.
+Overview section , where for the platfrom user we show Storage , Compute Sesssions, Resources. but for the Mentor (you must contextually ideate on what better and important info we can show for that section, as like how the above are contextually important and releveant for the user)
+similar analogy to the Quick Actions Section as well
+and Recent Acitivity is the same behavior no change to this section, (it basically journal or audits all the events reflected to this account , please go through the code bit to understand it properly!!)
+you can go through the complete /home page to understand the existing code properly!!
+
+and the in the Sessions tab (look at how the /billings page (the invoice and payments tab)
+so basically in the Sesssion tab , i want another sub tab view with these options
+Requests, Upcoming and Complete
+each of these are basically tables reflecting the Mentoring Session records
+the columns for these table you please ideate on what to be show, (for eaxmple i can say these 
+User/Mentee, Service Type, Objective (Short Discprition), Status (of Sesssion (you can have diffent status to reflect the stages of the Mentoring Session), Session Duration, Earnings (How much u ll earn from this session), Request Expires In (This table basically shows all the mentoring session requets with the intent of book now!) and each of it will expire in 5min (so we ll show countdown in Mins !! and Action Button (same in funcitonality to the Action button in Invoice and payment table in /billing page i want the same function as its drop down and all. (if for now the option of reject)
+
+for now please go through each and everydetails throughouly (dont implement it you need to transfer this knowledge contextually and in detail to the ReadMe\Mentoring-Module-README.md file)
+you please read thru /home page and /billing page understand their code and implementation!!
+and then do the needful!
+Also this is very important, based on the logged in user role the view of these pages will change!!
+/​plan​ 
+For now we are just taking about the Home page for the Mentor!!
+

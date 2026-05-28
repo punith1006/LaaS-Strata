@@ -31,6 +31,17 @@ interface UserRow {
   lastLoginAt: string | null;
 }
 
+interface ActiveSession {
+  id: string;
+  instanceName?: string;
+  containerName?: string;
+  status: string;
+  startedAt: string | null;
+  cumulativeCostCents: number;
+  computeConfig?: { name: string; basePricePerHourCents: number };
+  allocatedGpuVramMb?: number;
+}
+
 interface ClientOption {
   id: string;
   name: string;
@@ -194,7 +205,7 @@ function formatCostRupees(cents: number): string {
   return `\u20B9${formatted}`;
 }
 
-function calculateLiveCost(session: any): number {
+function calculateLiveCost(session: ActiveSession): number {
   if (ENDED_STATUSES.includes(session.status)) return session.cumulativeCostCents;
   if (!session.startedAt || !session.computeConfig) return 0;
   if (!ACTIVE_STATUSES.includes(session.status) || session.status === 'pending') return 0;
@@ -632,7 +643,7 @@ export function UsersSection() {
 
   // Active sessions table state
   const [showActiveSessions, setShowActiveSessions] = useState(false);
-  const [activeSessions, setActiveSessions] = useState<any[] | null>(null);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[] | null>(null);
   const [sessionsLoading, setSessionsLoading] = useState(false);
 
   // Debounce search
@@ -1894,7 +1905,7 @@ export function UsersSection() {
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          {activeSessions.map((session: any) => (
+                                          {activeSessions.map((session: ActiveSession) => (
                                             <tr key={session.id} style={{ borderBottom: "1px solid var(--borderColor-default)", height: "48px" }}>
                                               <td style={{ padding: "12px 16px" }}>
                                                 <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--fgColor-default)" }}>

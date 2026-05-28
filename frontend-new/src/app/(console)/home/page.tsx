@@ -7,6 +7,8 @@ import type { User } from "@/types/auth";
 import type { BillingData } from "@/lib/api";
 import { HomeTabContent } from "@/components/home/home-tab-content";
 import { BillingTabContent } from "@/components/home/billing-tab-content";
+import { MentorHomeTabContent } from "@/components/home/mentor-home-tab-content";
+import { MentorSessionsTabContent } from "@/components/home/mentor-sessions-tab-content";
 
 // Greeting helper function
 function getGreeting(): string {
@@ -24,7 +26,7 @@ export default function HomePage() {
   const [billingData, setBillingData] = useState<BillingData | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const currentTab = searchParams.get("tab") === "billing" ? "billing" : "home";
+  const currentTab = searchParams.get("tab") === "billing" ? "billing" : searchParams.get("tab") === "sessions" ? "sessions" : "home";
 
   // Theme-aware info box colors (matching ephemeral storage style)
   const infoBoxColors = {
@@ -92,6 +94,11 @@ export default function HomePage() {
 
   const displayName = getDisplayName();
   const greeting = getGreeting();
+  const isMentor = user?.roles?.includes("mentor");
+
+  const tabs: Array<{ id: string; label: string }> = isMentor
+    ? [{ id: "home", label: "Home" }, { id: "sessions", label: "Sessions" }]
+    : [{ id: "home", label: "Home" }, { id: "billing", label: "Billing" }];
 
   if (loading) {
     return (
@@ -130,7 +137,7 @@ export default function HomePage() {
       </h1>
 
       {/* Zero Credits Warning Banner - Horizontal layout with CTA on right */}
-      {billingData && billingData.creditBalance === 0 && !billingData.isComputeStorageExempt && (
+      {!isMentor && billingData && billingData.creditBalance === 0 && !billingData.isComputeStorageExempt && (
         <div
           style={{
             display: "flex",
@@ -216,17 +223,17 @@ export default function HomePage() {
           borderBottom: "1px solid var(--borderColor-default)",
         }}
       >
-        {(["home", "billing"] as const).map((tab) => {
-          const isActive = currentTab === tab;
+        {tabs.map((tab) => {
+          const isActive = currentTab === tab.id;
           return (
             <button
-              key={tab}
+              key={tab.id}
               onClick={() => {
                 const params = new URLSearchParams(searchParams.toString());
-                if (tab === "home") {
+                if (tab.id === "home") {
                   params.delete("tab");
                 } else {
-                  params.set("tab", tab);
+                  params.set("tab", tab.id);
                 }
                 const qs = params.toString();
                 router.push(`/home${qs ? `?${qs}` : ""}`, { scroll: false });
@@ -245,7 +252,7 @@ export default function HomePage() {
                 marginBottom: "-1px",
               }}
             >
-              {tab === "home" ? "Home" : "Billing"}
+              {tab.label}
             </button>
           );
         })}
@@ -254,7 +261,9 @@ export default function HomePage() {
       {/* Tab Content */}
       <div style={{ marginTop: "24px" }}>
         {currentTab === "home" ? (
-          <HomeTabContent user={user} />
+          isMentor ? <MentorHomeTabContent user={user} /> : <HomeTabContent user={user} />
+        ) : currentTab === "sessions" ? (
+          <MentorSessionsTabContent />
         ) : (
           <BillingTabContent user={user} />
         )}
