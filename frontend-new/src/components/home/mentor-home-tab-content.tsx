@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { User } from "@/types/auth";
 import type { ActivityLogEntry } from "@/lib/api";
-import { getRecentActivity } from "@/lib/api";
+import { getRecentActivity, getMentorRequests, getMentorUpcoming, getMentorPast } from "@/lib/api";
 
 interface MentorHomeTabContentProps {
   user: User | null;
@@ -167,6 +167,11 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
   const [activityLoading, setActivityLoading] = useState(true);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
+  // Overview stats from mentor sessions
+  const [pendingCount, setPendingCount] = useState(0);
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [totalEarningsCents, setTotalEarningsCents] = useState(0);
+
   useEffect(() => {
     getRecentActivity(30)
       .then((data) => {
@@ -178,6 +183,20 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
       .catch(() => {
         setActivityLoading(false);
       });
+
+    // Fetch mentor overview stats
+    Promise.all([
+      getMentorRequests(),
+      getMentorUpcoming(),
+      getMentorPast(),
+    ]).then(([requests, upcoming, past]) => {
+      setPendingCount(requests.length);
+      setUpcomingCount(upcoming.length);
+      const completedSum = past
+        .filter((p) => p.status === "Completed")
+        .reduce((sum, p) => sum + p.earningsCents, 0);
+      setTotalEarningsCents(completedSum);
+    }).catch(() => {});
   }, []);
 
   const firstName = user?.firstName || "there";
@@ -345,20 +364,20 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
       >
         <QuickStatCard
           title="Pending Requests"
-          value="0"
-          subtitle="Awaiting your response"
-          status="Smooth Sailing"
-          statusColor="#05C004"
+          value={String(pendingCount)}
+          subtitle={pendingCount === 1 ? "1 request awaiting your response" : pendingCount > 1 ? `${pendingCount} requests awaiting your response` : "Awaiting your response"}
+          status={pendingCount > 0 ? "Action Needed" : "Smooth Sailing"}
+          statusColor={pendingCount > 0 ? "#FDA422" : "#05C004"}
         />
         <QuickStatCard
           title="Upcoming Sessions"
-          value="0"
-          subtitle="No upcoming sessions"
+          value={String(upcomingCount)}
+          subtitle={upcomingCount === 0 ? "No upcoming sessions" : `${upcomingCount} session${upcomingCount > 1 ? "s" : ""} scheduled`}
         />
         <QuickStatCard
           title="Total Earnings"
-          value="Rs.0"
-          subtitle="This month"
+          value={`Rs.${(totalEarningsCents * 0.8 / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtitle={totalEarningsCents === 0 ? "This month" : "Net earnings after platform fee"}
         />
         <QuickStatCard
           title="Avg. Rating"

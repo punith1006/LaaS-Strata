@@ -326,40 +326,94 @@ Mentor Cancellation:
 
 ## 8. Booking Lifecycle & State Machine
 
+> **Full spec:** See [`Session-Module-Specification.md`](Session-Module-Specification.md) for the authoritative reference including database schema, payment flows, and audit trail.
+
+The module supports two distinct session types with separate state machines:
+
+### 8.1 MEET_NOW (Ad-hoc, mentor-approved)
+
 ```
-                    ┌──────────┐
-                    │ PENDING   │ ← Booking created (if approval mode)
-                    └────┬─────┘
-                         │ mentor approves
-                         ▼
-                    ┌──────────┐
-                    │ CONFIRMED │ ← Booking confirmed
-                    └────┬─────┘
-                         │
-              ┌──────────┼──────────────┐
-              ▼          ▼              ▼
-        ┌──────────┐  ┌──────────┐  ┌──────────┐
-        │ COMPLETED │  │RESCHEDULED│  │ CANCELLED│
-        └────┬─────┘  └──────────┘  └──────────┘
-             │
-             ▼
-        ┌──────────┐
-        │ REVIEWED  │ ← Student leaves review
-        └──────────┘
+                         ┌───────────┐
+                    ┌────│  PENDING   │────┐
+                    │    └─────┬─────┘    │
+                    │          │          │
+         mentor     │   mentor │   15-min │ TTL
+         rejects    │ approves │  expires │
+                    │          │          │
+                    ▼          ▼          ▼
+              ┌──────────┐ ┌──────────┐ ┌─────────────────┐
+              │ REJECTED │ │SCHEDULED │ │ REQUEST_EXPIRED │
+              └──────────┘ └────┬─────┘ └─────────────────┘
+                                │
+                     ┌──────────┼────────────┐
+                     │          │            │
+              student│   both   │   neither  │
+              cancels│   join   │   joins    │
+                     │          │   (grace)  │
+                     ▼          ▼            ▼
+              ┌──────────┐ ┌──────────┐ ┌──────────┐
+              │CANCELLED │ │   LIVE   │ │  MISSED  │
+              └──────────┘ └────┬─────┘ └──────────┘
+                                │
+                         session│ ends
+                                │
+                                ▼
+                          ┌───────────┐
+                          │ COMPLETED │
+                          └───────────┘
 ```
 
-### Status Transition Rules
+### 8.2 SLOT_BOOKING (Pre-scheduled, auto-confirmed)
 
-| Transition | Who Can | Conditions | Wallet Action |
-|------------|---------|------------|---------------|
-| PENDING → CONFIRMED | Mentor | Within booking window | Hold amount |
-| CONFIRMED → COMPLETED | System | Auto (end time + grace) | Release to mentor |
-| CONFIRMED → CANCELLED_BY_STUDENT | Student | Before deadline | Refund per policy |
-| CONFIRMED → CANCELLED_BY_MENTOR | Mentor | Any time | Full refund + penalty |
-| CONFIRMED → NO_SHOW_STUDENT | System | No join 20min past | Forfeit (mentor paid) |
-| CONFIRMED → NO_SHOW_MENTOR | System | Mentor absent 10min | Full refund + penalty |
+```
+                         ┌───────────┐
+                         │ SCHEDULED │
+                         └─────┬─────┘
+                               │
+              ┌────────────────┼──────────────────┐
+              │                │                  │
+       mentor │         both   │          time    │
+   reschedules│         join   │         passes   │
+              │         during │         no-show  │
+              │         window │                  │
+              ▼                ▼                  ▼
+        ┌───────────┐   ┌──────────┐      ┌──────────┐
+        │RESCHEDULED│   │   LIVE   │      │  MISSED  │
+        └───────────┘   └────┬─────┘      └──────────┘
+                              │
+                       session│ ends
+                              │
+                              ▼
+                        ┌───────────┐
+                        │ COMPLETED │
+                        └───────────┘
 
-**Source:** `Mentoring_Calendar_Module_Design_ae94a7e5.md` — Section 3
+        Also from SCHEDULED: either party may cancel → CANCELLED
+```
+
+### 8.3 Status Transition Rules
+
+| From | To | Trigger | Actor | Wallet Action |
+|------|----|---------|-------|---------------|
+| PENDING | SCHEDULED | Mentor approves | Mentor | — |
+| PENDING | REJECTED | Mentor rejects | Mentor | — |
+| PENDING | REQUEST_EXPIRED | 15-min TTL expires | System | — |
+| SCHEDULED | LIVE | Both join + payment complete | System | Funds held in escrow |
+| SCHEDULED | CANCELLED | Student/mentor cancels | Either | Per refund rules |
+| SCHEDULED | MISSED | Grace period, no-show | System | Advance non-refundable |
+| SCHEDULED | RESCHEDULED | Mentor reschedules | Mentor | Transferred to new session |
+| LIVE | COMPLETED | Participants leave / JWT expires | System | Escrow released to mentor |
+
+### 8.4 UI Tab Visibility
+
+| Tab | Statuses |
+|-----|----------|
+| Requests | PENDING |
+| Upcoming | SCHEDULED |
+| Live Sessions | LIVE |
+| Past | COMPLETED, CANCELLED, REJECTED, REQUEST_EXPIRED, RESCHEDULED, MISSED |
+
+**Source:** `Session-Module-Specification.md` — Sections 3, 4, 5, 11
 
 ---
 

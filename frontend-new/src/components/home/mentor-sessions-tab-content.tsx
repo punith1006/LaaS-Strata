@@ -1,14 +1,27 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import {
+  type RequestEntry,
+  type UpcomingEntry,
+  type LiveSessionEntry,
+  type PastEntry as PastEntryApi,
+  getMentorRequests,
+  getMentorUpcoming,
+  getMentorLive,
+  getMentorPast,
+  approveMentorSession,
+  rejectMentorSession,
+  cancelMentorSession,
+} from "@/lib/api";
 
-type SessionsSubTab = "requests" | "upcoming" | "complete";
+type SessionsSubTab = "requests" | "upcoming" | "past";
 
 const subTabs: { id: SessionsSubTab; label: string }[] = [
   { id: "requests", label: "Requests" },
   { id: "upcoming", label: "Upcoming" },
-  { id: "complete", label: "Complete" },
+  { id: "past", label: "Past" },
 ];
 
 // --- Sub-tab component ---
@@ -270,39 +283,88 @@ function RequestActionDropdown({
   );
 }
 
-interface RequestEntry {
-  id: string;
-  userName: string;
-  domain: string;
-  serviceType: string;
-  durationMinutes: number;
-  earningsCents: number;
-  createdAt: string;
+// --- Request Row (separate component so useCountdown runs at top level) ---
+function RequestRow({
+  req,
+  idx,
+  isFirstRow,
+  isLastRow,
+  firstRowRef,
+  onApprove,
+  onReject,
+}: {
+  req: RequestEntry;
+  idx: number;
+  isFirstRow: boolean;
+  isLastRow: boolean;
+  firstRowRef: React.RefObject<HTMLDivElement | null>;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  const { display, isExpired, isUrgent } = useCountdown(req.createdAt);
+
+  return (
+    <div
+      key={req.id}
+      ref={isFirstRow ? firstRowRef : undefined}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "140px 1fr 120px 90px 100px 90px 90px 50px",
+        gap: "12px",
+        padding: "12px 20px",
+        borderBottom: isLastRow ? "none" : "1px solid var(--borderColor-default)",
+        alignItems: "center",
+        transition: "background-color 0.1s ease",
+      }}
+      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
+      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+    >
+      <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{req.userName}</span>
+      <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.domain}</span>
+      <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{req.serviceType}</span>
+      <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatDuration(req.durationMinutes)}</span>
+      <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatEarnings(req.earningsCents)}</span>
+      <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: isExpired ? "var(--fgColor-muted)" : isUrgent ? "#E70000" : "#FDA422", fontWeight: isUrgent ? 600 : 400 }}>{isExpired ? "Expired" : display}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: isExpired ? "#818178" : "#FDA422" }} />
+        <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{isExpired ? "Expired" : "Pending"}</span>
+      </div>
+      <RequestActionDropdown onApprove={onApprove} onReject={onReject} />
+    </div>
+  );
 }
 
 // --- Requests Table ---
-function RequestsTable() {
-  const [requests, setRequests] = useState<RequestEntry[]>([
-    {
-      id: "REQ-001",
-      userName: "Priya K.",
-      domain: "Machine Learning",
-      serviceType: "1-on-1 Tutoring",
-      durationMinutes: 60,
-      earningsCents: 100000,
-      createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    },
-  ]);
+function RequestsTable({
+  requests,
+  onApprove,
+  onReject,
+  onRequestExpire,
+}: {
+  requests: RequestEntry[];
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onRequestExpire: (id: string) => void;
+}) {
+  const expiredRef = useRef<Set<string>>(new Set());
 
-  const handleApprove = (id: string) => {
-    console.log(`Approved request: ${id}`);
-    // TODO: API call
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      requests.forEach((req) => {
+        if (!expiredRef.current.has(req.id) && now - new Date(req.createdAt).getTime() >= EXPIRY_TTL_MS) {
+          expiredRef.current.add(req.id);
+          onRequestExpire(req.id);
+        }
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [requests, onRequestExpire]);
 
-  const handleReject = (id: string) => {
-    console.log(`Rejected request: ${id}`);
-    // TODO: API call
-  };
+  const activeRequests = useMemo(
+    () => requests.filter((r) => !expiredRef.current.has(r.id)),
+    [requests],
+  );
 
   const ROW_HEIGHT = 48;
   const PAGINATION_ROW_HEIGHT = 52;
@@ -314,12 +376,13 @@ function RequestsTable() {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const firstRowRef = useRef<HTMLDivElement>(null);
   const paginationRowRef = useRef<HTMLDivElement>(null);
+  const calcLayoutRef = useRef<() => void>(null);
 
-  const total = requests.length;
+  const total = activeRequests.length;
   const totalPages = Math.ceil(total / dynamicPageSize);
   const rangeStart = total === 0 ? 0 : (page - 1) * dynamicPageSize + 1;
   const rangeEnd = Math.min(page * dynamicPageSize, total);
-  const pageData = requests.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
+  const pageData = activeRequests.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
 
   useEffect(() => {
     const calcLayout = () => {
@@ -342,11 +405,16 @@ function RequestsTable() {
       setDynamicPageSize(rows);
     };
     calcLayout();
+    calcLayoutRef.current = calcLayout;
     window.addEventListener("resize", calcLayout);
     return () => window.removeEventListener("resize", calcLayout);
   }, []);
 
-  useEffect(() => { setPage(1); }, [requests.length, dynamicPageSize]);
+  useEffect(() => { setPage(1); }, [activeRequests.length, dynamicPageSize]);
+
+  useEffect(() => {
+    requestAnimationFrame(() => calcLayoutRef.current && calcLayoutRef.current());
+  }, [activeRequests.length]);
 
   return (
     <div>
@@ -392,7 +460,7 @@ function RequestsTable() {
           <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</span>
         </div>
 
-        {(requests.length === 0) ? (
+        {(activeRequests.length === 0) ? (
           /* Empty row */
           <div
             style={{
@@ -445,123 +513,18 @@ function RequestsTable() {
           </div>
         ) : (
           /* Table rows */
-          pageData.map((req, idx) => {
-            const { display, isExpired, isUrgent } = useCountdown(req.createdAt);
-            return (
-              <div
-                key={req.id}
-                ref={pageData.length > 0 && idx === 0 ? firstRowRef : undefined}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "140px 1fr 120px 90px 100px 90px 90px 50px",
-                  gap: "12px",
-                  padding: "12px 20px",
-                  borderBottom: idx < pageData.length - 1 ? "1px solid var(--borderColor-default)" : "none",
-                  alignItems: "center",
-                  transition: "background-color 0.1s ease",
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-              >
-                {/* User */}
-                <span
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: "0.8125rem",
-                    color: "var(--fgColor-default)",
-                  }}
-                >
-                  {req.userName}
-                </span>
-
-                {/* Domain */}
-                <span
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: "0.8125rem",
-                    color: "var(--fgColor-default)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {req.domain}
-                </span>
-
-                {/* Service Type */}
-                <span
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: "0.8125rem",
-                    color: "var(--fgColor-default)",
-                  }}
-                >
-                  {req.serviceType}
-                </span>
-
-                {/* Duration */}
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono, monospace)",
-                    fontSize: "0.8125rem",
-                    color: "var(--fgColor-default)",
-                  }}
-                >
-                  {formatDuration(req.durationMinutes)}
-                </span>
-
-                {/* Earnings */}
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono, monospace)",
-                    fontSize: "0.8125rem",
-                    color: "var(--fgColor-default)",
-                  }}
-                >
-                  {formatEarnings(req.earningsCents)}
-                </span>
-
-                {/* Expires In */}
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono, monospace)",
-                    fontSize: "0.8125rem",
-                    color: isExpired ? "var(--fgColor-muted)" : isUrgent ? "#E70000" : "#FDA422",
-                    fontWeight: isUrgent ? 600 : 400,
-                  }}
-                >
-                  {isExpired ? "Expired" : display}
-                </span>
-
-                {/* Status */}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      backgroundColor: isExpired ? "#818178" : "#FDA422",
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      color: "var(--fgColor-default)",
-                    }}
-                  >
-                    {isExpired ? "Expired" : "Pending"}
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <RequestActionDropdown
-                  onApprove={() => handleApprove(req.id)}
-                  onReject={() => handleReject(req.id)}
-                />
-              </div>
-            );
-          })
+          pageData.map((req, idx) => (
+            <RequestRow
+              key={req.id}
+              req={req}
+              idx={idx}
+              isFirstRow={pageData.length > 0 && idx === 0}
+              isLastRow={idx === pageData.length - 1}
+              firstRowRef={firstRowRef}
+              onApprove={() => onApprove(req.id)}
+              onReject={() => onReject(req.id)}
+            />
+          ))
         )}
       </div>
 
@@ -808,18 +771,6 @@ function UpcomingActionDropdown({
   );
 }
 
-interface UpcomingEntry {
-  id: string;
-  userName: string;
-  domain: string;
-  serviceType: string;
-  durationMinutes: number;
-  fromTime: string; // HH:mm IST
-  toTime: string;   // HH:mm IST
-  date: string;     // e.g. 22 May 2026
-  earningsCents: number;
-}
-
 function parseDateToSortKey(dateStr: string): string {
   // "22 May 2026" -> "2026-05-22" for string comparison
   const months: Record<string, string> = {
@@ -830,15 +781,6 @@ function parseDateToSortKey(dateStr: string): string {
   if (parts.length !== 3) return dateStr;
   const [day, month, year] = parts;
   return `${year}-${months[month] || "00"}-${day.padStart(2, "0")}`;
-}
-
-interface LiveSessionEntry {
-  id: string;
-  userName: string;
-  domain: string;
-  serviceType: string;
-  startedAt: string;
-  earningsCents: number;
 }
 
 function formatElapsed(startedAt: string): string {
@@ -1117,29 +1059,28 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
 }
 
 // --- Upcoming Sessions Table ---
-function UpcomingTable() {
-  const [sessions, setSessions] = useState<UpcomingEntry[]>([
-    {
-      id: "UP-001",
-      userName: "Rahul S.",
-      domain: "Deep Learning",
-      serviceType: "Project Review",
-      durationMinutes: 60,
-      fromTime: "10:00",
-      toTime: "11:00",
-      date: "22 May 2026",
-      earningsCents: 100000,
-    },
-  ]);
+function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) {
+  const [sessions, setSessions] = useState<UpcomingEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    getMentorUpcoming().then((data) => {
+      setSessions(data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
 
   const handleReschedule = (id: string) => {
     console.log(`Reschedule session: ${id}`);
     // TODO: API call
   };
 
-  const handleCancel = (id: string) => {
-    console.log(`Cancel session: ${id}`);
-    // TODO: API call
+  const handleCancel = async (id: string) => {
+    const ok = await cancelMentorSession(id);
+    if (ok) {
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+    }
   };
 
   const sortedSessions = useMemo(() => {
@@ -1160,6 +1101,7 @@ function UpcomingTable() {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const firstRowRef = useRef<HTMLDivElement>(null);
   const paginationRowRef = useRef<HTMLDivElement>(null);
+  const calcLayoutRef = useRef<() => void>(null);
 
   const total = sessions.length;
   const totalPages = Math.ceil(total / dynamicPageSize);
@@ -1188,11 +1130,16 @@ function UpcomingTable() {
       setDynamicPageSize(rows);
     };
     calcLayout();
+    calcLayoutRef.current = calcLayout;
     window.addEventListener("resize", calcLayout);
     return () => window.removeEventListener("resize", calcLayout);
   }, []);
 
-  useEffect(() => { setPage(1); }, [sessions.length, dynamicPageSize]);
+  useEffect(() => { setPage(1); requestAnimationFrame(() => calcLayoutRef.current && calcLayoutRef.current()); }, [sessions.length, dynamicPageSize]);
+
+  useEffect(() => {
+    requestAnimationFrame(() => calcLayoutRef.current && calcLayoutRef.current());
+  }, [liveSessionVisible]);
 
   return (
     <div>
@@ -1530,7 +1477,141 @@ function UpcomingTable() {
   );
 }
 
-// --- Generic empty state for Upcoming / Complete ---
+// --- Past Sessions Table ---
+function PastTable({ entries }: { entries: PastEntryApi[] }) {
+  const ROW_HEIGHT = 48;
+  const PAGINATION_ROW_HEIGHT = 52;
+  const TABLE_HEADER_HEIGHT = 48;
+  const LAYOUT_BUFFER = 12;
+
+  const [page, setPage] = useState(1);
+  const [dynamicPageSize, setDynamicPageSize] = useState(10);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const firstRowRef = useRef<HTMLDivElement>(null);
+  const paginationRowRef = useRef<HTMLDivElement>(null);
+  const calcLayoutRef = useRef<() => void>(null);
+
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [entries]);
+
+  const total = sortedEntries.length;
+  const totalPages = Math.ceil(total / dynamicPageSize);
+  const rangeStart = total === 0 ? 0 : (page - 1) * dynamicPageSize + 1;
+  const rangeEnd = Math.min(page * dynamicPageSize, total);
+  const pageData = sortedEntries.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
+
+  useEffect(() => {
+    const calcLayout = () => {
+      if (!tableContainerRef.current) return;
+      const containerTop = tableContainerRef.current.getBoundingClientRect().top;
+      const actualRowHeight = firstRowRef.current
+        ? firstRowRef.current.getBoundingClientRect().height
+        : ROW_HEIGHT;
+      const actualPaginationHeight = paginationRowRef.current
+        ? paginationRowRef.current.getBoundingClientRect().height
+        : PAGINATION_ROW_HEIGHT;
+      const headerEl = tableContainerRef.current.firstElementChild as HTMLElement | null;
+      const actualHeaderHeight = headerEl
+        ? headerEl.getBoundingClientRect().height
+        : TABLE_HEADER_HEIGHT;
+
+      const availableForRows =
+        window.innerHeight - containerTop - 2 - actualHeaderHeight - actualPaginationHeight - LAYOUT_BUFFER;
+      const rows = Math.max(1, Math.floor(availableForRows / actualRowHeight));
+      setDynamicPageSize(rows);
+    };
+    calcLayout();
+    calcLayoutRef.current = calcLayout;
+    window.addEventListener("resize", calcLayout);
+    return () => window.removeEventListener("resize", calcLayout);
+  }, []);
+
+  useEffect(() => { setPage(1); }, [entries.length, dynamicPageSize]);
+
+  useEffect(() => {
+    requestAnimationFrame(() => calcLayoutRef.current && calcLayoutRef.current());
+  }, [entries.length]);
+
+  const statusConfig: Record<PastEntryApi['status'], { color: string; label: string }> = {
+    Expired: { color: '#818178', label: 'Request Expired' },
+    Approved: { color: '#05C004', label: 'Approved' },
+    Rejected: { color: '#E70000', label: 'Rejected' },
+    Completed: { color: '#05C004', label: 'Completed' },
+    Cancelled: { color: '#E70000', label: 'Cancelled' },
+    Missed: { color: '#818178', label: 'Missed' },
+    Disputed: { color: '#FDA422', label: 'Disputed' },
+  };
+
+  if (entries.length === 0) {
+    return (
+      <div>
+        <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, color: "var(--fgColor-default)", margin: "24px 0 16px 0" }}>Past Sessions</h2>
+        <div style={{ backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", padding: "48px 24px", textAlign: "center" }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--fgColor-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px" }}>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <h3 style={{ fontFamily: "var(--font-sans)", fontSize: "1rem", fontWeight: 600, color: "var(--fgColor-default)", margin: "0 0 8px 0" }}>No past sessions</h3>
+          <p style={{ fontFamily: "var(--font-sans)", fontSize: "0.875rem", color: "var(--fgColor-muted)", margin: 0 }}>Your past session history will appear here.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, color: "var(--fgColor-default)", margin: "24px 0 16px 0" }}>Past Sessions</h2>
+
+      <div ref={tableContainerRef} style={{ backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "visible" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 120px 90px 100px 100px 130px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", backgroundColor: "var(--bgColor-muted)" }}>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>User</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Domain</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Service</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Duration</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Earnings</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Date</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</span>
+        </div>
+
+        {pageData.map((entry, idx) => {
+          const sc = statusConfig[entry.status];
+          const dateStr = new Date(entry.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+          return (
+            <div key={entry.id} ref={pageData.length > 0 && idx === 0 ? firstRowRef : undefined} style={{ display: "grid", gridTemplateColumns: "140px 1fr 120px 90px 100px 100px 130px", gap: "12px", padding: "12px 20px", borderBottom: idx < pageData.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease" }} onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }} onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{entry.userName}</span>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.domain}</span>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{entry.serviceType}</span>
+              <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatDuration(entry.durationMinutes)}</span>
+              <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{entry.status === "Completed" ? formatEarnings(entry.earningsCents) : "--"}</span>
+              <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{dateStr}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: sc.color }} />
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{sc.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {total > 0 && (
+        <div ref={paginationRowRef} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "0 4px" }}>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.875rem", color: "var(--fgColor-muted)" }}>Showing {rangeStart}-{rangeEnd} of {total.toLocaleString("en-IN")}</span>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} style={{ padding: "6px 12px", backgroundColor: "var(--bgColor-muted)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: page <= 1 ? "var(--fgColor-muted)" : "var(--fgColor-default)", cursor: page <= 1 ? "not-allowed" : "pointer", opacity: page <= 1 ? 0.5 : 1, transition: "background-color 0.15s ease" }} onMouseOver={(e) => { if (page > 1) e.currentTarget.style.backgroundColor = "var(--bgColor-mild)"; }} onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "var(--bgColor-muted)"; }}>Previous</button>
+            <button type="button" onClick={() => setPage((p) => Math.min(totalPages || 1, p + 1))} disabled={page >= totalPages || totalPages === 0} style={{ padding: "6px 12px", backgroundColor: "var(--bgColor-muted)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: page >= totalPages || totalPages === 0 ? "var(--fgColor-muted)" : "var(--fgColor-default)", cursor: page >= totalPages || totalPages === 0 ? "not-allowed" : "pointer", opacity: page >= totalPages || totalPages === 0 ? 0.5 : 1, transition: "background-color 0.15s ease" }} onMouseOver={(e) => { if (page < totalPages && totalPages > 0) e.currentTarget.style.backgroundColor = "var(--bgColor-mild)"; }} onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "var(--bgColor-muted)"; }}>Next</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Generic empty state for Upcoming / Past ---
 function EmptySessionsState({ subTab }: { subTab: SessionsSubTab }) {
   const labels: Record<SessionsSubTab, { title: string; message: string }> = {
     requests: {
@@ -1541,9 +1622,9 @@ function EmptySessionsState({ subTab }: { subTab: SessionsSubTab }) {
       title: "No upcoming sessions",
       message: "You don't have any upcoming sessions scheduled.",
     },
-    complete: {
-      title: "No completed sessions",
-      message: "Your completed session history will appear here.",
+    past: {
+      title: "No past sessions",
+      message: "Your past session history will appear here.",
     },
   };
 
@@ -1608,24 +1689,53 @@ export function MentorSessionsTabContent() {
 
   const currentSubTab = (searchParams.get("sub") as SessionsSubTab) || "requests";
 
-  const [liveSessions, setLiveSessions] = useState<LiveSessionEntry[]>([
-    {
-      id: "LIVE-001",
-      userName: "Ananya R.",
-      domain: "Natural Language Processing",
-      serviceType: "Paper Discussion",
-      startedAt: "2026-05-20T10:15:00.000Z",
-      earningsCents: 42556,
-    },
-  ]);
+  // Data states
+  const [liveSessions, setLiveSessions] = useState<LiveSessionEntry[]>([]);
+  const [requests, setRequests] = useState<RequestEntry[]>([]);
+  const [pastEntries, setPastEntries] = useState<PastEntryApi[]>([]);
   const [tick, setTick] = useState(0);
 
+  // Fetch all data from API
+  const fetchData = useCallback(async () => {
+    try {
+      const [live, reqs, past] = await Promise.all([
+        getMentorLive(),
+        getMentorRequests(),
+        getMentorPast(),
+      ]);
+      setLiveSessions(live);
+      setRequests(reqs);
+      setPastEntries(past);
+    } catch (err) {
+      console.error("Failed to fetch mentor sessions data", err);
+    }
+  }, []);
+
+  // Fetch on mount and when sub-tab changes
   useEffect(() => {
-    const hasLive = liveSessions.length > 0;
-    if (!hasLive) return;
+    fetchData();
+  }, [fetchData]);
+
+  // Tick for live session elapsed timer
+  useEffect(() => {
+    if (liveSessions.length === 0) return;
     const interval = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
   }, [liveSessions]);
+
+  const handleApprove = async (id: string) => {
+    const ok = await approveMentorSession(id);
+    if (ok) fetchData();
+  };
+
+  const handleReject = async (id: string) => {
+    const ok = await rejectMentorSession(id);
+    if (ok) fetchData();
+  };
+
+  const handleRequestExpire = (id: string) => {
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+  };
 
   const handleSubTabChange = (sub: SessionsSubTab) => {
     const params = new URLSearchParams(searchParams);
@@ -1647,12 +1757,19 @@ export function MentorSessionsTabContent() {
       />
 
       {currentSubTab === "requests" ? (
-        <RequestsTable />
+        <RequestsTable
+          requests={requests}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onRequestExpire={handleRequestExpire}
+        />
       ) : currentSubTab === "upcoming" ? (
         <>
           {liveSessions.length > 0 && <LiveSessionSection sessions={liveSessions} tick={tick} />}
-          <UpcomingTable />
+          <UpcomingTable liveSessionVisible={liveSessions.length > 0} />
         </>
+      ) : currentSubTab === "past" ? (
+        <PastTable entries={pastEntries} />
       ) : (
         <EmptySessionsState subTab={currentSubTab} />
       )}

@@ -1917,3 +1917,104 @@ export async function getAllAnalyticsTransactions(params: {
     return null;
   }
 }
+
+// ── Mentor Session API functions ──
+
+export interface RequestEntry {
+  id: string;
+  userName: string;
+  domain: string;
+  serviceType: string;
+  durationMinutes: number;
+  earningsCents: number;
+  createdAt: string;
+}
+
+export interface UpcomingEntry {
+  id: string;
+  userName: string;
+  domain: string;
+  serviceType: string;
+  durationMinutes: number;
+  fromTime: string;
+  toTime: string;
+  date: string;
+  earningsCents: number;
+}
+
+export interface LiveSessionEntry {
+  id: string;
+  userName: string;
+  domain: string;
+  serviceType: string;
+  startedAt: string;
+  earningsCents: number;
+}
+
+export interface PastEntry {
+  id: string;
+  userName: string;
+  domain: string;
+  serviceType: string;
+  durationMinutes: number;
+  earningsCents: number;
+  createdAt: string;
+  status: 'Expired' | 'Approved' | 'Rejected' | 'Completed' | 'Cancelled' | 'Missed' | 'Disputed';
+}
+
+/** Fetch pending session requests for logged-in mentor */
+export async function getMentorRequests(): Promise<RequestEntry[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/requests`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Fetch upcoming sessions for logged-in mentor */
+export async function getMentorUpcoming(): Promise<UpcomingEntry[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/upcoming`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Fetch live sessions for logged-in mentor */
+export async function getMentorLive(): Promise<LiveSessionEntry[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/live`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Fetch past sessions for logged-in mentor */
+export async function getMentorPast(): Promise<PastEntry[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/past`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Approve a pending session request */
+export async function approveMentorSession(sessionId: string): Promise<boolean> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/approve`, {
+    method: 'POST',
+  });
+  return res.ok;
+}
+
+/** Reject a pending session request */
+export async function rejectMentorSession(sessionId: string, reason?: string): Promise<boolean> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return res.ok;
+}
+
+/** Cancel an upcoming session */
+export async function cancelMentorSession(sessionId: string, reason?: string): Promise<boolean> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return res.ok;
+}
+

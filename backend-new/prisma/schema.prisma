@@ -105,7 +105,7 @@ enum StorageMode {
 
 enum StorageBackend {
   zfs_dataset // Legacy, same-node direct mount
-  zfs_zvol    // New, supports NVMe-oF cross-node
+  zfs_zvol // New, supports NVMe-oF cross-node
 }
 
 enum StorageTransport {
@@ -142,6 +142,42 @@ enum ReferralRewardStatus {
   PENDING
   CREDITED
   VOIDED
+}
+
+enum MentorSessionStatus {
+  pending
+  scheduled
+  live
+  completed
+  cancelled
+  rejected
+  request_expired
+  rescheduled
+  missed
+  disputed
+}
+
+enum MentorSessionType {
+  meet_now
+  slot_booking
+}
+
+enum MentorPaymentStatus {
+  unpaid
+  advance_paid
+  fully_paid
+}
+
+enum MentorPaymentType {
+  advance
+  balance
+  full
+}
+
+enum MentorPaymentRecordStatus {
+  held
+  released
+  refunded
 }
 
 // ============================================================================
@@ -229,9 +265,12 @@ model User {
   labGradesGiven    LabGrade[]           @relation("Grader")
 
   // Domain 10: Mentorship
-  mentorProfile  MentorProfile?
-  mentorBookings MentorBooking[] @relation("MentorBookingStudent")
-  mentorReviews  MentorReview[]  @relation("MentorReviewer")
+  mentorProfile                 MentorProfile?
+  mentorBookings                MentorBooking[]        @relation("MentorBookingStudent")
+  mentorReviews                 MentorReview[]         @relation("MentorReviewer")
+  mentorSessionsAsStudent       MentorSession[]        @relation("MentorSessionStudent")
+  mentorSessionPaymentsPaid     MentorSessionPayment[] @relation("MentorSessionPaymentPayer")
+  mentorSessionPaymentsReceived MentorSessionPayment[] @relation("MentorSessionPaymentPayee")
 
   // Domain 11: Community and Gamification
   discussions       Discussion[]
@@ -695,8 +734,8 @@ model UserStorageVolume {
   updatedBy            String?             @map("updated_by") @db.Uuid
 
   // Multi-node storage tracking
-  nodeId               String?             @map("node_id") @db.Uuid
-  storageBackend       StorageBackend      @default(zfs_dataset) @map("storage_backend")
+  nodeId         String?        @map("node_id") @db.Uuid
+  storageBackend StorageBackend @default(zfs_dataset) @map("storage_backend")
 
   // Relations
   user                 User               @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -825,22 +864,22 @@ model Node {
   updatedBy             String?    @map("updated_by") @db.Uuid
 
   // Multi-node orchestration ports
-  sessionOrchestrationPort  Int       @default(9998) @map("session_orchestration_port")
-  storageProvisionPort      Int       @default(9999) @map("storage_provision_port")
-  nvmeOfPort                Int       @default(4420) @map("nvme_of_port")
-  storageHeadroomGb         Int       @default(15) @map("storage_headroom_gb")
+  sessionOrchestrationPort Int @default(9998) @map("session_orchestration_port")
+  storageProvisionPort     Int @default(9999) @map("storage_provision_port")
+  nvmeOfPort               Int @default(4420) @map("nvme_of_port")
+  storageHeadroomGb        Int @default(15) @map("storage_headroom_gb")
 
   // Relations
   nodeBaseImages           NodeBaseImage[]
   nodeResourceReservations NodeResourceReservation[]
 
   // Domain 7: Sessions and Bookings
-  bookings         Booking[]
-  sessions         Session[]           @relation("SessionComputeNode")
-  storageSessions  Session[]           @relation("SessionStorageNode")
+  bookings        Booking[]
+  sessions        Session[] @relation("SessionComputeNode")
+  storageSessions Session[] @relation("SessionStorageNode")
 
   // Domain 3: Storage
-  storageVolumes   UserStorageVolume[]
+  storageVolumes UserStorageVolume[]
 
   @@index([status])
   @@index([lastHeartbeatAt])
@@ -1058,8 +1097,8 @@ model Session {
   terminationDetails Json?     @map("termination_details")
 
   // Multi-node storage tracking
-  storageNodeId      String?              @map("storage_node_id") @db.Uuid
-  storageTransport   StorageTransport?    @map("storage_transport")
+  storageNodeId    String?           @map("storage_node_id") @db.Uuid
+  storageTransport StorageTransport? @map("storage_transport")
 
   // Ephemeral storage allocation
   ephemeralStorageSizeMb Int?    @map("ephemeral_storage_size_mb")
@@ -1230,6 +1269,9 @@ model WalletTransaction {
 
   // Domain 4: Storage Extensions
   storageExtensions StorageExtension[]
+
+  // Domain 10: Mentorship Payments
+  mentorSessionPayments MentorSessionPayment[]
 
   @@index([walletId, createdAt])
   @@index([userId, createdAt])
@@ -1713,6 +1755,7 @@ model MentorProfile {
   user                    User                     @relation(fields: [userId], references: [id], onDelete: Restrict)
   mentorAvailabilitySlots MentorAvailabilitySlot[]
   mentorBookings          MentorBooking[]
+  mentorSessions          MentorSession[]
 
   @@map("mentor_profiles")
 }
@@ -1779,6 +1822,116 @@ model MentorReview {
   reviewer      User          @relation("MentorReviewer", fields: [reviewerUserId], references: [id], onDelete: Restrict)
 
   @@map("mentor_reviews")
+}
+
+// AUDIT: Records must NEVER be deleted — required for mentoring session audit trail
+model MentorSession {
+  id            String              @id @default(uuid()) @db.Uuid
+  type          MentorSessionType
+  status        MentorSessionStatus
+  paymentStatus MentorPaymentStatus @default(unpaid) @map("payment_status")
+
+  mentorProfileId String @map("mentor_profile_id") @db.Uuid
+  studentUserId   String @map("student_user_id") @db.Uuid
+
+  // Timing
+  requestedAt   DateTime  @default(now()) @map("requested_at")
+  approvedAt    DateTime? @map("approved_at")
+  scheduledFrom DateTime? @map("scheduled_from")
+  scheduledTo   DateTime? @map("scheduled_to")
+  startedAt     DateTime? @map("started_at")
+  endedAt       DateTime? @map("ended_at")
+  expiresAt     DateTime? @map("expires_at")
+
+  // Session config
+  durationMinutes Int    @map("duration_minutes")
+  domain          String @db.VarChar(255)
+  serviceType     String @map("service_type") @db.VarChar(255)
+
+  // Jitsi
+  jitsiRoomName String    @unique @map("jitsi_room_name") @db.VarChar(255)
+  jwtToken      String?   @map("jwt_token")
+  jwtExpiresAt  DateTime? @map("jwt_expires_at")
+
+  // Financials
+  earningsCents Int  @default(0) @map("earnings_cents")
+  advanceCents  Int? @map("advance_cents")
+  balanceCents  Int? @map("balance_cents")
+
+  // Reschedule chain (old session -> new session)
+  rescheduledToId String? @unique @map("rescheduled_to_id") @db.Uuid
+
+  // Notes and reason
+  studentNotes String? @map("student_notes")
+  mentorNotes  String? @map("mentor_notes")
+  cancelReason String? @map("cancel_reason")
+
+  // Audit
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  // Relations
+  mentorProfile   MentorProfile                @relation(fields: [mentorProfileId], references: [id], onDelete: Restrict)
+  student         User                         @relation("MentorSessionStudent", fields: [studentUserId], references: [id], onDelete: Restrict)
+  statusHistory   MentorSessionStatusHistory[]
+  payments        MentorSessionPayment[]
+  rescheduledTo   MentorSession?               @relation("MentorSessionReschedule", fields: [rescheduledToId], references: [id], onDelete: Restrict)
+  rescheduledFrom MentorSession?               @relation("MentorSessionReschedule")
+
+  @@index([mentorProfileId, status])
+  @@index([studentUserId, status])
+  @@index([status])
+  @@index([requestedAt])
+  @@index([scheduledFrom])
+  @@index([expiresAt])
+  @@map("mentor_sessions")
+}
+
+// AUDIT: Records must NEVER be deleted — required for state transition audit trail
+model MentorSessionStatusHistory {
+  id              String              @id @default(uuid()) @db.Uuid
+  mentorSessionId String              @map("mentor_session_id") @db.Uuid
+  fromStatus      MentorSessionStatus @map("from_status")
+  toStatus        MentorSessionStatus @map("to_status")
+  changedBy       String              @map("changed_by") @db.VarChar(32)
+  reason          String?
+  timestamp       DateTime            @default(now())
+
+  // Relations
+  mentorSession MentorSession @relation(fields: [mentorSessionId], references: [id], onDelete: Restrict)
+
+  @@index([mentorSessionId])
+  @@index([timestamp])
+  @@map("mentor_session_status_history")
+}
+
+// AUDIT: Records must NEVER be deleted — required for financial audit trail
+model MentorSessionPayment {
+  id                  String                    @id @default(uuid()) @db.Uuid
+  mentorSessionId     String                    @map("mentor_session_id") @db.Uuid
+  amountCents         Int                       @map("amount_cents")
+  paymentType         MentorPaymentType         @map("payment_type")
+  payerUserId         String                    @map("payer_user_id") @db.Uuid
+  payeeUserId         String                    @map("payee_user_id") @db.Uuid
+  status              MentorPaymentRecordStatus
+  walletTransactionId String?                   @map("wallet_transaction_id") @db.Uuid
+  releasedAt          DateTime?                 @map("released_at")
+  refundedAt          DateTime?                 @map("refunded_at")
+  createdAt           DateTime                  @default(now()) @map("created_at")
+
+  // Relations
+  mentorSession     MentorSession      @relation(fields: [mentorSessionId], references: [id], onDelete: Restrict)
+  payer             User               @relation("MentorSessionPaymentPayer", fields: [payerUserId], references: [id], onDelete: Restrict)
+  payee             User               @relation("MentorSessionPaymentPayee", fields: [payeeUserId], references: [id], onDelete: Restrict)
+  walletTransaction WalletTransaction? @relation(fields: [walletTransactionId], references: [id], onDelete: Restrict)
+
+  @@index([mentorSessionId])
+  @@index([payerUserId])
+  @@index([payeeUserId])
+  @@index([status])
+  @@map("mentor_session_payments")
 }
 
 // ============================================================================
@@ -2094,11 +2247,11 @@ model SupportTicket {
   updatedBy          String?        @map("updated_by") @db.Uuid
 
   // Relations
-  user           User            @relation("SupportTicketUser", fields: [userId], references: [id], onDelete: Restrict)
-  organization   Organization?   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  assignee       User?           @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
-  relatedSession Session?        @relation(fields: [relatedSessionId], references: [id], onDelete: Restrict)
-  relatedBilling BillingCharge?  @relation(fields: [relatedBillingId], references: [id], onDelete: Restrict)
+  user           User                      @relation("SupportTicketUser", fields: [userId], references: [id], onDelete: Restrict)
+  organization   Organization?             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  assignee       User?                     @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: Restrict)
+  relatedSession Session?                  @relation(fields: [relatedSessionId], references: [id], onDelete: Restrict)
+  relatedBilling BillingCharge?            @relation(fields: [relatedBillingId], references: [id], onDelete: Restrict)
   ticketMessages TicketMessage[]
   attachments    SupportTicketAttachment[]
 
@@ -2109,15 +2262,15 @@ model SupportTicket {
 }
 
 model SupportTicketAttachment {
-  id          String   @id @default(uuid()) @db.Uuid
-  ticketId    String   @db.Uuid
-  fileName    String   @db.VarChar(255)
-  mimeType    String   @db.VarChar(64)
-  size        Int
-  data        Bytes
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @db.Uuid
+  fileName  String   @db.VarChar(255)
+  mimeType  String   @db.VarChar(64)
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
 
-  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
   @@map("support_ticket_attachments")
@@ -2254,21 +2407,21 @@ model RecommendationSession {
   documentExtractedText String? @map("document_extracted_text")
 
   // LLM Analysis Results
-  analysisResult        Json?    @map("analysis_result")
-  analysisQuality       String?  @map("analysis_quality")
-  analysisConfidence    Float?   @map("analysis_confidence")
-  detectedGoal          String?  @map("detected_goal")
-  detectedVramGb        Float?   @map("detected_vram_gb")
-  detectedIntensity     String?  @map("detected_intensity")
-  detectedFrameworks    String[] @default([]) @map("detected_frameworks")
+  analysisResult     Json?    @map("analysis_result")
+  analysisQuality    String?  @map("analysis_quality")
+  analysisConfidence Float?   @map("analysis_confidence")
+  detectedGoal       String?  @map("detected_goal")
+  detectedVramGb     Float?   @map("detected_vram_gb")
+  detectedIntensity  String?  @map("detected_intensity")
+  detectedFrameworks String[] @default([]) @map("detected_frameworks")
 
   // User Selections (final values after possible manual override)
-  selectedGoal          String? @map("selected_goal")
-  selectedDatasetSize   String? @map("selected_dataset_size")
-  selectedIntensity     Int?    @map("selected_intensity")
-  selectedBudgetType    String? @map("selected_budget_type")
-  selectedBudgetAmount  Int?    @map("selected_budget_amount")
-  selectedDuration      String? @map("selected_duration")
+  selectedGoal            String? @map("selected_goal")
+  selectedDatasetSize     String? @map("selected_dataset_size")
+  selectedIntensity       Int?    @map("selected_intensity")
+  selectedBudgetType      String? @map("selected_budget_type")
+  selectedBudgetAmount    Int?    @map("selected_budget_amount")
+  selectedDuration        String? @map("selected_duration")
   selectedProjectDuration String? @map("selected_project_duration")
 
   // Auto-selection tracking
@@ -2294,28 +2447,28 @@ model RecommendationSession {
 }
 
 model WaitlistEntry {
-  id                    String    @id @default(uuid()) @db.Uuid
-  userId                String?   @db.Uuid
-  email                 String
-  firstName             String?
-  lastName              String?
-  currentStatus         String?
-  organizationName      String?
-  jobTitle              String?
-  computeNeeds          String?
-  expectedDuration      String?
-  urgency               String?
-  expectations          String[]
-  primaryWorkload       String?
-  workloadDescription   String?
-  agreedToPolicy        Boolean   @default(false)
-  policyAgreedAt        DateTime?
-  agreedToComms         Boolean   @default(false)
-  status                String    @default("pending")
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String?   @db.Uuid
+  email               String
+  firstName           String?
+  lastName            String?
+  currentStatus       String?
+  organizationName    String?
+  jobTitle            String?
+  computeNeeds        String?
+  expectedDuration    String?
+  urgency             String?
+  expectations        String[]
+  primaryWorkload     String?
+  workloadDescription String?
+  agreedToPolicy      Boolean   @default(false)
+  policyAgreedAt      DateTime?
+  agreedToComms       Boolean   @default(false)
+  status              String    @default("pending")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  user                  User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([email])
   @@index([status])

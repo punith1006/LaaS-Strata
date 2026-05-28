@@ -17,6 +17,8 @@ import { ReferralModule } from './referral/referral.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { NodeModule } from './node/node.module';
 
+import { MentorSessionsModule } from './mentor-sessions/mentor-sessions.module';
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -34,6 +36,7 @@ import { NodeModule } from './node/node.module';
     ReferralModule,
     WaitlistModule,
     NodeModule,
+    MentorSessionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
