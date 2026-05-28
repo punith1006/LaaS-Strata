@@ -6,13 +6,11 @@ import type { AvailabilitySlot } from "@/lib/api";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// Generate time options: 00:00 to 23:30 in 30-min increments
+// Generate time options: 00:00 to 23:00 in 1-hour increments
 function generateTimeOptions(): string[] {
   const options: string[] = [];
   for (let h = 0; h < 24; h++) {
-    const hh = String(h).padStart(2, "0");
-    options.push(`${hh}:00`);
-    options.push(`${hh}:30`);
+    options.push(`${String(h).padStart(2, "0")}:00`);
   }
   return options;
 }
@@ -22,6 +20,10 @@ const TIME_OPTIONS = generateTimeOptions();
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function getDayOfWeek(dateStr: string): number {
+  return new Date(dateStr + "T00:00:00").getDay();
 }
 
 export default function AvailabilityManager() {
@@ -206,7 +208,7 @@ export default function AvailabilityManager() {
 
   // ── Shared styles ──
   const sectionStyle: React.CSSProperties = {
-    background: "#1a1d24",
+    background: "#0B0B0B",
     border: "1px solid rgba(255,255,255,0.06)",
     borderRadius: "4px",
     overflow: "hidden",
@@ -265,8 +267,8 @@ export default function AvailabilityManager() {
             position: "fixed",
             bottom: "24px",
             right: "24px",
-            background: "#2d333b",
-            color: "#d1d5db",
+            background: "#C8AA6E",
+            color: "#1a1d24",
             padding: "10px 20px",
             borderRadius: "4px",
             fontFamily: "var(--font-outfit), sans-serif",
@@ -301,7 +303,8 @@ export default function AvailabilityManager() {
                 margin: "2px 0 0 0",
               }}
             >
-              These slots repeat every week indefinitely for all future weeks. Students can book during these times. Block specific dates below if needed.
+              These slots repeat every week indefinitely. Date-specific slots on the same date will override them.
+              Students can book during these times unless a date-specific slot takes precedence.
             </p>
           </div>
           <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{weeklyOpen ? "\u25B2" : "\u25BC"}</span>
@@ -571,6 +574,7 @@ export default function AvailabilityManager() {
               }}
             >
               One-off slots for specific dates {"\u2014"} holidays, extra availability, makeup sessions.
+              These take precedence over your weekly schedule for the dates listed.
             </p>
           </div>
           <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{dateOpen ? "\u25B2" : "\u25BC"}</span>
@@ -684,6 +688,21 @@ export default function AvailabilityManager() {
                       <span style={{ color: "#d1d5db", fontSize: "0.8125rem", fontFamily: "var(--font-outfit), sans-serif" }}>
                         {slot.startTime}{"\u2013"}{slot.endTime}
                       </span>
+                      {slot.specificDate && recurring.some((r) => r.dayOfWeek === getDayOfWeek(slot.specificDate!)) && (
+                        <span
+                          style={{
+                            background: "rgba(200,170,110,0.18)",
+                            color: "#C8AA6E",
+                            borderRadius: "3px",
+                            padding: "1px 7px",
+                            fontSize: "0.6875rem",
+                            fontFamily: "var(--font-outfit), sans-serif",
+                            fontWeight: 500,
+                          }}
+                        >
+                          Overrides recurring
+                        </span>
+                      )}
                     </div>
                     <button
                       onClick={() => deleteDateSlot(slot.id)}

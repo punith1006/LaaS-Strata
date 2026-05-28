@@ -74,7 +74,8 @@ export class MentorAvailabilityService {
       throw new ConflictException('Non-recurring slots must specify a specific date');
     }
 
-    // Check for overlapping slots on the same day
+    // Overlap check within same category only (recurring vs recurring, date-specific vs date-specific).
+    // Date-specific slots are allowed to overlap recurring because they take precedence (override semantics).
     const existingSlots = await this.prisma.mentorAvailabilitySlot.findMany({
       where: {
         mentorProfileId: profile.id,
