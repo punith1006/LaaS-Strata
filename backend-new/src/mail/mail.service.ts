@@ -214,4 +214,55 @@ export class MailService {
       attachments: this.getLogoAttachments(),
     });
   }
+
+  // ── Mentoring Session Emails ──
+
+  async sendSessionBookedStudentEmail(
+    to: string,
+    context: {
+      studentName: string;
+      mentorName: string;
+      sessionCategory: string;
+      sessionDate: string;
+      sessionTime: string;
+      duration: number;
+      subject: string;
+      sessionCost: string;
+      advanceAmount: string;
+      balanceAmount: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `LaaS: Session Booked with ${context.mentorName}`,
+      template: 'session-booked-student',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
+
+  async sendSessionBookedMentorEmail(
+    to: string,
+    context: {
+      mentorName: string;
+      studentName: string;
+      sessionCategory: string;
+      sessionDate: string;
+      sessionTime: string;
+      duration: number;
+      subject: string;
+      description: string;
+      sessionCost: string;
+      hasAttachment: boolean;
+      attachmentName?: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `LaaS: New Session Booking from ${context.studentName}`,
+      template: 'session-booked-mentor',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
 }

@@ -1632,7 +1632,7 @@ export default function LaunchInstancePage() {
               }}
             >
               <p style={{ margin: "0 0 16px 0" }}>
-                You will be billed at <strong>₹{pricePerHour}/hr</strong> for this instance whether the GPU is actively in use or not.
+                This instance is billed at <strong>₹{pricePerHour}/hr</strong> on a prepaid hourly basis. The charge for each hour is deducted upfront at the start of that hour, whether the GPU is actively in use or not.
               </p>
               <p style={{ margin: "0 0 16px 0" }}>
                 I have read and agree to the following end user licensing agreements: <strong>NVIDIA CUDA EULA</strong> and <strong>cuDNN Supplement</strong>.
@@ -1641,7 +1641,7 @@ export default function LaunchInstancePage() {
                 I acknowledge that cryptocurrency mining is strictly prohibited and may result in immediate termination of all instances, deletion of all data, and permanent account suspension.
               </p>
               <p style={{ margin: "0 0 16px 0" }}>
-                I understand that usage is billed hourly. Charges are deducted from my wallet balance in real-time.
+                I understand that billing is prepaid hourly. The current hour&rsquo;s charge is deducted at launch, and each subsequent hour is charged at the top of the hour. Charges are deducted from my wallet balance accordingly.
               </p>
               <p style={{ margin: 0 }}>
                 By clicking <strong>&quot;Confirm and Launch&quot;</strong>, you agree to LaaS Terms of Service and Acceptable Use Policy.

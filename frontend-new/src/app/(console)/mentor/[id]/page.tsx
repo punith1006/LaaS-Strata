@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getPublicMentorProfile } from "@/lib/api";
 import type { MentorProfileDetail } from "@/lib/api";
+import BookSessionModal from "@/components/mentor/book-session-modal";
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -137,6 +138,7 @@ export default function MentorProfilePage() {
   const [profile, setProfile] = useState<MentorProfileDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [showBooking, setShowBooking] = useState(false);
 
   useEffect(() => {
     if (!mentorProfileId) return;
@@ -633,7 +635,7 @@ export default function MentorProfilePage() {
 
             <button
               type="button"
-              onClick={() => alert("Booking flow coming soon!")}
+              onClick={() => setShowBooking(true)}
               style={{
                 width: "100%",
                 padding: "12px 0",
@@ -654,11 +656,19 @@ export default function MentorProfilePage() {
                 e.currentTarget.style.filter = "brightness(1)";
               }}
             >
-              Book Now
+              Schedule Session
             </button>
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      {showBooking && profile && (
+        <BookSessionModal
+          mentor={profile}
+          onClose={() => setShowBooking(false)}
+        />
+      )}
     </div>
   );
 }

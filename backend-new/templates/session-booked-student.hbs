@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f8f8f7;color:#1a1a1a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f8f8f7;">
+    <!-- KSRCE Banner -->
+    <tr>
+      <td align="center" style="padding:20px 20px 0;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:8px 8px 0 0;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="padding:16px 24px;background-color:#f1f5f9;border-top:3px solid #2563eb;text-align:center;">
+              <img src="cid:ksrce-logo@laas.ai" alt="KSRCE" style="height:32px;vertical-align:middle;margin-right:12px;">
+              <span style="font-size:12px;font-weight:600;color:#64748b;letter-spacing:0.04em;vertical-align:middle;">KSRCE AI Lab Infrastructure</span>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="padding:0 20px 40px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color:#ffffff;border-radius:0 0 8px 8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:40px 48px 32px;border-bottom:1px solid #eee;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);border-radius:8px 8px 0 0;">
+              <div style="display:flex;align-items:center;justify-content:flex-end;">
+                <img src="cid:global-knowledge-logo@laas.ai" alt="Global Knowledge" style="height:56px;vertical-align:middle;margin-right:auto;">
+                <span style="font-size:12px;color:#22c55e;font-weight:700;padding:10px 20px;background-color:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:20px;letter-spacing:0.06em;text-transform:uppercase;white-space:nowrap;line-height:1;">&#10003; Session Booked</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <p style="margin:0 0 16px;font-size:22px;font-weight:600;color:#0f172a;line-height:1.3;">Hi {{studentName}},</p>
+              <p style="margin:0 0 20px;font-size:16px;line-height:1.7;color:#374151;">
+                Your mentoring session has been successfully booked! You're all set to connect with your mentor. 
+                An advance payment of <strong>{{advanceAmount}}</strong> has been deducted from your wallet to confirm this slot.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Session Details -->
+          <tr>
+            <td style="padding:0 40px 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f9fafb;border-radius:6px;border-left:4px solid #2563eb;">
+                <tr>
+                  <td style="padding:20px 24px;">
+                    <p style="margin:0 0 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;">Session Details</p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding-bottom:12px;width:48%;vertical-align:top;">
+                          <p style="margin:0 0 3px;font-size:12px;color:#9ca3af;">Mentor</p>
+                          <p style="margin:0;font-size:14px;font-weight:500;color:#111827;">{{mentorName}}</p>
+                        </td>
+                        <td style="padding-bottom:12px;width:4%;"></td>
+                        <td style="padding-bottom:12px;width:48%;vertical-align:top;">
+                          <p style="margin:0 0 3px;font-size:12px;color:#9ca3af;">Session Type</p>
+                          <p style="margin:0;font-size:14px;font-weight:500;color:#111827;">{{sessionCategory}}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:12px;vertical-align:top;">
+                          <p style="margin:0 0 3px;font-size:12px;color:#9ca3af;">Date</p>
+                          <p style="margin:0;font-size:14px;font-weight:500;color:#111827;">{{sessionDate}}</p>
+                        </td>
+                        <td style="padding-bottom:12px;"></td>
+                        <td style="padding-bottom:12px;vertical-align:top;">
+                          <p style="margin:0 0 3px;font-size:12px;color:#9ca3af;">Time</p>
+                          <p style="margin:0;font-size:14px;font-weight:500;color:#111827;">{{sessionTime}} (IST)</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding-bottom:12px;vertical-align:top;">
+                          <p style="margin:0 0 3px;font-size:12px;color:#9ca3af;">Duration</p>
+                          <p style="margin:0;font-size:14px;font-weight:500;color:#111827;">{{duration}} minutes</p>
+                        </td>
+                        <td style="padding-bottom:12px;"></td>
+                        <td style="padding-bottom:12px;vertical-align:top;">
+                          <p style="margin:0 0 3px;font-size:12px;color:#9ca3af;">Subject</p>
+                          <p style="margin:0;font-size:14px;font-weight:500;color:#111827;">{{subject}}</p>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Payment Summary -->
+                    <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb;">
+                      <p style="margin:0 0 10px;font-size:12px;color:#9ca3af;">Payment Summary</p>
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td style="padding-bottom:6px;font-size:14px;color:#6b7280;">Session Cost</td>
+                          <td style="padding-bottom:6px;font-size:14px;font-weight:500;color:#111827;text-align:right;">{{sessionCost}}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding-bottom:6px;font-size:14px;color:#6b7280;">Advance Paid (10%)</td>
+                          <td style="padding-bottom:6px;font-size:14px;font-weight:600;color:#16a34a;text-align:right;">{{advanceAmount}}</td>
+                        </tr>
+                        <tr>
+                          <td style="padding-bottom:0;font-size:14px;font-weight:600;color:#111827;">Balance Due</td>
+                          <td style="padding-bottom:0;font-size:14px;font-weight:600;color:#111827;text-align:right;">{{balanceAmount}}</td>
+                        </tr>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- What's Next -->
+          <tr>
+            <td style="padding:0 40px 28px;">
+              <div style="padding:20px 24px;background-color:#eff6ff;border-left:4px solid #2563eb;border-radius:0 6px 6px 0;">
+                <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1d4ed8;">What happens next?</p>
+                <p style="margin:0;font-size:14px;line-height:1.7;color:#1e40af;">
+                  Your mentor will be notified of this booking. A Jitsi Meet link will be generated when your session is about to start. 
+                  Please join the session on time. The remaining balance of <strong>{{balanceAmount}}</strong> will be due before the session begins.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Cancellation Policy -->
+          <tr>
+            <td style="padding:0 40px 32px;">
+              <div style="padding:16px 20px;background-color:#fefce8;border:1px solid #fde68a;border-radius:6px;">
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;">
+                  <strong>Cancellation Policy:</strong> If you cancel, the advance payment is non-refundable. 
+                  If the mentor cancels, you'll receive a full refund.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 40px;background-color:#fafafa;border-top:1px solid #eee;border-radius:0 0 8px 8px;">
+              <p style="margin:0 0 6px;font-size:13px;color:#9ca3af;line-height:1.5;">
+                This is an auto-generated email — please do not reply directly. For queries, reach out at 
+                <a href="mailto:ksrcesupport@gktech.ai" style="color:#2563eb;text-decoration:underline;">ksrcesupport@gktech.ai</a>.
+              </p>
+              <p style="margin:0;font-size:13px;color:#d1d5db;line-height:1.5;">
+                &copy; 2026 LaaS. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

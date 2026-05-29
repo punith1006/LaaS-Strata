@@ -2280,3 +2280,89 @@ export async function exploreMentors(params: {
   if (!res.ok) return { mentors: [], total: 0, totalPages: 0 };
   return res.json();
 }
+
+// ── Booking API ─────────────────────────────────────────────
+
+export interface TimeSlot {
+  startTime: string;
+  endTime: string;
+}
+
+export interface BookSessionRequest {
+  mentorProfileId: string;
+  category: string;
+  scheduledDate: string;
+  startTime: string;
+  durationMinutes: number;
+  subject: string;
+  description: string;
+  attachmentFileName?: string;
+  attachmentFilePath?: string;
+  attachmentMimeType?: string;
+  attachmentSizeBytes?: number;
+}
+
+export interface StudentUpcomingSession {
+  id: string;
+  mentorName: string;
+  mentorHeadline: string | null;
+  mentorCompany: string | null;
+  scheduledFrom: string;
+  scheduledTo: string;
+  durationMinutes: number;
+  domain: string;
+  paymentStatus: string;
+  earningsCents: number;
+}
+
+/** Get available time slots for a mentor on a specific date */
+export async function getAvailableSlots(
+  mentorProfileId: string,
+  date: string,
+): Promise<{ date: string; slots: TimeSlot[] }> {
+  const res = await apiFetch(
+    `${API_BASE}/api/mentor-sessions/available-slots/${mentorProfileId}?date=${date}`,
+  );
+  if (!res.ok) return { date, slots: [] };
+  return res.json();
+}
+
+/** Upload a file attachment for a mentoring session */
+export async function uploadMentorAttachment(file: File): Promise<{
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  sizeBytes: number;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE}/api/mentor-sessions/upload-attachment`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  return res.json();
+}
+
+/** Book a mentoring session */
+export async function bookMentorSession(data: BookSessionRequest): Promise<{ sessionId: string }> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/book`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Booking failed' }));
+    throw new Error(err.message || 'Booking failed');
+  }
+  return res.json();
+}
+
+/** Get student's upcoming sessions */
+export async function getStudentUpcomingSessions(): Promise<StudentUpcomingSession[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/student-upcoming`);
+  if (!res.ok) return [];
+  return res.json();
+}

@@ -7,6 +7,7 @@ import {
   Query,
   Req,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -94,6 +95,15 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('available-slots/:mentorProfileId')
+  async getAvailableSlots(
+    @Param('mentorProfileId') mentorProfileId: string,
+    @Query('date') date: string,
+  ) {
+    return this.service.getAvailableSlots(mentorProfileId, date);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('profile/:mentorProfileId')
   async getMentorProfile(
     @Param('mentorProfileId') mentorProfileId: string,
@@ -117,5 +127,31 @@ export class MentorSessionsController {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 12,
     });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('upload-attachment')
+  async uploadAttachment(@Req() req: any): Promise<{
+    fileName: string;
+    filePath: string;
+    mimeType: string;
+    sizeBytes: number;
+  }> {
+    return this.service.uploadAttachment(req);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('book')
+  async bookSession(
+    @Req() req: { user: { id: string } },
+    @Body() body: any,
+  ) {
+    return this.service.bookSession(req.user.id, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('student-upcoming')
+  async getStudentUpcoming(@Req() req: { user: { id: string } }) {
+    return this.service.getStudentUpcoming(req.user.id);
   }
 }

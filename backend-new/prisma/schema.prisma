@@ -180,6 +180,13 @@ enum MentorPaymentRecordStatus {
   refunded
 }
 
+enum MentorSessionCategory {
+  consultation
+  guidance
+  doubt_clarification
+  hands_on
+}
+
 // ============================================================================
 // DOMAIN 0: CORE AUTH & IDENTITY
 // ============================================================================
@@ -1899,6 +1906,7 @@ model MentorSession {
   durationMinutes Int    @map("duration_minutes")
   domain          String @db.VarChar(255)
   serviceType     String @map("service_type") @db.VarChar(255)
+  category        MentorSessionCategory @default(consultation)
 
   // Jitsi
   jitsiRoomName String    @unique @map("jitsi_room_name") @db.VarChar(255)
@@ -1917,6 +1925,12 @@ model MentorSession {
   studentNotes String? @map("student_notes")
   mentorNotes  String? @map("mentor_notes")
   cancelReason String? @map("cancel_reason")
+
+  // Attachment (one file per session)
+  attachmentFileName  String? @map("attachment_file_name") @db.VarChar(255)
+  attachmentFilePath  String? @map("attachment_file_path") @db.VarChar(512)
+  attachmentMimeType  String? @map("attachment_mime_type") @db.VarChar(100)
+  attachmentSizeBytes Int?    @map("attachment_size_bytes")
 
   // Audit
   createdAt DateTime @default(now()) @map("created_at")
