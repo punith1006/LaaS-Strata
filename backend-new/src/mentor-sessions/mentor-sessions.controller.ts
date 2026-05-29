@@ -4,6 +4,7 @@ import {
   Post,
   Param,
   Body,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -90,5 +91,31 @@ export class MentorSessionsController {
     @Body() dto: CancelSessionDto,
   ) {
     return this.service.cancelSession(req.user.id, id, dto.reason);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile/:mentorProfileId')
+  async getMentorProfile(
+    @Param('mentorProfileId') mentorProfileId: string,
+  ) {
+    return this.service.getMentorProfile(mentorProfileId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('explore')
+  async exploreMentors(
+    @Query('search') search?: string,
+    @Query('domains') domains?: string,
+    @Query('expertise') expertise?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.service.exploreMentors({
+      search,
+      domains: domains ? domains.split(',').map((d) => d.trim()).filter(Boolean) : undefined,
+      expertise: expertise ? expertise.split(',').map((e) => e.trim()).filter(Boolean) : undefined,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 12,
+    });
   }
 }

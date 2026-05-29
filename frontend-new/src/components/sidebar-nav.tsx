@@ -52,6 +52,7 @@ const navSections: NavSection[] = [
     items: [
       { id: "instances", label: "Instances", href: "/instances" },
       { id: "storage", label: "Storage", href: "/storage" },
+      { id: "mentor", label: "Mentor", href: "/mentor" },
     ],
   },
   {
@@ -129,6 +130,15 @@ function NavIcon({ type, size = 22 }: { type: string; size?: number }) {
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       );
+    case "mentor":
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
     default:
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -158,6 +168,7 @@ function NavContent({ roles }: { roles?: string[] }) {
     if (pathname === "/billing" || pathname.startsWith("/billing")) return "billing";
     if (pathname === "/storage" || pathname.startsWith("/storage")) return "storage";
     if (pathname === "/instances" || pathname.startsWith("/instances")) return "instances";
+    if (pathname === "/mentor" || pathname.startsWith("/mentor")) return "mentor";
     if (pathname === "/referral" || pathname.startsWith("/referral")) return "referral";
     if (pathname === "/profile" || pathname.startsWith("/profile")) return "profile";
     if (pathname === "/calendar" || pathname.startsWith("/calendar")) return "calendar";

@@ -457,4 +457,185 @@ export class MentorSessionsService {
       dailyHours,
     };
   }
+
+  /** Explore mentors with search and filters */
+  async exploreMentors(query: {
+    search?: string;
+    domains?: string[];
+    expertise?: string[];
+    page?: number;
+    limit?: number;
+  }) {
+    const { search, domains, expertise, page = 1, limit = 10 } = query;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      isAvailable: true,
+    };
+
+    // Search by name, headline, or bio
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      where.OR = [
+        { headline: { contains: searchTerm, mode: 'insensitive' } },
+        { bio: { contains: searchTerm, mode: 'insensitive' } },
+        { user: { firstName: { contains: searchTerm, mode: 'insensitive' } } },
+        { user: { lastName: { contains: searchTerm, mode: 'insensitive' } } },
+      ];
+    }
+
+    // Filter by service domain (expertiseAreas contains any)
+    if (domains && domains.length > 0) {
+      where.expertiseAreas = { hasSome: domains };
+    }
+
+    // Filter by expertise level (mapped from experienceYears)
+    if (expertise && expertise.length > 0) {
+      const yearFilters: any[] = [];
+      for (const level of expertise) {
+        switch (level.toLowerCase()) {
+          case 'entry level':
+            yearFilters.push({ experienceYears: { lte: 3 } });
+            break;
+          case 'intermediate':
+            yearFilters.push({ experienceYears: { gte: 4, lte: 7 } });
+            break;
+          case 'senior':
+            yearFilters.push({ experienceYears: { gte: 8 } });
+            break;
+        }
+      }
+      if (yearFilters.length > 0) {
+        where.AND = where.AND ? [...where.AND, { OR: yearFilters }] : [{ OR: yearFilters }];
+      }
+    }
+
+    const [profiles, total] = await Promise.all([
+      this.prisma.mentorProfile.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          _count: {
+            select: {
+              mentorSessions: {
+                where: { status: 'completed' },
+              },
+            },
+          },
+        },
+        orderBy: { avgRating: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.mentorProfile.count({ where }),
+    ]);
+
+    return {
+      mentors: profiles.map((p) => ({
+        id: p.id,
+        userId: p.userId,
+        name: `${p.user.firstName || ''} ${p.user.lastName || ''}`.trim() || 'Unknown',
+        headline: p.headline,
+        expertiseAreas: p.expertiseAreas,
+        experienceYears: p.experienceYears,
+        pricePerHourCents: p.pricePerHourCents,
+        currency: p.currency,
+        avgRating: Number(p.avgRating) || 0,
+        totalReviews: p.totalReviews,
+        totalSessions: p._count.mentorSessions,
+        isAvailable: p.isAvailable,
+        country: p.country,
+        company: p.company,
+        professionalRole: p.professionalRole,
+      })),
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /** Get detailed mentor profile for public view */
+  async getMentorProfile(mentorProfileId: string) {
+    const profile = await this.prisma.mentorProfile.findUnique({
+      where: { id: mentorProfileId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            lastLoginAt: true,
+          },
+        },
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Mentor profile not found');
+    }
+
+    const userProfile = await this.prisma.userProfile.findUnique({
+      where: { userId: profile.userId },
+      select: {
+        skills: true,
+        githubUrl: true,
+        linkedinUrl: true,
+        websiteUrl: true,
+        xUrl: true,
+        substackUrl: true,
+        bio: true,
+      },
+    });
+
+    const completedSessions = await this.prisma.mentorSession.findMany({
+      where: {
+        mentorProfileId: profile.id,
+        status: 'completed',
+      },
+      select: {
+        durationMinutes: true,
+      },
+    });
+
+    const totalMentoringMinutes = completedSessions.reduce(
+      (sum, s) => sum + s.durationMinutes,
+      0,
+    );
+
+    const totalSessions = completedSessions.length;
+
+    return {
+      id: profile.id,
+      userId: profile.userId,
+      name: `${profile.user.firstName || ''} ${profile.user.lastName || ''}`.trim() || 'Unknown',
+      headline: profile.headline,
+      bio: profile.bio || userProfile?.bio || null,
+      company: profile.company,
+      professionalRole: profile.professionalRole,
+      country: profile.country,
+      expertiseAreas: profile.expertiseAreas,
+      languages: profile.languages,
+      experienceYears: profile.experienceYears,
+      pricePerHourCents: profile.pricePerHourCents,
+      currency: profile.currency,
+      avgRating: Number(profile.avgRating) || 0,
+      totalReviews: profile.totalReviews,
+      totalSessions,
+      totalMentoringMinutes,
+      isAvailable: profile.isAvailable,
+      lastLoginAt: profile.user.lastLoginAt,
+      skills: userProfile?.skills || [],
+      githubUrl: userProfile?.githubUrl || null,
+      linkedinUrl: userProfile?.linkedinUrl || null,
+      websiteUrl: userProfile?.websiteUrl || null,
+      xUrl: userProfile?.xUrl || null,
+      substackUrl: userProfile?.substackUrl || null,
+    };
+  }
 }

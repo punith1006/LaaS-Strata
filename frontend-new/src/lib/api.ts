@@ -2207,3 +2207,76 @@ export async function getWithdrawableBalance(): Promise<{ balanceCents: number }
   if (!res.ok) return null;
   return res.json();
 }
+
+// ── Mentor Explore ──
+
+export interface MentorCard {
+  id: string;
+  userId: string;
+  name: string;
+  headline: string | null;
+  expertiseAreas: string[];
+  experienceYears: number | null;
+  pricePerHourCents: number;
+  currency: string;
+  avgRating: number;
+  totalReviews: number;
+  totalSessions: number;
+  isAvailable: boolean;
+  country: string | null;
+  company: string | null;
+  professionalRole: string | null;
+}
+
+export interface MentorProfileDetail {
+  id: string;
+  userId: string;
+  name: string;
+  headline: string | null;
+  bio: string | null;
+  company: string | null;
+  professionalRole: string | null;
+  country: string | null;
+  expertiseAreas: string[];
+  languages: string[];
+  experienceYears: number | null;
+  pricePerHourCents: number;
+  currency: string;
+  avgRating: number;
+  totalReviews: number;
+  totalSessions: number;
+  totalMentoringMinutes: number;
+  isAvailable: boolean;
+  lastLoginAt: string | null;
+  skills: string[];
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  websiteUrl: string | null;
+  xUrl: string | null;
+  substackUrl: string | null;
+}
+
+/** Fetch a single mentor public profile detail by ID */
+export async function getPublicMentorProfile(mentorProfileId: string): Promise<MentorProfileDetail> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/profile/${mentorProfileId}`);
+  return res.json();
+}
+
+/** Fetch mentors with search and filters */
+export async function exploreMentors(params: {
+  search?: string;
+  domains?: string[];
+  expertise?: string[];
+  page?: number;
+  limit?: number;
+}): Promise<{ mentors: MentorCard[]; total: number; totalPages: number }> {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.domains?.length) query.set('domains', params.domains.join(','));
+  if (params.expertise?.length) query.set('expertise', params.expertise.join(','));
+  if (params.page) query.set('page', String(params.page));
+  if (params.limit) query.set('limit', String(params.limit));
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/explore?${query.toString()}`);
+  if (!res.ok) return { mentors: [], total: 0, totalPages: 0 };
+  return res.json();
+}
