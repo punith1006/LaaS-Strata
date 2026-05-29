@@ -318,9 +318,20 @@ export function HomeTabContent({ user }: HomeTabContentProps) {
         const chargeAmount = details?.amountCents ? `₹${(Number(details.amountCents) / 100).toFixed(2)}` : '₹0.00';
         const chargeName = details?.instanceName || 'Session';
         return `Billed ${chargeAmount} for ${chargeName}`;
-      case 'wallet.credit':
+      case 'wallet.credit': {
         const creditAmount = details?.amountCents ? `₹${(Number(details.amountCents) / 100).toFixed(2)}` : '₹0.00';
+        if (details?.referenceType === 'mentor_session_refund') {
+          return `Refunded ${creditAmount} — cancelled session advance`;
+        }
+        if (details?.referenceType === 'mentor_session_advance') {
+          return `Received ${creditAmount} — mentoring session advance`;
+        }
         return `Added ${creditAmount} to wallet`;
+      }
+      case 'mentoring.session_booked':
+        return `Booked a mentoring session with ${details?.mentorName || 'a mentor'}`;
+      case 'mentoring.session_cancelled':
+        return `Cancelled mentoring session${details?.mentorName ? ` with ${details.mentorName}` : details?.studentName ? ` with ${details.studentName}` : ''}`;
       default:
         // Fallback: convert action to readable format
         return action.replace(/\./g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2');
@@ -340,6 +351,8 @@ export function HomeTabContent({ user }: HomeTabContentProps) {
         return '#f85149'; // red
       case 'session':
         return '#a371f7'; // purple
+      case 'mentoring':
+        return '#C8AA6E'; // gold
       default:
         return '#818178'; // muted
     }

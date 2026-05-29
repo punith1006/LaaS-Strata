@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import MentorExploreTab from "@/components/mentor/mentor-explore-tab";
+import MentorUserSessionsTab from "@/components/mentor/mentor-user-sessions-tab";
 
 type MentorTab = "explore" | "requests" | "upcoming" | "past";
 
@@ -188,53 +189,7 @@ export default function MentorPage() {
         {currentTab === "explore" ? (
           <MentorExploreTab />
         ) : (
-          <div
-            style={{
-              backgroundColor: "var(--bgColor-mild)",
-              border: "1px solid var(--borderColor-default)",
-              borderRadius: "4px",
-              padding: "48px 24px",
-              textAlign: "center",
-            }}
-          >
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="var(--fgColor-muted)"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ margin: "0 auto 16px" }}
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <h3
-              style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: "1rem",
-                fontWeight: 600,
-                color: "var(--fgColor-default)",
-                margin: "0 0 8px 0",
-              }}
-            >
-              Coming Soon
-            </h3>
-            <p
-              style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: "0.875rem",
-                color: "var(--fgColor-muted)",
-                margin: 0,
-              }}
-            >
-              {currentTab === "requests" && "Your pending and active session requests."}
-              {currentTab === "upcoming" && "Your scheduled mentoring sessions."}
-              {currentTab === "past" && "Your completed mentoring session history."}
-            </p>
-          </div>
+          <MentorUserSessionsTab activeTab={currentTab} />
         )}
       </div>
     </div>

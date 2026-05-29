@@ -1961,7 +1961,7 @@ model MentorSessionStatusHistory {
   mentorSessionId String              @map("mentor_session_id") @db.Uuid
   fromStatus      MentorSessionStatus @map("from_status")
   toStatus        MentorSessionStatus @map("to_status")
-  changedBy       String              @map("changed_by") @db.VarChar(32)
+  changedBy       String              @map("changed_by") @db.VarChar(36)
   reason          String?
   timestamp       DateTime            @default(now())
 

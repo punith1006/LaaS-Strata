@@ -2030,9 +2030,19 @@ export async function rejectMentorSession(sessionId: string, reason?: string): P
   return res.ok;
 }
 
-/** Cancel an upcoming session */
+/** Cancel an upcoming session (mentor side) */
 export async function cancelMentorSession(sessionId: string, reason?: string): Promise<boolean> {
   const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  return res.ok;
+}
+
+/** Cancel an upcoming session (student side) */
+export async function studentCancelMentorSession(sessionId: string, reason?: string): Promise<boolean> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/student-cancel`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
@@ -2311,8 +2321,30 @@ export interface StudentUpcomingSession {
   scheduledTo: string;
   durationMinutes: number;
   domain: string;
+  serviceType: string;
   paymentStatus: string;
   earningsCents: number;
+}
+
+export interface StudentRequestEntry {
+  id: string;
+  mentorName: string;
+  domain: string;
+  serviceType: string;
+  durationMinutes: number;
+  earningsCents: number;
+  createdAt: string;
+}
+
+export interface StudentPastEntry {
+  id: string;
+  mentorName: string;
+  domain: string;
+  serviceType: string;
+  durationMinutes: number;
+  earningsCents: number;
+  createdAt: string;
+  status: 'Completed' | 'Cancelled' | 'Rejected' | 'Expired' | 'Missed' | 'Disputed';
 }
 
 /** Get available time slots for a mentor on a specific date */
@@ -2363,6 +2395,20 @@ export async function bookMentorSession(data: BookSessionRequest): Promise<{ ses
 /** Get student's upcoming sessions */
 export async function getStudentUpcomingSessions(): Promise<StudentUpcomingSession[]> {
   const res = await apiFetch(`${API_BASE}/api/mentor-sessions/student-upcoming`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Get student's pending session requests */
+export async function getStudentSessionRequests(): Promise<StudentRequestEntry[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/student-requests`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Get student's past sessions */
+export async function getStudentSessionPast(): Promise<StudentPastEntry[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/student-past`);
   if (!res.ok) return [];
   return res.json();
 }

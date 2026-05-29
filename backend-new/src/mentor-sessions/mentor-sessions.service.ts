@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { AuditService } from '../audit/audit.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
@@ -78,6 +79,7 @@ export class MentorSessionsService {
   constructor(
     private prisma: PrismaService,
     private mailService: MailService,
+    private auditService: AuditService,
   ) {}
 
   private async findMentorProfile(userId: string) {
@@ -304,6 +306,16 @@ export class MentorSessionsService {
       });
     });
 
+    // Audit log
+    const student = await this.prisma.user.findUnique({ where: { id: session.studentUserId }, select: { firstName: true, lastName: true } });
+    this.auditService.log({
+      userId,
+      action: 'mentoring.session_approved',
+      category: 'mentoring',
+      status: 'success',
+      details: { sessionId, studentName: `${student?.firstName || ''} ${student?.lastName || ''}`.trim(), domain: session.domain, serviceType: session.serviceType },
+    }).catch(err => this.logger.error('Audit log failed for session approve', err));
+
     return { success: true };
   }
 
@@ -337,10 +349,20 @@ export class MentorSessionsService {
       });
     });
 
+    // Audit log
+    const student = await this.prisma.user.findUnique({ where: { id: session.studentUserId }, select: { firstName: true, lastName: true } });
+    this.auditService.log({
+      userId,
+      action: 'mentoring.session_rejected',
+      category: 'mentoring',
+      status: 'success',
+      details: { sessionId, studentName: `${student?.firstName || ''} ${student?.lastName || ''}`.trim(), reason: reason || 'Mentor rejected session request' },
+    }).catch(err => this.logger.error('Audit log failed for session reject', err));
+
     return { success: true };
   }
 
-  /** Cancel an upcoming session */
+  /** Cancel an upcoming session (mentor side) */
   async cancelSession(userId: string, sessionId: string, reason?: string) {
     const profile = await this.findMentorProfile(userId);
 
@@ -349,28 +371,128 @@ export class MentorSessionsService {
     });
     if (!session) throw new NotFoundException('Scheduled session not found');
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.mentorSession.update({
-        where: { id: sessionId },
-        data: {
-          status: 'cancelled',
-          cancelReason: reason || null,
-          updatedBy: userId,
-        },
-      });
+    await this.executeCancel(session, userId, reason || 'Mentor cancelled session');
 
-      await tx.mentorSessionStatusHistory.create({
-        data: {
-          mentorSessionId: sessionId,
-          fromStatus: 'scheduled',
-          toStatus: 'cancelled',
-          changedBy: userId,
-          reason: reason || 'Mentor cancelled session',
-        },
-      });
-    });
+    // Audit log
+    const student = await this.prisma.user.findUnique({ where: { id: session.studentUserId }, select: { firstName: true, lastName: true } });
+    this.auditService.log({
+      userId,
+      action: 'mentoring.session_cancelled',
+      category: 'mentoring',
+      status: 'success',
+      details: { sessionId, studentName: `${student?.firstName || ''} ${student?.lastName || ''}`.trim(), reason: reason || 'Mentor cancelled session' },
+    }).catch(err => this.logger.error('Audit log failed for mentor cancel', err));
 
     return { success: true };
+  }
+
+  /** Cancel an upcoming session (student side) */
+  async studentCancelSession(userId: string, sessionId: string, reason?: string) {
+    const session = await this.prisma.mentorSession.findFirst({
+      where: { id: sessionId, studentUserId: userId, status: 'scheduled' },
+    });
+    if (!session) throw new NotFoundException('Scheduled session not found');
+
+    await this.executeCancel(session, userId, reason || 'Student cancelled session');
+
+    // Audit log
+    const mentorProfile = await this.prisma.mentorProfile.findUnique({
+      where: { id: session.mentorProfileId },
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+    this.auditService.log({
+      userId,
+      action: 'mentoring.session_cancelled',
+      category: 'mentoring',
+      status: 'success',
+      details: { sessionId, mentorName: `${mentorProfile?.user.firstName || ''} ${mentorProfile?.user.lastName || ''}`.trim(), reason: reason || 'Student cancelled session' },
+    }).catch(err => this.logger.error('Audit log failed for student cancel', err));
+
+    return { success: true };
+  }
+
+  /** Shared cancel logic: updates session, refunds advance if paid, records history */
+  private async executeCancel(
+    session: { id: string; studentUserId: string; mentorProfileId: string; advanceCents: number | null; paymentStatus: string },
+    changedByUserId: string,
+    reason: string,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Update session status
+      await tx.mentorSession.update({
+        where: { id: session.id },
+        data: {
+          status: 'cancelled',
+          paymentStatus: session.paymentStatus === 'advance_paid' ? 'unpaid' : undefined,
+          cancelReason: reason,
+          updatedBy: changedByUserId,
+        },
+      });
+
+      // 2. Record status history
+      await tx.mentorSessionStatusHistory.create({
+        data: {
+          mentorSessionId: session.id,
+          fromStatus: 'scheduled',
+          toStatus: 'cancelled',
+          changedBy: changedByUserId,
+          reason,
+        },
+      });
+
+      // 3. Refund advance if it was paid
+      if (session.paymentStatus === 'advance_paid' && session.advanceCents && session.advanceCents > 0) {
+        const advanceCents = session.advanceCents;
+
+        // Refund to student wallet
+        const studentWallet = await tx.wallet.findUnique({ where: { userId: session.studentUserId } });
+        if (studentWallet) {
+          const newStudentBalance = studentWallet.balanceCents + BigInt(advanceCents);
+          await tx.wallet.update({
+            where: { userId: session.studentUserId },
+            data: { balanceCents: newStudentBalance },
+          });
+          await tx.walletTransaction.create({
+            data: {
+              walletId: studentWallet.id,
+              userId: session.studentUserId,
+              txnType: 'credit',
+              amountCents: BigInt(advanceCents),
+              balanceAfterCents: newStudentBalance,
+              description: `Refund: cancelled mentoring session advance`,
+              referenceType: 'mentor_session_refund',
+            },
+          });
+        }
+
+        // Debit from mentor wallet (advance was credited during booking)
+        const mentor = await tx.mentorProfile.findUnique({
+          where: { id: session.mentorProfileId },
+          select: { userId: true },
+        });
+        if (mentor) {
+          const mentorWallet = await tx.wallet.findUnique({ where: { userId: mentor.userId } });
+          if (mentorWallet) {
+            const newMentorBalance = mentorWallet.balanceCents - BigInt(advanceCents);
+            await tx.wallet.update({
+              where: { userId: mentor.userId },
+              data: { balanceCents: newMentorBalance },
+            });
+            await tx.walletTransaction.create({
+              data: {
+                walletId: mentorWallet.id,
+                userId: mentor.userId,
+                txnType: 'debit',
+                amountCents: BigInt(advanceCents),
+                balanceAfterCents: newMentorBalance,
+                description: `Reversal: cancelled mentoring session advance`,
+                referenceType: 'mentor_session_refund',
+              },
+            });
+          }
+        }
+      }
+    });
   }
 
   /** Get mentor billing stats (earnings, sessions, hours, daily breakdowns) */
@@ -1066,6 +1188,15 @@ export class MentorSessionsService {
         const timeStr = `${String(scheduledFrom.getHours()).padStart(2, '0')}:${String(scheduledFrom.getMinutes()).padStart(2, '0')}`;
         const categoryLabel = category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
 
+        // Audit log for booking
+        this.auditService.log({
+          userId: studentUserId,
+          action: 'mentoring.session_booked',
+          category: 'mentoring',
+          status: 'success',
+          details: { sessionId: result.sessionId, mentorName: result.mentorName, sessionCategory: categoryLabel, advanceCents: result.advanceCents },
+        }).catch(err => this.logger.error('Audit log failed for session booking', err));
+
         // Student confirmation
         this.mailService.sendSessionBookedStudentEmail(student.email, {
           studentName: `${student.firstName} ${student.lastName}`.trim(),
@@ -1134,8 +1265,77 @@ export class MentorSessionsService {
       scheduledTo: s.scheduledTo,
       durationMinutes: s.durationMinutes,
       domain: s.domain,
+      serviceType: s.serviceType,
       paymentStatus: s.paymentStatus,
       earningsCents: s.earningsCents,
+    }));
+  }
+
+  /** Get student's pending requests (sessions awaiting mentor approval) */
+  async getStudentRequests(studentUserId: string) {
+    const sessions = await this.prisma.mentorSession.findMany({
+      where: {
+        studentUserId,
+        status: 'pending',
+      },
+      include: {
+        mentorProfile: {
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+
+    return sessions.map((s) => ({
+      id: s.id,
+      mentorName: `${s.mentorProfile.user.firstName} ${s.mentorProfile.user.lastName}`.trim(),
+      domain: s.domain,
+      serviceType: s.serviceType,
+      durationMinutes: s.durationMinutes,
+      earningsCents: s.earningsCents,
+      createdAt: s.requestedAt.toISOString(),
+    }));
+  }
+
+  /** Get student's past sessions (terminal statuses) */
+  async getStudentPast(studentUserId: string) {
+    const terminalStatuses = ['completed', 'cancelled', 'rejected', 'request_expired', 'missed', 'disputed'] as const;
+
+    const sessions = await (this.prisma.mentorSession.findMany as any)({
+      where: {
+        studentUserId,
+        status: { in: terminalStatuses },
+      },
+      include: {
+        mentorProfile: {
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
+
+    const statusLabelMap: Record<string, string> = {
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+      rejected: 'Rejected',
+      request_expired: 'Expired',
+      missed: 'Missed',
+      disputed: 'Disputed',
+    };
+
+    return sessions.map((s: any) => ({
+      id: s.id,
+      mentorName: `${s.mentorProfile.user.firstName} ${s.mentorProfile.user.lastName}`.trim(),
+      domain: s.domain,
+      serviceType: s.serviceType,
+      durationMinutes: s.durationMinutes,
+      earningsCents: s.earningsCents,
+      createdAt: s.requestedAt.toISOString(),
+      status: statusLabelMap[s.status] || s.status,
     }));
   }
 }

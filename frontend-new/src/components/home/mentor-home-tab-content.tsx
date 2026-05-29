@@ -251,17 +251,33 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
         return "Signed in";
       case "auth.logout":
         return "Signed out";
-      case "wallet.credit":
+      case "wallet.credit": {
         const creditAmount = details?.amountCents
           ? `₹${(Number(details.amountCents) / 100).toFixed(2)}`
           : "₹0.00";
+        if (details?.referenceType === "mentor_session_refund") {
+          return `Refunded ${creditAmount} — cancelled session advance`;
+        }
+        if (details?.referenceType === "mentor_session_advance") {
+          return `Received ${creditAmount} — mentoring session advance`;
+        }
         return `Added ${creditAmount} to wallet`;
-      case "billing.charge":
+      }
+      case "billing.charge": {
         const chargeAmount = details?.amountCents
           ? `₹${(Number(details.amountCents) / 100).toFixed(2)}`
           : "₹0.00";
         const chargeName = details?.instanceName || "Session";
         return `Billed ${chargeAmount} for ${chargeName}`;
+      }
+      case "mentoring.session_booked":
+        return `Booked a mentoring session with ${details?.mentorName || "a mentor"}`;
+      case "mentoring.session_approved":
+        return `Approved session request from ${details?.studentName || "a student"}`;
+      case "mentoring.session_rejected":
+        return `Rejected session request from ${details?.studentName || "a student"}`;
+      case "mentoring.session_cancelled":
+        return `Cancelled mentoring session${details?.studentName ? ` with ${details.studentName}` : details?.mentorName ? ` with ${details.mentorName}` : ""}`;
       default:
         return action.replace(/\./g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
     }

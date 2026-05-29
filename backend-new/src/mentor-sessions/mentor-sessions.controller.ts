@@ -95,6 +95,16 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post(':id/student-cancel')
+  async studentCancel(
+    @Param('id') id: string,
+    @Req() req: { user: { id: string } },
+    @Body() dto: CancelSessionDto,
+  ) {
+    return this.service.studentCancelSession(req.user.id, id, dto.reason);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('available-slots/:mentorProfileId')
   async getAvailableSlots(
     @Param('mentorProfileId') mentorProfileId: string,
@@ -153,5 +163,17 @@ export class MentorSessionsController {
   @Get('student-upcoming')
   async getStudentUpcoming(@Req() req: { user: { id: string } }) {
     return this.service.getStudentUpcoming(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('student-requests')
+  async getStudentRequests(@Req() req: { user: { id: string } }) {
+    return this.service.getStudentRequests(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('student-past')
+  async getStudentPast(@Req() req: { user: { id: string } }) {
+    return this.service.getStudentPast(req.user.id);
   }
 }
