@@ -74,6 +74,7 @@ enum NodeStatus {
   offline
   maintenance
   draining
+  inactive
 }
 
 enum SubscriptionStatus {

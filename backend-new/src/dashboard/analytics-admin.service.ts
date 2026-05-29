@@ -620,9 +620,10 @@ export class AnalyticsAdminService {
         : 0;
 
     // --- Fleet Health ---
-    const nodes = await this.prisma.node.findMany({
+    const allNodes = await this.prisma.node.findMany({
       select: { id: true, hostname: true, status: true, lastHeartbeatAt: true },
     });
+    const nodes = allNodes.filter((n) => n.status !== 'inactive');
 
     const totalNodes = nodes.length;
     const healthyNodes = nodes.filter((n) => n.status === 'healthy').length;
@@ -690,9 +691,10 @@ export class AnalyticsAdminService {
   }
 
   async getFleetHealthData() {
-    const nodes = await this.prisma.node.findMany({
+    const allNodes = await this.prisma.node.findMany({
       select: { id: true, hostname: true, status: true, lastHeartbeatAt: true },
     });
+    const nodes = allNodes.filter((n) => n.status !== 'inactive');
 
     const totalNodes = nodes.length;
     const healthyNodes = nodes.filter((n) => n.status === 'healthy').length;

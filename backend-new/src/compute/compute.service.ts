@@ -1743,6 +1743,7 @@ export class ComputeService {
 
   async getNodeResourceStatus(): Promise<NodeResourceStatus[]> {
     const nodes = await this.prisma.node.findMany({
+      where: { status: { not: 'inactive' } },
       orderBy: { hostname: 'asc' },
     });
 

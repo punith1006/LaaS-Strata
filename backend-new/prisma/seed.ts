@@ -169,16 +169,18 @@ async function main() {
 
   // Seed KSRCE Departments
   const ksrceDepartments = [
+    { name: 'Automobile Engineering', code: 'AUTO', slug: 'automobile' },
+    { name: 'Biomedical Engineering', code: 'BME', slug: 'bme' },
+    { name: 'Civil Engineering', code: 'CIVIL', slug: 'civil' },
+    { name: 'Computer System and Design', code: 'CSD', slug: 'computer-system-design' },
     { name: 'Computer Science and Engineering', code: 'CSE', slug: 'cse' },
-    { name: 'Information Technology', code: 'IT', slug: 'it' },
+    { name: 'Computer Science and Engineering (IOT)', code: 'CSE-IOT', slug: 'cse-iot' },
+    { name: 'Computer Science and Engineering (Cyber Security)', code: 'CSE-CS', slug: 'cse-cyber-security' },
     { name: 'Electronics and Communication Engineering', code: 'ECE', slug: 'ece' },
     { name: 'Electrical and Electronics Engineering', code: 'EEE', slug: 'eee' },
+    { name: 'Information Technology', code: 'IT', slug: 'it' },
     { name: 'Mechanical Engineering', code: 'MECH', slug: 'mech' },
-    { name: 'Civil Engineering', code: 'CIVIL', slug: 'civil' },
-    { name: 'Artificial Intelligence and Data Science', code: 'AIDS', slug: 'aids' },
-    { name: 'Artificial Intelligence and Machine Learning', code: 'AIML', slug: 'aiml' },
-    { name: 'Cyber Security', code: 'CS', slug: 'cyber-security' },
-    { name: 'Biomedical Engineering', code: 'BME', slug: 'bme' },
+    { name: 'Safety and Fire Engineering', code: 'SAFE', slug: 'safety-fire' },
     { name: 'Master of Business Administration', code: 'MBA', slug: 'mba' },
     { name: 'Master of Computer Applications', code: 'MCA', slug: 'mca' },
   ];

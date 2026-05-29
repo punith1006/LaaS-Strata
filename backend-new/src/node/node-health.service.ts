@@ -14,10 +14,11 @@ export class NodeHealthService {
     const nodes = await this.prisma.node.findMany();
 
     for (const node of nodes) {
-      // Skip nodes in maintenance or draining — don't override those statuses
+      // Skip nodes in maintenance, draining, or inactive — don't override those statuses
       if (
         node.status === NodeStatus.maintenance ||
-        node.status === NodeStatus.draining
+        node.status === NodeStatus.draining ||
+        node.status === NodeStatus.inactive
       ) {
         continue;
       }
