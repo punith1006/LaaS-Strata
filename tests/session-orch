@@ -35,3 +35,6 @@ SESSION_SECRET=laas-session-secret-dev HOST_IP=100.94.157.114 TURN_HOST=100.94.1
 
 # session app.py - 10.99
 SESSION_SECRET=laas-session-secret-dev HOST_IP=100.88.57.107 TURN_HOST=100.88.57.107 STORAGE_PROVISION_URL=http://localhost:9999 NVME_STORAGE_IP=10.10.100.99 STORAGE_PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 python3 app.py
+
+
+curl -X POST http://localhost:3001/api/test/jitsi-link -H "Content-Type: application/json" -d "{\"displayName\":\"Punith\"}"

@@ -209,13 +209,12 @@ export function SignUpForm() {
         </Link>
       </p>
 
-      <Link
-        href="/institution"
-        className="flex items-center justify-center gap-2 rounded-lg border border-neutral-900 bg-neutral-900 px-4 py-2.5 text-sm text-white transition-colors hover:border-neutral-200 hover:bg-neutral-50 hover:text-neutral-700"
+      <span
+        className="flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-neutral-400 bg-neutral-400 px-4 py-2.5 text-sm text-white opacity-50"
       >
         <GraduationCap className="h-4 w-4" />
         <span>Sign in with your institution</span>
-      </Link>
+      </span>
 
       <FooterLinks />
 

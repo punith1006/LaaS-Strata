@@ -355,7 +355,7 @@ export default function AvailabilityManager() {
             >
               These slots repeat every week indefinitely. Date-specific slots on the same date will override them.
               Students can book during these times unless a date-specific slot takes precedence.
-              {"\n"}Days marked as "Day Off" will suppress all recurring slots for that date.
+              {"\n"}Days marked as &quot;Day Off&quot; will suppress all recurring slots for that date.
             </p>
           </div>
           <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>{weeklyOpen ? "\u25B2" : "\u25BC"}</span>

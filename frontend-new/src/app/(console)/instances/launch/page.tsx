@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   getComputeConfigs,
   getStorageStatus,
@@ -270,10 +270,18 @@ export default function LaunchInstancePage() {
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showRecommendationFlow, setShowRecommendationFlow] = useState(false);
+  const launchSearchParams = useSearchParams();
   const [pendingRecommendation, setPendingRecommendation] = useState<{ id: string; selectedConfigSlug: string; recommendedStorageType?: 'stateful' | 'ephemeral' } | null>(null);
   
   // Derived state
   const hasFileStore = storageStatus?.hasStorage && storageStatus?.reachable;
+
+  // Auto-open recommendation flow if ?recommend=true query param is present
+  useEffect(() => {
+    if (launchSearchParams.get('recommend') === 'true') {
+      setShowRecommendationFlow(true);
+    }
+  }, [launchSearchParams]);
 
   // Fetch compute configs on mount
   useEffect(() => {
@@ -456,6 +464,7 @@ export default function LaunchInstancePage() {
       // Consume the pending recommendation if it exists
       if (pendingRecommendation) {
         consumeRecommendationSession(pendingRecommendation.id);
+        try { sessionStorage.setItem('laas-rec-dialogue-dismissed', '1'); } catch {}
         setPendingRecommendation(null);
       }
 
@@ -1627,24 +1636,24 @@ export default function LaunchInstancePage() {
                 padding: "24px",
                 fontSize: "0.875rem",
                 fontWeight: 400,
-                color: "var(--fgColor-default)",
+                color: "var(--fgColor-muted)",
                 lineHeight: "1.6",
               }}
             >
               <p style={{ margin: "0 0 16px 0" }}>
-                This instance is billed at <strong>₹{pricePerHour}/hr</strong> on a prepaid hourly basis. The charge for each hour is deducted upfront at the start of that hour, whether the GPU is actively in use or not.
+                This instance is billed at <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>₹{pricePerHour}/hr</strong> on a prepaid hourly basis. The charge for each hour is deducted upfront at the start of that hour, whether the GPU is actively in use or not.
               </p>
               <p style={{ margin: "0 0 16px 0" }}>
-                I have read and agree to the following end user licensing agreements: <strong>NVIDIA CUDA EULA</strong> and <strong>cuDNN Supplement</strong>.
+                I have read and agree to the following end user licensing agreements: <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>NVIDIA CUDA EULA</strong> and <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>cuDNN Supplement</strong>.
               </p>
               <p style={{ margin: "0 0 16px 0" }}>
-                I acknowledge that cryptocurrency mining is strictly prohibited and may result in immediate termination of all instances, deletion of all data, and permanent account suspension.
+                I acknowledge that <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>cryptocurrency mining is strictly prohibited</strong> and may result in immediate termination of all instances, deletion of all data, and permanent account suspension.
               </p>
               <p style={{ margin: "0 0 16px 0" }}>
-                I understand that billing is prepaid hourly. The current hour&rsquo;s charge is deducted at launch, and each subsequent hour is charged at the top of the hour. Charges are deducted from my wallet balance accordingly.
+                I understand that <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>billing is prepaid hourly</strong>. The current hour&rsquo;s charge is deducted at launch, and each subsequent hour is charged at the top of the hour. Charges are deducted from my wallet balance accordingly.
               </p>
               <p style={{ margin: 0 }}>
-                By clicking <strong>&quot;Confirm and Launch&quot;</strong>, you agree to LaaS Terms of Service and Acceptable Use Policy.
+                By clicking <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>&quot;Confirm and Launch&quot;</strong>, you agree to LaaS <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>Terms of Service</strong> and <strong style={{ color: "var(--fgColor-default)", fontWeight: 600 }}>Acceptable Use Policy</strong>.
               </p>
             </div>
             

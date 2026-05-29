@@ -375,6 +375,7 @@ export default function MentorBillingOverview() {
                     color: "var(--fgColor-default)",
                   }}
                   labelStyle={{ color: "var(--fgColor-default)", fontWeight: 600, marginBottom: 4 }}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   formatter={(value: any, name: any) => [
                     `₹${Number(value).toFixed(2)}`,
                     name === "cumulative" ? "Cumulative earnings" : "Daily earnings",
@@ -497,6 +498,7 @@ export default function MentorBillingOverview() {
                     fontSize: "0.875rem",
                     color: "var(--fgColor-default)",
                   }}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   formatter={(value: any) => [`${value} hrs`, "Mentoring hours"]}
                 />
                 <Bar
@@ -506,6 +508,7 @@ export default function MentorBillingOverview() {
                     position: "top",
                     fill: "var(--fgColor-muted)",
                     fontSize: 11,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     formatter: (v: any) => `${v}h`,
                   }}
                 >

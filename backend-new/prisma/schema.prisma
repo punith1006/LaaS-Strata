@@ -1909,7 +1909,7 @@ model MentorSession {
   category        MentorSessionCategory @default(consultation)
 
   // Jitsi
-  jitsiRoomName String    @unique @map("jitsi_room_name") @db.VarChar(255)
+  jitsiRoomName String?   @unique @map("jitsi_room_name") @db.VarChar(255)
   jwtToken      String?   @map("jwt_token")
   jwtExpiresAt  DateTime? @map("jwt_expires_at")
 

@@ -25,6 +25,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [billingData, setBillingData] = useState<BillingData | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showRecDialogue, setShowRecDialogue] = useState(() => {
+    try { return sessionStorage.getItem('laas-rec-dialogue-dismissed') !== '1'; } catch { return false; }
+  });
 
   const currentTab = searchParams.get("tab") === "billing" ? "billing" : searchParams.get("tab") === "sessions" ? "sessions" : "home";
 
@@ -211,6 +214,81 @@ export default function HomePage() {
               <polyline points="12 5 19 12 12 19" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* AI Recommendation Dialogue — persists until: X dismiss, first recommendation completed, or credits added */}
+      {!isMentor && billingData && billingData.creditBalance === 0 && !billingData.isComputeStorageExempt && showRecDialogue && (
+        <div
+          style={{
+            position: "relative",
+            marginTop: "12px",
+            padding: "20px",
+            backgroundColor: "transparent",
+            border: "2px solid #ffffff",
+            borderRadius: "4px",
+          }}
+        >
+          {/* Dismiss X */}
+          <button
+            onClick={() => {
+              try { sessionStorage.setItem('laas-rec-dialogue-dismissed', '1'); } catch {}
+              setShowRecDialogue(false);
+            }}
+            style={{
+              position: "absolute",
+              top: "12px",
+              right: "12px",
+              width: "24px",
+              height: "24px",
+              backgroundColor: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--fgColor-muted)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          {/* Lightbulb + content */}
+          <div style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
+            <div style={{ flexShrink: 0, marginTop: "2px", color: "var(--fgColor-info, #3A73FF)" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18h6" /><path d="M10 22h4" />
+                <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+              </svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "Outfit, var(--font-sans), sans-serif", fontSize: "0.95rem", fontWeight: 600, color: "var(--fgColor-default)", marginBottom: "6px" }}>
+                Find the right config for your workload
+              </div>
+              <div style={{ fontFamily: "Outfit, var(--font-sans), sans-serif", fontSize: "0.875rem", fontWeight: 400, color: "var(--fgColor-muted)", lineHeight: "1.5", marginBottom: "14px" }}>
+                Not sure how much compute you need? Our AI-powered recommendation engine analyzes your workload and suggests the most cost-effective configuration — so you only top up what you actually need.
+              </div>
+              <div
+                onClick={() => {
+                  try { sessionStorage.setItem('laas-rec-dialogue-dismissed', '1'); } catch {}
+                  setShowRecDialogue(false);
+                  router.push("/instances/launch?recommend=true");
+                }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fgColor-info, #3A73FF)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18h6" /><path d="M10 22h4" />
+                  <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+                </svg>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.875rem", color: "var(--fgColor-info, #3A73FF)", textDecoration: "underline", textUnderlineOffset: "3px" }}>
+                  Not sure which config? Let us help you choose
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

@@ -136,13 +136,13 @@ async function main() {
   const ksrceUniversity = await prisma.university.upsert({
     where: { slug: 'ksrce' },
     update: {
-      domainSuffixes: ['@ksrce.in'],
+      domainSuffixes: ['@ksrce.ac.in'],
     },
     create: {
       name: 'K.S. Rangasamy College of Engineering',
       shortName: 'KSRCE',
       slug: 'ksrce',
-      domainSuffixes: ['@ksrce.in'],
+      domainSuffixes: ['@ksrce.ac.in'],
       country: 'IN',
       timezone: 'Asia/Kolkata',
       isActive: true,

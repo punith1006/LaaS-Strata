@@ -180,8 +180,9 @@ export default function BookSessionModal({
 
       setSuccess(true);
       setTimeout(() => onClose(), 2000);
-    } catch (err: any) {
-      setError(err.message || "Booking failed. Please try again.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Booking failed. Please try again.";
+      setError(message);
     } finally {
       setBooking(false);
       setUploading(false);

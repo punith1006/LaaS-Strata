@@ -364,7 +364,7 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
             }}
           >
             Your expertise is in demand. Students are looking for guidance
-            right now — set your availability, and they'll start booking you.
+            right now — set your availability, and they&apos;ll start booking you.
           </p>
         </div>
       </div>
