@@ -114,6 +114,15 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('available-slots/:mentorProfileId/calendar')
+  async getAvailableDates(
+    @Param('mentorProfileId') mentorProfileId: string,
+    @Query('month') month: string,
+  ) {
+    return this.service.getAvailableDatesForMonth(mentorProfileId, month);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('profile/:mentorProfileId')
   async getMentorProfile(
     @Param('mentorProfileId') mentorProfileId: string,

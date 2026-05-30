@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import type { MentorProfileDetail } from "@/lib/api";
 import {
   getAvailableSlots,
+  getAvailableDates,
   uploadMentorAttachment,
   bookMentorSession,
 } from "@/lib/api";
@@ -72,6 +74,8 @@ export default function BookSessionModal({
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMonth, setViewMonth] = useState(dayjs().add(1, "day").startOf("month"));
+  const [availableDates, setAvailableDates] = useState<string[] | null>(null);
+  const [datesLoading, setDatesLoading] = useState(false);
 
   // Step 2 state
   const [slots, setSlots] = useState<TimeSlot[]>([]);
@@ -86,16 +90,20 @@ export default function BookSessionModal({
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [fading, setFading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const priceValue = (mentor.pricePerHourCents / 100).toLocaleString("en-IN");
   const currencySymbol = mentor.currency === "INR" ? "\u20B9" : "$";
   const advanceCents = Math.round(mentor.pricePerHourCents * 0.1);
   const advanceValue = (advanceCents / 100).toLocaleString("en-IN");
+  const balanceCents = mentor.pricePerHourCents - advanceCents;
+  const balanceValue = (balanceCents / 100).toLocaleString("en-IN");
 
   const today = dayjs().startOf("day");
-  const tomorrow = today.add(1, "day");
 
   // Fetch slots when date changes
   useEffect(() => {
@@ -116,6 +124,27 @@ export default function BookSessionModal({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  // Fade-out effect before modal closes on success
+  useEffect(() => {
+    if (success) {
+      const t = setTimeout(() => setFading(true), 1700);
+      return () => clearTimeout(t);
+    } else {
+      setFading(false);
+    }
+  }, [success]);
+
+  // Fetch available dates when month changes
+  useEffect(() => {
+    setDatesLoading(true);
+    setAvailableDates(null);
+    const month = viewMonth.format("YYYY-MM");
+    getAvailableDates(mentor.id, month)
+      .then((data) => setAvailableDates(data.dates))
+      .catch(() => setAvailableDates([]))
+      .finally(() => setDatesLoading(false));
+  }, [viewMonth, mentor.id]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -141,7 +170,12 @@ export default function BookSessionModal({
     setFile(f);
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
+    if (!selectedDate || !selectedSlot || !selectedCategory) return;
+    setShowConfirmation(true);
+  };
+
+  const handleFinalConfirm = async () => {
     if (!selectedDate || !selectedSlot || !selectedCategory) return;
 
     setBooking(true);
@@ -179,7 +213,12 @@ export default function BookSessionModal({
       });
 
       setSuccess(true);
-      setTimeout(() => onClose(), 2000);
+      setTimeout(() => {
+        onClose();
+        setTimeout(() => {
+          router.push("/mentor?tab=upcoming");
+        }, 150);
+      }, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Booking failed. Please try again.";
       setError(message);
@@ -201,7 +240,13 @@ export default function BookSessionModal({
   }
 
   const isDateDisabled = (date: dayjs.Dayjs): boolean => {
-    return date.isBefore(tomorrow, "day");
+    // Always disable past dates
+    if (date.isBefore(today, "day")) return true;
+    // If availability data is still loading, don't disable
+    if (availableDates === null) return false;
+    // Disable dates not in the available set
+    const dateStr = date.format("YYYY-MM-DD");
+    return !availableDates.includes(dateStr);
   };
 
   // ── Render ──
@@ -811,7 +856,7 @@ export default function BookSessionModal({
                         selectedSlot?.startTime === slot.startTime;
                       return (
                         <button
-                          key={slot.startTime}
+                          key={`${slot.startTime}-${slot.endTime}`}
                           onClick={() => setSelectedSlot(slot)}
                           style={{
                             padding: "12px",
@@ -852,6 +897,8 @@ export default function BookSessionModal({
                     style={{
                       padding: "48px 24px",
                       textAlign: "center",
+                      opacity: fading ? 0 : 1,
+                      transition: "opacity 0.3s ease",
                     }}
                   >
                     <div
@@ -898,6 +945,312 @@ export default function BookSessionModal({
                       }}
                     >
                       Your session with {mentor.name} is confirmed.
+                    </div>
+                  </div>
+                ) : showConfirmation ? (
+                  <div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                        color: "var(--fgColor-default)",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      Review Your Booking
+                    </div>
+
+                    {/* Session Summary */}
+                    <div style={{ marginBottom: "16px" }}>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.6875rem",
+                          color: "var(--fgColor-muted)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Session Summary
+                      </div>
+                      <div
+                        style={{
+                          backgroundColor: "var(--bgColor-mild)",
+                          borderRadius: "6px",
+                          padding: "12px 16px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--fgColor-muted)",
+                              flexShrink: 0,
+                              minWidth: "80px",
+                            }}
+                          >
+                            Subject
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--fgColor-default)",
+                              fontWeight: 500,
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {subject}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--fgColor-muted)",
+                              flexShrink: 0,
+                              minWidth: "80px",
+                            }}
+                          >
+                            Description
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--fgColor-default)",
+                              fontWeight: 500,
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {description.length > 80
+                              ? description.slice(0, 80) + "..."
+                              : description}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Breakdown */}
+                    <div style={{ marginBottom: "16px" }}>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.6875rem",
+                          color: "var(--fgColor-muted)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          marginBottom: "8px",
+                        }}
+                      >
+                        Payment Breakdown
+                      </div>
+                      <div
+                        style={{
+                          backgroundColor: "var(--bgColor-mild)",
+                          borderRadius: "6px",
+                          padding: "12px 16px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--fgColor-muted)",
+                            }}
+                          >
+                            Session Fee
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--fgColor-default)",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {currencySymbol}{priceValue}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--fgColor-muted)",
+                            }}
+                          >
+                            Advance (10%) &mdash; deducted now
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "#C8AA6E",
+                              fontWeight: 600,
+                            }}
+                          >
+                            &minus;{currencySymbol}{advanceValue}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            borderTop: "1px solid var(--borderColor-default)",
+                            paddingTop: "8px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "0.875rem",
+                              color: "var(--fgColor-default)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Balance Due
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.875rem",
+                              color: "var(--fgColor-default)",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {currencySymbol}{balanceValue}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* How it works — styled like home page dialogue box */}
+                    <div
+                      style={{
+                        backgroundColor: "var(--bgColor-info, #cedeff)",
+                        border: "1px solid var(--borderColor-info, #3a73ff)",
+                        borderRadius: "4px",
+                        padding: "16px",
+                        marginBottom: "16px",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "12px",
+                      }}
+                    >
+                      <div style={{ flexShrink: 0, marginTop: "2px" }}>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ color: "var(--fgColor-info, #3a73ff)" }}
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="16" x2="12" y2="12" />
+                          <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "var(--text-sm)",
+                            fontWeight: 600,
+                            color: "var(--fgColor-default)",
+                            margin: 0,
+                            marginBottom: "4px",
+                          }}
+                        >
+                          How the advance works
+                        </div>
+                        <div
+                          style={{
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "var(--text-sm)",
+                            lineHeight: "1.35rem",
+                            color: "var(--fgColor-muted)",
+                            margin: 0,
+                          }}
+                        >
+                          The <strong style={{color: "var(--fgColor-default)"}}>10% advance</strong> secures your slot
+                          and confirms the mentor&apos;s time. This amount is{" "}
+                          <strong style={{color: "var(--fgColor-default)"}}>redeemable towards the final payment</strong>.
+                          The remaining balance will be{" "}
+                          <strong style={{color: "var(--fgColor-default)"}}>due before the session begins</strong>.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cancellation Policy */}
+                    <div
+                      style={{
+                        padding: "14px 16px",
+                        backgroundColor: "rgba(248, 81, 73, 0.08)",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(248, 81, 73, 0.35)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "0.8125rem",
+                            fontWeight: 700,
+                            color: "#f85149",
+                          }}
+                        >
+                          Cancellation Policy
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.8125rem",
+                          color: "var(--fgColor-default)",
+                          lineHeight: 1.7,
+                        }}
+                      >
+                        If <strong style={{color: "#f85149"}}>you</strong> cancel: The
+                        advance payment is <strong>non-refundable</strong>.
+                        <br />
+                        If <strong style={{color: "#f85149"}}>the mentor</strong> cancels:
+                        You&apos;ll receive a <strong>full refund</strong>.
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1142,6 +1495,7 @@ export default function BookSessionModal({
           <button
             onClick={() => {
               if (step === 1) onClose();
+              else if (showConfirmation) setShowConfirmation(false);
               else setStep(((step - 1) as 1 | 2 | 3));
             }}
             style={{
@@ -1155,7 +1509,7 @@ export default function BookSessionModal({
               cursor: "pointer",
             }}
           >
-            {step === 1 ? "Cancel" : "Back"}
+            {step === 1 ? "Cancel" : showConfirmation ? "Back to Form" : "Back"}
           </button>
 
           {step < 3 ? (
@@ -1199,63 +1553,87 @@ export default function BookSessionModal({
               Continue
             </button>
           ) : !success ? (
-            <button
-              disabled={
-                booking ||
-                uploading ||
-                !subject.trim() ||
-                getWordCount(subject) > 10 ||
-                getWordCount(description) < 10
-              }
-              onClick={handleConfirm}
-              style={{
-                padding: "8px 24px",
-                backgroundColor:
-                  booking ||
-                  uploading ||
+            showConfirmation ? (
+              <button
+                disabled={booking || uploading}
+                onClick={handleFinalConfirm}
+                style={{
+                  padding: "8px 24px",
+                  backgroundColor:
+                    booking || uploading
+                      ? "var(--bgColor-muted)"
+                      : "#C8AA6E",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  color:
+                    booking || uploading
+                      ? "var(--fgColor-muted)"
+                      : "#0B0B0B",
+                  cursor:
+                    booking || uploading
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity:
+                    booking || uploading
+                      ? 0.5
+                      : 1,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {booking
+                  ? "Booking..."
+                  : uploading
+                  ? "Uploading..."
+                  : "Confirm & Pay Advance"}
+              </button>
+            ) : (
+              <button
+                disabled={
                   !subject.trim() ||
                   getWordCount(subject) > 10 ||
                   getWordCount(description) < 10
-                    ? "var(--bgColor-muted)"
-                    : "#C8AA6E",
-                border: "none",
-                borderRadius: "4px",
-                fontFamily: "var(--font-sans)",
-                fontSize: "0.875rem",
-                fontWeight: 600,
-                color:
-                  booking ||
-                  uploading ||
-                  !subject.trim() ||
-                  getWordCount(subject) > 10 ||
-                  getWordCount(description) < 10
-                    ? "var(--fgColor-muted)"
-                    : "#0B0B0B",
-                cursor:
-                  booking ||
-                  uploading ||
-                  !subject.trim() ||
-                  getWordCount(subject) > 10 ||
-                  getWordCount(description) < 10
-                    ? "not-allowed"
-                    : "pointer",
-                opacity:
-                  booking ||
-                  uploading ||
-                  !subject.trim() ||
-                  getWordCount(subject) > 10 ||
-                  getWordCount(description) < 10
-                    ? 0.5
-                    : 1,
-                transition: "all 0.15s ease",
-              }}
-            >
-              {booking
-                ? "Booking..."
-                : uploading
-                ? "Uploading..."
-                : "Confirm Booking"}
-            </button>
+                }
+                onClick={handleConfirm}
+                style={{
+                  padding: "8px 24px",
+                  backgroundColor:
+                    !subject.trim() ||
+                    getWordCount(subject) > 10 ||
+                    getWordCount(description) < 10
+                      ? "var(--bgColor-muted)"
+                      : "#C8AA6E",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  color:
+                    !subject.trim() ||
+                    getWordCount(subject) > 10 ||
+                    getWordCount(description) < 10
+                      ? "var(--fgColor-muted)"
+                      : "#0B0B0B",
+                  cursor:
+                    !subject.trim() ||
+                    getWordCount(subject) > 10 ||
+                    getWordCount(description) < 10
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity:
+                    !subject.trim() ||
+                    getWordCount(subject) > 10 ||
+                    getWordCount(description) < 10
+                      ? 0.5
+                      : 1,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                Confirm Booking
+              </button>
+            )
           ) : null}
         </div>
       </div>

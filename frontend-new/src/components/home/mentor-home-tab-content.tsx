@@ -278,6 +278,19 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
         return `Rejected session request from ${details?.studentName || "a student"}`;
       case "mentoring.session_cancelled":
         return `Cancelled mentoring session${details?.studentName ? ` with ${details.studentName}` : details?.mentorName ? ` with ${details.mentorName}` : ""}`;
+      case "mentoring.slot_created": {
+        const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        const dayLabel = details?.isRecurring && details?.dayOfWeek !== null
+          ? dayNames[details.dayOfWeek as number]
+          : details?.specificDate || "";
+        return `Created availability slot — ${dayLabel} ${details?.startTime || ""}–${details?.endTime || ""}`;
+      }
+      case "mentoring.slot_deleted":
+        return "Removed availability slot";
+      case "mentoring.date_blocked":
+        return `Marked ${details?.date || ""} as Day Off${details?.reason ? ` — ${details.reason}` : ""}`;
+      case "mentoring.date_unblocked":
+        return `Removed Day Off for ${details?.blockedDate ? details.blockedDate.split('T')[0] : ""}`;
       default:
         return action.replace(/\./g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
     }

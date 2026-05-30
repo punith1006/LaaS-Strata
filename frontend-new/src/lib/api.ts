@@ -2359,6 +2359,18 @@ export async function getAvailableSlots(
   return res.json();
 }
 
+/** Get dates in a month that have at least one available slot */
+export async function getAvailableDates(
+  mentorProfileId: string,
+  month: string,
+): Promise<{ dates: string[] }> {
+  const res = await apiFetch(
+    `${API_BASE}/api/mentor-sessions/available-slots/${mentorProfileId}/calendar?month=${month}`,
+  );
+  if (!res.ok) return { dates: [] };
+  return res.json();
+}
+
 /** Upload a file attachment for a mentoring session */
 export async function uploadMentorAttachment(file: File): Promise<{
   fileName: string;

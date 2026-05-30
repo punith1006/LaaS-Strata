@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 export interface CreateSlotDto {
   dayOfWeek?: number;
@@ -33,7 +34,10 @@ export interface BlockDateDto {
 export class MentorAvailabilityService {
   private readonly logger = new Logger(MentorAvailabilityService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditService,
+  ) {}
 
   private async findMentorProfile(userId: string) {
     const profile = await this.prisma.mentorProfile.findUnique({
@@ -43,6 +47,17 @@ export class MentorAvailabilityService {
       throw new NotFoundException('Mentor profile not found');
     }
     return profile;
+  }
+
+  /** Return today's date as YYYY-MM-DD in IST timezone */
+  private getTodayISTString(): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(new Date());
   }
 
   /** Get all availability slots for the logged-in mentor */
@@ -58,14 +73,26 @@ export class MentorAvailabilityService {
       ],
     });
 
-    return slots.map((s) => ({
-      id: s.id,
-      dayOfWeek: s.dayOfWeek,
-      specificDate: s.specificDate ? s.specificDate.toISOString() : null,
-      startTime: s.startTime,
-      endTime: s.endTime,
-      isRecurring: s.isRecurring,
-    }));
+    const todayIST = this.getTodayISTString();
+
+    return slots
+      .filter((s) => {
+        // Always include recurring slots, filter past date-specific slots
+        if (s.isRecurring) return true;
+        if (s.specificDate) {
+          const dateStr = s.specificDate.toISOString().split('T')[0];
+          return dateStr >= todayIST;
+        }
+        return true;
+      })
+      .map((s) => ({
+        id: s.id,
+        dayOfWeek: s.dayOfWeek,
+        specificDate: s.specificDate ? s.specificDate.toISOString() : null,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        isRecurring: s.isRecurring,
+      }));
   }
 
   /** Create a new availability slot */
@@ -119,6 +146,21 @@ export class MentorAvailabilityService {
 
     this.logger.log(`Slot created: ${slot.id} by user ${userId}`);
 
+    // Audit logging
+    this.auditService.log({
+      userId,
+      action: 'mentoring.slot_created',
+      category: 'mentoring',
+      status: 'success',
+      details: {
+        dayOfWeek: dto.dayOfWeek ?? null,
+        specificDate: dto.specificDate ?? null,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        isRecurring: dto.isRecurring,
+      },
+    });
+
     return {
       id: slot.id,
       dayOfWeek: slot.dayOfWeek,
@@ -147,6 +189,15 @@ export class MentorAvailabilityService {
 
     this.logger.log(`Slot deleted: ${slotId} by user ${userId}`);
 
+    // Audit logging
+    this.auditService.log({
+      userId,
+      action: 'mentoring.slot_deleted',
+      category: 'mentoring',
+      status: 'success',
+      details: { slotId },
+    });
+
     return { success: true };
   }
 
@@ -161,11 +212,18 @@ export class MentorAvailabilityService {
       orderBy: { blockedDate: 'asc' },
     });
 
-    return blocked.map((b) => ({
-      id: b.id,
-      blockedDate: b.blockedDate.toISOString().split('T')[0],
-      reason: b.reason,
-    }));
+    const todayIST = this.getTodayISTString();
+
+    return blocked
+      .filter((b) => {
+        const dateStr = b.blockedDate.toISOString().split('T')[0];
+        return dateStr >= todayIST;
+      })
+      .map((b) => ({
+        id: b.id,
+        blockedDate: b.blockedDate.toISOString().split('T')[0],
+        reason: b.reason,
+      }));
   }
 
   /** Block a date (Day Off) */
@@ -207,6 +265,15 @@ export class MentorAvailabilityService {
 
     this.logger.log(`Date blocked: ${blocked.blockedDate.toISOString()} by user ${userId}`);
 
+    // Audit logging
+    this.auditService.log({
+      userId,
+      action: 'mentoring.date_blocked',
+      category: 'mentoring',
+      status: 'success',
+      details: { date: dto.date, reason: dto.reason ?? null },
+    });
+
     return {
       id: blocked.id,
       blockedDate: blocked.blockedDate.toISOString().split('T')[0],
@@ -231,6 +298,15 @@ export class MentorAvailabilityService {
     });
 
     this.logger.log(`Date unblocked: ${blockId} by user ${userId}`);
+
+    // Audit logging
+    this.auditService.log({
+      userId,
+      action: 'mentoring.date_unblocked',
+      category: 'mentoring',
+      status: 'success',
+      details: { blockedDate: blocked.blockedDate.toISOString() },
+    });
 
     return { success: true };
   }

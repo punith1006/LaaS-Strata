@@ -75,7 +75,7 @@ function MultiSelectFilter({
             style={{
               position: "absolute",
               top: "100%",
-              left: 0,
+              right: 0,
               marginTop: "4px",
               backgroundColor: "var(--bgColor-elevated, var(--bgColor-default))",
               border: "1px solid var(--borderColor-default)",

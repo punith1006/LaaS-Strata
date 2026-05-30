@@ -730,6 +730,11 @@ export class MentorSessionsService {
       return { date: dateStr, slots: [] };
     }
 
+    // Date-specific slots override recurring — if any exist, use ONLY them
+    const recurringSlots = slots.filter((s) => s.isRecurring);
+    const dateSpecificSlots = slots.filter((s) => !s.isRecurring);
+    const effectiveSlots = dateSpecificSlots.length > 0 ? dateSpecificSlots : recurringSlots;
+
     // Fetch existing bookings for this date
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -762,7 +767,7 @@ export class MentorSessionsService {
     // Generate available 1-hour slots
     const availableSlots: { startTime: string; endTime: string }[] = [];
 
-    for (const slot of slots) {
+    for (const slot of effectiveSlots) {
       const [startHour, startMin] = slot.startTime.split(':').map(Number);
       const [endHour, endMin] = slot.endTime.split(':').map(Number);
 
@@ -803,7 +808,145 @@ export class MentorSessionsService {
       }
     }
 
-    return { date: dateStr, slots: availableSlots };
+    // Deduplicate slots (defensive — prevents duplicate entries from overlapping recurring/date-specific)
+    const seen = new Set<string>();
+    const uniqueSlots = availableSlots.filter((s) => {
+      const key = `${s.startTime}-${s.endTime}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return { date: dateStr, slots: uniqueSlots };
+  }
+
+  /** Get dates in a month that have at least one available time slot */
+  async getAvailableDatesForMonth(mentorProfileId: string, monthStr: string) {
+    // Parse month string (e.g. "2026-05")
+    const [year, month] = monthStr.split('-').map(Number);
+    if (!year || !month || month < 1 || month > 12) {
+      throw new NotFoundException('Invalid month format. Use YYYY-MM');
+    }
+
+    const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999); // last day of month
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 1. Fetch blocked dates for this mentor within the month
+    const blockedDates = await this.prisma.mentorBlockedDate.findMany({
+      where: {
+        mentorProfileId,
+        blockedDate: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      select: { blockedDate: true },
+    });
+    const blockedSet = new Set(
+      blockedDates.map((b) => {
+        const d = new Date(b.blockedDate);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }),
+    );
+
+    // 2. Fetch availability slots (recurring + specific-date)
+    const availabilitySlots = await this.prisma.mentorAvailabilitySlot.findMany({
+      where: {
+        mentorProfileId,
+        OR: [
+          { isRecurring: true },
+          {
+            isRecurring: false,
+            specificDate: {
+              gte: startOfMonth,
+              lte: endOfMonth,
+            },
+          },
+        ],
+      },
+    });
+
+    // 3. Fetch existing bookings (scheduled/live) within the month
+    const bookings = await this.prisma.mentorSession.findMany({
+      where: {
+        mentorProfileId,
+        status: { in: ['scheduled', 'live'] },
+        scheduledFrom: { gte: startOfMonth },
+        scheduledTo: { lte: endOfMonth },
+      },
+      select: { scheduledFrom: true, scheduledTo: true },
+    });
+
+    // Helper: count how many 1-hour blocks exist in a date
+    const countPossibleSlots = (date: Date): number => {
+      const dayOfWeek = date.getDay();
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+      const matchingSlots = availabilitySlots.filter((slot) => {
+        if (slot.isRecurring) return slot.dayOfWeek === dayOfWeek;
+        if (slot.specificDate) {
+          const sd = new Date(slot.specificDate);
+          const sdStr = `${sd.getFullYear()}-${String(sd.getMonth() + 1).padStart(2, '0')}-${String(sd.getDate()).padStart(2, '0')}`;
+          return sdStr === dateStr;
+        }
+        return false;
+      });
+
+      if (matchingSlots.length === 0) return 0;
+
+      let totalMinutes = 0;
+      for (const slot of matchingSlots) {
+        const [sh, sm] = slot.startTime.split(':').map(Number);
+        const [eh, em] = slot.endTime.split(':').map(Number);
+        totalMinutes += eh * 60 + em - (sh * 60 + sm);
+      }
+
+      return Math.floor(totalMinutes / 60);
+    };
+
+    // Helper: count existing bookings overlapping this date
+    const countBookings = (date: Date): number => {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      return bookings.filter((b) => {
+        if (!b.scheduledFrom || !b.scheduledTo) return false;
+        return b.scheduledFrom < endOfDay && b.scheduledTo > startOfDay;
+      }).length;
+    };
+
+    const availableDates: string[] = [];
+    const cursor = new Date(Math.max(startOfMonth.getTime(), today.getTime()));
+    const endCursor = new Date(endOfMonth);
+
+    while (cursor <= endCursor) {
+      const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+
+      // Skip blocked dates
+      if (blockedSet.has(dateStr)) {
+        cursor.setDate(cursor.getDate() + 1);
+        continue;
+      }
+
+      const possibleSlots = countPossibleSlots(cursor);
+      if (possibleSlots === 0) {
+        cursor.setDate(cursor.getDate() + 1);
+        continue;
+      }
+
+      const bookedCount = countBookings(cursor);
+      if (bookedCount < possibleSlots) {
+        availableDates.push(dateStr);
+      }
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return { dates: availableDates };
   }
 
   /** Get detailed mentor profile for public view */
