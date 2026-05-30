@@ -1985,6 +1985,11 @@ export interface LiveSessionEntry {
   serviceType: string;
   startedAt: string;
   earningsCents: number;
+  studentUserId: string;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
 }
 
 export interface PastEntry {
@@ -2050,6 +2055,38 @@ export async function getStudentProfile(studentUserId: string): Promise<StudentP
   try {
     const token = getAccessToken();
     const res = await fetch(`${API_BASE}/api/mentor-sessions/student-profile/${studentUserId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export interface MentorProfileDetail {
+  email: string;
+  emailVerified: boolean;
+  authType: string;
+  oauthProvider: string | null;
+  phone: string | null;
+  profession: string | null;
+  skills: string[];
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  websiteUrl: string | null;
+  collegeName: string | null;
+  departmentName: string | null;
+  courseName: string | null;
+  academicYear: number | null;
+  expertiseLevel: string | null;
+  lastLoginAt: string | null;
+}
+
+export async function getMentorProfileForAccordion(mentorProfileId: string): Promise<MentorProfileDetail | null> {
+  try {
+    const token = getAccessToken();
+    const res = await fetch(`${API_BASE}/api/mentor-sessions/mentor-profile/${mentorProfileId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -2359,11 +2396,29 @@ export interface BookSessionRequest {
   attachmentSizeBytes?: number;
 }
 
+export interface BookMeetNowRequest {
+  mentorProfileId: string;
+  category: string;
+  durationMinutes: number;
+  subject: string;
+  description: string;
+  attachmentFileName?: string;
+  attachmentFilePath?: string;
+  attachmentMimeType?: string;
+  attachmentSizeBytes?: number;
+}
+
+export interface MeetNowAvailability {
+  available: boolean;
+  reason?: string;
+}
+
 export interface StudentUpcomingSession {
   id: string;
   mentorName: string;
   mentorHeadline: string | null;
   mentorCompany: string | null;
+  mentorProfileId: string;
   scheduledFrom: string;
   scheduledTo: string;
   durationMinutes: number;
@@ -2372,15 +2427,24 @@ export interface StudentUpcomingSession {
   paymentStatus: string;
   earningsCents: number;
   advanceCents: number | null;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
 }
 
 export interface StudentRequestEntry {
   id: string;
   mentorName: string;
+  mentorProfileId: string;
   domain: string;
   serviceType: string;
   durationMinutes: number;
   earningsCents: number;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
   createdAt: string;
 }
 
@@ -2452,6 +2516,27 @@ export async function bookMentorSession(data: BookSessionRequest): Promise<{ ses
     const err = await res.json().catch(() => ({ message: 'Booking failed' }));
     throw new Error(err.message || 'Booking failed');
   }
+  return res.json();
+}
+
+/** Book a Meet Now session (full payment, no advance) */
+export async function bookMeetNowSession(data: BookMeetNowRequest): Promise<{ sessionId: string }> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/book-meet-now`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Booking failed' }));
+    throw new Error(err.message || 'Booking failed');
+  }
+  return res.json();
+}
+
+/** Check if mentor is available for a Meet Now session */
+export async function checkMeetNowAvailability(mentorProfileId: string): Promise<MeetNowAvailability> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/check-availability/${mentorProfileId}`);
+  if (!res.ok) return { available: false, reason: 'Unable to check availability' };
   return res.json();
 }
 

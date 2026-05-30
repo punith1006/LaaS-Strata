@@ -5,10 +5,12 @@ import {
   type StudentRequestEntry,
   type StudentUpcomingSession,
   type StudentPastEntry,
+  type MentorProfileDetail,
   getStudentSessionRequests,
   getStudentUpcomingSessions,
   getStudentSessionPast,
   studentCancelMentorSession,
+  getMentorProfileForAccordion,
 } from "@/lib/api";
 
 // --- Duration formatting ---
@@ -21,6 +23,107 @@ function formatDuration(minutes: number): string {
 // --- Cost formatting ---
 function formatCost(cents: number): string {
   return `\u20B9${(cents / 100).toFixed(2)}`;
+}
+
+// --- Helper components for accordion panels ---
+
+/** A single label-value row matching the profile page InfoRow style */
+function InfoRow({ label, value, valueColor, isLast = false }: { label: string; value: string | React.ReactNode; valueColor?: string; isLast?: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        minHeight: "48px",
+        padding: "0 20px",
+        borderBottom: isLast ? "none" : "1px solid var(--borderColor-default)",
+      }}
+    >
+      <span
+        style={{
+          width: "160px",
+          flexShrink: 0,
+          color: "var(--fgColor-muted)",
+          fontSize: "0.75rem",
+          fontWeight: 400,
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          flex: 1,
+          fontSize: "0.875rem",
+          fontWeight: 400,
+          color: valueColor ?? "var(--fgColor-default)",
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/** A small pill tag matching the profile page PillTag style */
+function Pill({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "0 8px",
+        borderRadius: "2px",
+        background: "var(--bgColor-muted)",
+        fontSize: "0.75rem",
+        fontWeight: 500,
+        height: "22px",
+        color: "var(--fgColor-default)",
+        fontFamily: "var(--font-sans)",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Format a relative time string like analytics dashboard */
+function formatRelativeTime(isoString: string | null | undefined): string {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = Date.now();
+  const diffMs = now - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+/** Return background/text colors for expertise level badge */
+function getExpertiseColor(level: string): { bg: string; text: string } {
+  switch (level.toLowerCase()) {
+    case "beginner":
+      return { bg: "#D97706", text: "#fff" };
+    case "intermediate":
+      return { bg: "#0891B2", text: "#fff" };
+    case "advanced":
+      return { bg: "#7C3AED", text: "#fff" };
+    case "expert":
+      return { bg: "#B45309", text: "#fff" };
+    default:
+      return { bg: "var(--bgColor-muted)", text: "var(--fgColor-muted)" };
+  }
 }
 
 // --- Action Dropdown for student sessions ---
@@ -41,7 +144,10 @@ function StudentActionDropdown({ onCancel }: { onCancel: () => void }) {
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         style={{
           width: "32px", height: "32px", borderRadius: "4px",
           backgroundColor: isOpen ? "var(--bgColor-muted)" : "transparent",
@@ -64,7 +170,11 @@ function StudentActionDropdown({ onCancel }: { onCancel: () => void }) {
           boxShadow: "0 4px 16px rgba(0,0,0,0.15)", zIndex: 100, minWidth: "140px", overflow: "hidden",
         }}>
           <button
-            onClick={() => { setIsOpen(false); onCancel(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+              onCancel();
+            }}
             style={{
               width: "100%", display: "flex", alignItems: "center", gap: "8px",
               padding: "10px 12px", backgroundColor: "transparent", border: "none",
@@ -177,11 +287,153 @@ function RequestsTable({ requests, onCancel }: { requests: StudentRequestEntry[]
   const { page, setPage, totalPages, rangeStart, rangeEnd, dynamicPageSize, tableContainerRef, firstRowRef, paginationRowRef } = useDynamicPagination(sorted.length);
   const pageData = sorted.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
 
+  // Accordion state
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [collapsingId, setCollapsingId] = useState<string | null>(null);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(400);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [mentorProfile, setMentorProfile] = useState<MentorProfileDetail | null>(null);
+
+  // Reorder when one is expanded
+  const orderedData = useMemo(() => {
+    const activeId = expandedId ?? collapsingId;
+    if (!activeId) return pageData;
+    const idx = pageData.findIndex((r) => r.id === activeId);
+    if (idx === -1) return pageData;
+    const expanded = pageData[idx];
+    const rest = [...pageData.slice(0, idx), ...pageData.slice(idx + 1)];
+    return [expanded, ...rest];
+  }, [pageData, expandedId, collapsingId]);
+
+  const handleRowClick = (id: string) => {
+    if (expandedId === id) { setCollapsingId(id); setExpandedId(null); }
+    else { setCollapsingId(null); setExpandedId(id); }
+  };
+
+  // Panel height
+  useEffect(() => {
+    if (!tableContainerRef.current) return;
+    const calcPanel = () => {
+      const containerTop = tableContainerRef.current?.getBoundingClientRect().top ?? 0;
+      const headerEl = tableContainerRef.current?.firstElementChild as HTMLElement | null;
+      const actualHeaderHeight = headerEl?.getBoundingClientRect().height ?? 48;
+      const actualRowHeight = firstRowRef.current?.getBoundingClientRect().height ?? 48;
+      const panelH = window.innerHeight - containerTop - 2 - actualHeaderHeight - actualRowHeight - 60;
+      setPanelMaxHeight(Math.max(200, Math.floor(panelH)));
+    };
+    calcPanel();
+    window.addEventListener("resize", calcPanel);
+    return () => window.removeEventListener("resize", calcPanel);
+  }, []);
+  useEffect(() => { if (expandedId && panelRef.current) { const el = panelRef.current; el.style.maxHeight = "0px"; const raf = requestAnimationFrame(() => { el.style.maxHeight = `${panelMaxHeight}px`; }); return () => cancelAnimationFrame(raf); } }, [expandedId, panelMaxHeight]);
+  useEffect(() => { if (collapsingId && panelRef.current) { const el = panelRef.current; el.style.maxHeight = "0px"; const timeout = setTimeout(() => { setCollapsingId(null); }, 400); return () => clearTimeout(timeout); } }, [collapsingId]);
+  useEffect(() => {
+    if (!expandedId) { setMentorProfile(null); return; }
+    const entry = requests.find(r => r.id === expandedId);
+    if (!entry?.mentorProfileId) return;
+    let cancelled = false;
+    getMentorProfileForAccordion(entry.mentorProfileId).then(data => { if (!cancelled) setMentorProfile(data); });
+    return () => { cancelled = true; };
+  }, [expandedId]);
+
+  const renderPanel = (s: StudentRequestEntry) => (
+    <div ref={panelRef} style={{ maxHeight: "0px", overflowY: "auto", transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)", backgroundColor: "var(--bgColor-default)", borderBottom: "1px solid var(--borderColor-default)" }}>
+      <div style={{ padding: "24px" }}>
+        {/* Identity Bar */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "24px", padding: "16px", background: "var(--bgColor-mild)", borderRadius: "6px", border: "1px solid var(--borderColor-default)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bgColor-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "1.125rem", fontWeight: 600, color: "var(--fgColor-default)" }}>{mentorProfile?.email?.charAt(0)?.toUpperCase() || "?"}</span>
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "1rem", fontWeight: 600, color: "var(--fgColor-default)" }}>{mentorProfile?.email || "Loading..."}</span>
+                {mentorProfile?.emailVerified && (
+                  <span style={{ display: "inline-flex", padding: "2px 8px", borderRadius: "9999px", fontSize: "0.6875rem", fontWeight: 500, fontFamily: "var(--font-sans)", background: "#059669", color: "#fff" }}>Verified</span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#818178", flexShrink: 0 }} />
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)" }}>Offline</span>
+                <span style={{ color: "var(--fgColor-muted)", fontSize: "0.8125rem" }}>·</span>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)" }}>{mentorProfile?.lastLoginAt ? `Last login ${formatRelativeTime(mentorProfile.lastLoginAt)}` : "Never logged in"}</span>
+              </div>
+            </div>
+          </div>
+          {(mentorProfile?.collegeName || mentorProfile?.courseName) && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "32px", minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {mentorProfile.collegeName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--fgColor-default)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mentorProfile.collegeName}</div>}
+                {mentorProfile.departmentName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mentorProfile.departmentName}</div>}
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                {mentorProfile.courseName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4 }}>{mentorProfile.courseName}{mentorProfile.academicYear ? ` \u00B7 Year ${mentorProfile.academicYear}` : ""}</div>}
+                {mentorProfile.expertiseLevel && <span style={{ display: "inline-block", fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, padding: "3px 12px", borderRadius: "4px", marginTop: "6px", background: getExpertiseColor(mentorProfile.expertiseLevel).bg, color: getExpertiseColor(mentorProfile.expertiseLevel).text }}>{mentorProfile.expertiseLevel}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Account | Socials */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "20px" }}>
+          <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Account</span>
+            </div>
+            <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+              <InfoRow label="Phone" value={mentorProfile?.phone || "Not set"} isLast={false} />
+              <InfoRow label="Profession" value={mentorProfile?.profession || "Not set"} isLast={!mentorProfile?.skills?.length} />
+              {mentorProfile?.skills && mentorProfile.skills.length > 0 && (
+                <div style={{ borderTop: "1px solid var(--borderColor-default)", padding: "12px 20px" }}>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "8px" }}>Skills</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>{mentorProfile.skills.map((skill: string) => (<Pill key={skill} label={skill} />))}</div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Socials</span>
+            </div>
+            <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+              <InfoRow label="GitHub" value={mentorProfile?.githubUrl || "Not set"} isLast={false} />
+              <InfoRow label="LinkedIn" value={mentorProfile?.linkedinUrl || "Not set"} isLast={false} />
+              <InfoRow label="Website" value={mentorProfile?.websiteUrl || "Not set"} isLast={true} />
+            </div>
+          </div>
+        </div>
+        {/* Session Info */}
+        {(s.subject || s.studentNotes || s.attachmentFileName) && (
+          <div style={{ marginTop: "20px", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Session Info</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                {s.subject && <div><span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Subject</span><span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>{s.subject}</span></div>}
+                {s.studentNotes && <div><span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Description</span><span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>{s.studentNotes}</span></div>}
+              </div>
+              <div style={{ padding: "16px 20px" }}>
+                <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Attachments</span>
+                {s.attachmentFileName ? (
+                  <a href={`/api/mentor-sessions/attachment/${s.id}`} download style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--fgColor-default)", fontSize: "0.8125rem", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                    {s.attachmentFileName}
+                  </a>
+                ) : (
+                  <span style={{ fontSize: "0.8125rem", color: "var(--fgColor-muted)", fontStyle: "italic", fontFamily: "var(--font-sans)" }}>No attachments</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div>
       <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, color: "var(--fgColor-default)", margin: "24px 0 16px 0" }}>Session Requests</h2>
       <div ref={tableContainerRef} style={{ backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "visible" }}>
-        {/* Header */}
         <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 120px 90px 120px 100px 90px 50px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", backgroundColor: "var(--bgColor-muted)" }}>
           {["Mentor", "Domain", "Service", "Duration", "Date", "Cost", "Status", "Actions"].map(h => (
             <span key={h} style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</span>
@@ -190,24 +442,31 @@ function RequestsTable({ requests, onCancel }: { requests: StudentRequestEntry[]
         {sorted.length === 0 ? (
           <EmptyState title="No pending requests" message="You don't have any pending session requests right now." />
         ) : (
-          pageData.map((req, idx) => {
+          orderedData.map((req, idx) => {
+            const isExpanded = expandedId === req.id;
+            const isCollapsing = collapsingId === req.id;
+            const isActive = isExpanded || isCollapsing;
             const dateStr = new Date(req.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
             return (
-              <div key={req.id} ref={idx === 0 ? firstRowRef : undefined}
-                style={{ display: "grid", gridTemplateColumns: "160px 1fr 120px 90px 120px 100px 90px 50px", gap: "12px", padding: "12px 20px", borderBottom: idx < pageData.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease" }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{req.mentorName}</span>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.domain}</span>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{req.serviceType}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatDuration(req.durationMinutes)}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{dateStr}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatCost(req.earningsCents)}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#FDA422" }} />
-                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>Pending</span>
+              <div key={req.id}>
+                <div ref={idx === 0 ? firstRowRef : undefined}
+                  style={{ display: "grid", gridTemplateColumns: "160px 1fr 120px 90px 120px 100px 90px 50px", gap: "12px", padding: "12px 20px", borderBottom: isActive ? "none" : idx < orderedData.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease", cursor: "pointer", backgroundColor: "transparent" }}
+                  onClick={() => handleRowClick(req.id)}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bgColor-default)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{req.mentorName}</span>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.domain}</span>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{req.serviceType}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatDuration(req.durationMinutes)}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{dateStr}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatCost(req.earningsCents)}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#FDA422" }} />
+                    <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>Pending</span>
+                  </div>
+                  <StudentActionDropdown onCancel={() => onCancel(req.id)} />
                 </div>
-                <StudentActionDropdown onCancel={() => onCancel(req.id)} />
+                {(isExpanded || isCollapsing) && renderPanel(req)}
               </div>
             );
           })
@@ -231,11 +490,151 @@ function UpcomingTable({ sessions, onCancel }: { sessions: StudentUpcomingSessio
   const { page, setPage, totalPages, rangeStart, rangeEnd, dynamicPageSize, tableContainerRef, firstRowRef, paginationRowRef } = useDynamicPagination(sorted.length);
   const pageData = sorted.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
 
+  // Accordion state
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [collapsingId, setCollapsingId] = useState<string | null>(null);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(400);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [mentorProfile, setMentorProfile] = useState<MentorProfileDetail | null>(null);
+
+  const orderedData = useMemo(() => {
+    const activeId = expandedId ?? collapsingId;
+    if (!activeId) return pageData;
+    const idx = pageData.findIndex((s) => s.id === activeId);
+    if (idx === -1) return pageData;
+    const expanded = pageData[idx];
+    const rest = [...pageData.slice(0, idx), ...pageData.slice(idx + 1)];
+    return [expanded, ...rest];
+  }, [pageData, expandedId, collapsingId]);
+
+  const handleRowClick = (id: string) => {
+    if (expandedId === id) { setCollapsingId(id); setExpandedId(null); }
+    else { setCollapsingId(null); setExpandedId(id); }
+  };
+
+  useEffect(() => {
+    if (!tableContainerRef.current) return;
+    const calcPanel = () => {
+      const containerTop = tableContainerRef.current?.getBoundingClientRect().top ?? 0;
+      const headerEl = tableContainerRef.current?.firstElementChild as HTMLElement | null;
+      const actualHeaderHeight = headerEl?.getBoundingClientRect().height ?? 48;
+      const actualRowHeight = firstRowRef.current?.getBoundingClientRect().height ?? 48;
+      const panelH = window.innerHeight - containerTop - 2 - actualHeaderHeight - actualRowHeight - 60;
+      setPanelMaxHeight(Math.max(200, Math.floor(panelH)));
+    };
+    calcPanel();
+    window.addEventListener("resize", calcPanel);
+    return () => window.removeEventListener("resize", calcPanel);
+  }, []);
+  useEffect(() => { if (expandedId && panelRef.current) { const el = panelRef.current; el.style.maxHeight = "0px"; const raf = requestAnimationFrame(() => { el.style.maxHeight = `${panelMaxHeight}px`; }); return () => cancelAnimationFrame(raf); } }, [expandedId, panelMaxHeight]);
+  useEffect(() => { if (collapsingId && panelRef.current) { const el = panelRef.current; el.style.maxHeight = "0px"; const timeout = setTimeout(() => { setCollapsingId(null); }, 400); return () => clearTimeout(timeout); } }, [collapsingId]);
+  useEffect(() => {
+    if (!expandedId) { setMentorProfile(null); return; }
+    const entry = sessions.find(s => s.id === expandedId);
+    if (!entry?.mentorProfileId) return;
+    let cancelled = false;
+    getMentorProfileForAccordion(entry.mentorProfileId).then(data => { if (!cancelled) setMentorProfile(data); });
+    return () => { cancelled = true; };
+  }, [expandedId]);
+
+  const renderPanel = (s: StudentUpcomingSession) => (
+    <div ref={panelRef} style={{ maxHeight: "0px", overflowY: "auto", transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)", backgroundColor: "var(--bgColor-default)", borderBottom: "1px solid var(--borderColor-default)" }}>
+      <div style={{ padding: "24px" }}>
+        {/* Identity Bar */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "24px", padding: "16px", background: "var(--bgColor-mild)", borderRadius: "6px", border: "1px solid var(--borderColor-default)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bgColor-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "1.125rem", fontWeight: 600, color: "var(--fgColor-default)" }}>{mentorProfile?.email?.charAt(0)?.toUpperCase() || "?"}</span>
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "1rem", fontWeight: 600, color: "var(--fgColor-default)" }}>{mentorProfile?.email || "Loading..."}</span>
+                {mentorProfile?.emailVerified && (
+                  <span style={{ display: "inline-flex", padding: "2px 8px", borderRadius: "9999px", fontSize: "0.6875rem", fontWeight: 500, fontFamily: "var(--font-sans)", background: "#059669", color: "#fff" }}>Verified</span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#818178", flexShrink: 0 }} />
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)" }}>Offline</span>
+                <span style={{ color: "var(--fgColor-muted)", fontSize: "0.8125rem" }}>·</span>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)" }}>{mentorProfile?.lastLoginAt ? `Last login ${formatRelativeTime(mentorProfile.lastLoginAt)}` : "Never logged in"}</span>
+              </div>
+            </div>
+          </div>
+          {(mentorProfile?.collegeName || mentorProfile?.courseName) && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "32px", minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {mentorProfile.collegeName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--fgColor-default)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mentorProfile.collegeName}</div>}
+                {mentorProfile.departmentName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mentorProfile.departmentName}</div>}
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                {mentorProfile.courseName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4 }}>{mentorProfile.courseName}{mentorProfile.academicYear ? ` \u00B7 Year ${mentorProfile.academicYear}` : ""}</div>}
+                {mentorProfile.expertiseLevel && <span style={{ display: "inline-block", fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, padding: "3px 12px", borderRadius: "4px", marginTop: "6px", background: getExpertiseColor(mentorProfile.expertiseLevel).bg, color: getExpertiseColor(mentorProfile.expertiseLevel).text }}>{mentorProfile.expertiseLevel}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Account | Socials */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "20px" }}>
+          <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Account</span>
+            </div>
+            <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+              <InfoRow label="Phone" value={mentorProfile?.phone || "Not set"} isLast={false} />
+              <InfoRow label="Profession" value={mentorProfile?.profession || "Not set"} isLast={!mentorProfile?.skills?.length} />
+              {mentorProfile?.skills && mentorProfile.skills.length > 0 && (
+                <div style={{ borderTop: "1px solid var(--borderColor-default)", padding: "12px 20px" }}>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "8px" }}>Skills</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>{mentorProfile.skills.map((skill: string) => (<Pill key={skill} label={skill} />))}</div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Socials</span>
+            </div>
+            <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+              <InfoRow label="GitHub" value={mentorProfile?.githubUrl || "Not set"} isLast={false} />
+              <InfoRow label="LinkedIn" value={mentorProfile?.linkedinUrl || "Not set"} isLast={false} />
+              <InfoRow label="Website" value={mentorProfile?.websiteUrl || "Not set"} isLast={true} />
+            </div>
+          </div>
+        </div>
+        {/* Session Info */}
+        {(s.subject || s.studentNotes || s.attachmentFileName) && (
+          <div style={{ marginTop: "20px", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Session Info</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                {s.subject && <div><span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Subject</span><span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>{s.subject}</span></div>}
+                {s.studentNotes && <div><span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Description</span><span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>{s.studentNotes}</span></div>}
+              </div>
+              <div style={{ padding: "16px 20px" }}>
+                <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Attachments</span>
+                {s.attachmentFileName ? (
+                  <a href={`/api/mentor-sessions/attachment/${s.id}`} download style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--fgColor-default)", fontSize: "0.8125rem", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                    {s.attachmentFileName}
+                  </a>
+                ) : (
+                  <span style={{ fontSize: "0.8125rem", color: "var(--fgColor-muted)", fontStyle: "italic", fontFamily: "var(--font-sans)" }}>No attachments</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div>
       <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, color: "var(--fgColor-default)", margin: "24px 0 16px 0" }}>Upcoming Sessions</h2>
       <div ref={tableContainerRef} style={{ backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "visible" }}>
-        {/* Header */}
         <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px 110px 100px 90px 50px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", backgroundColor: "var(--bgColor-muted)" }}>
           {["Mentor", "Domain", "Service", "Duration", "From", "To", "Date", "Cost", "Status", "Actions"].map(h => (
             <span key={h} style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</span>
@@ -244,30 +643,37 @@ function UpcomingTable({ sessions, onCancel }: { sessions: StudentUpcomingSessio
         {sorted.length === 0 ? (
           <EmptyState title="No upcoming sessions" message="You don't have any upcoming sessions scheduled." />
         ) : (
-          pageData.map((s, idx) => {
+          orderedData.map((s, idx) => {
+            const isExpanded = expandedId === s.id;
+            const isCollapsing = collapsingId === s.id;
+            const isActive = isExpanded || isCollapsing;
             const fromDate = new Date(s.scheduledFrom);
             const toDate = new Date(s.scheduledTo);
             const fromTime = `${String(fromDate.getHours()).padStart(2, "0")}:${String(fromDate.getMinutes()).padStart(2, "0")}`;
             const toTime = `${String(toDate.getHours()).padStart(2, "0")}:${String(toDate.getMinutes()).padStart(2, "0")}`;
             const dateStr = fromDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
             return (
-              <div key={s.id} ref={idx === 0 ? firstRowRef : undefined}
-                style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px 110px 100px 90px 50px", gap: "12px", padding: "12px 20px", borderBottom: idx < pageData.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease" }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.mentorName}</span>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.domain}</span>
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.serviceType}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatDuration(s.durationMinutes)}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{fromTime}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{toTime}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{dateStr}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatCost(s.earningsCents)}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#05C004" }} />
-                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>Confirmed</span>
+              <div key={s.id}>
+                <div ref={idx === 0 ? firstRowRef : undefined}
+                  style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px 110px 100px 90px 50px", gap: "12px", padding: "12px 20px", borderBottom: isActive ? "none" : idx < orderedData.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease", cursor: "pointer", backgroundColor: "transparent" }}
+                  onClick={() => handleRowClick(s.id)}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bgColor-default)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.mentorName}</span>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.domain}</span>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.serviceType}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatDuration(s.durationMinutes)}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{fromTime}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{toTime}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{dateStr}</span>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatCost(s.earningsCents)}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#05C004" }} />
+                    <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>Confirmed</span>
+                  </div>
+                  <StudentActionDropdown onCancel={() => onCancel(s.id)} />
                 </div>
-                <StudentActionDropdown onCancel={() => onCancel(s.id)} />
+                {(isExpanded || isCollapsing) && renderPanel(s)}
               </div>
             );
           })

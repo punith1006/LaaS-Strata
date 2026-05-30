@@ -200,8 +200,29 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('mentor-profile/:mentorProfileId')
+  async getMentorProfileForAccordion(@Param('mentorProfileId') mentorProfileId: string) {
+    return this.service.getMentorProfileForAccordion(mentorProfileId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('student-past')
   async getStudentPast(@Req() req: { user: { id: string } }) {
     return this.service.getStudentPast(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('book-meet-now')
+  async bookMeetNow(@Req() req: { user: { id: string } }, @Body() body: any) {
+    return this.service.bookMeetNowSession(req.user.id, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('check-availability/:mentorProfileId')
+  async checkAvailability(
+    @Param('mentorProfileId') id: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.service.checkMentorAvailability(req.user.id, id);
   }
 }

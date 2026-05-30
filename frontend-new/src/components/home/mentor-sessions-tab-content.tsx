@@ -1371,6 +1371,89 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
     // TODO: API call
   };
 
+  // Accordion state
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [collapsingSessionId, setCollapsingSessionId] = useState<string | null>(null);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(400);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [studentProfile, setStudentProfile] = useState<StudentProfileDetail | null>(null);
+
+  // Click handler for row expand/collapse
+  const handleRowClick = (sessionId: string) => {
+    if (expandedSessionId === sessionId) {
+      setCollapsingSessionId(sessionId);
+      setExpandedSessionId(null);
+    } else {
+      setCollapsingSessionId(null);
+      setExpandedSessionId(sessionId);
+    }
+  };
+
+  // Reorder sessions when one is expanded: expanded row moves to top
+  const orderedSessions = useMemo(() => {
+    const activeId = expandedSessionId ?? collapsingSessionId;
+    if (!activeId) return sessions;
+    const idx = sessions.findIndex((s) => s.id === activeId);
+    if (idx === -1) return sessions;
+    const expanded = sessions[idx];
+    const rest = [...sessions.slice(0, idx), ...sessions.slice(idx + 1)];
+    return [expanded, ...rest];
+  }, [sessions, expandedSessionId, collapsingSessionId]);
+
+  // Panel height based on container position
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const calcPanelHeight = () => {
+      const containerTop = containerRef.current?.getBoundingClientRect().top ?? 0;
+      const panelH =
+        window.innerHeight - containerTop - 60;
+      setPanelMaxHeight(Math.max(200, Math.floor(panelH)));
+    };
+    calcPanelHeight();
+    window.addEventListener("resize", calcPanelHeight);
+    return () => window.removeEventListener("resize", calcPanelHeight);
+  }, []);
+
+  // Animate panel open
+  useEffect(() => {
+    if (expandedSessionId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const raf = requestAnimationFrame(() => {
+        el.style.maxHeight = `${panelMaxHeight}px`;
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [expandedSessionId, panelMaxHeight]);
+
+  // Collapse animation
+  useEffect(() => {
+    if (collapsingSessionId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const timeout = setTimeout(() => {
+        setCollapsingSessionId(null);
+      }, 400);
+      return () => clearTimeout(timeout);
+    }
+  }, [collapsingSessionId]);
+
+  // Fetch student profile when accordion expands
+  useEffect(() => {
+    if (!expandedSessionId) {
+      setStudentProfile(null);
+      return;
+    }
+    const session = sessions.find(s => s.id === expandedSessionId);
+    if (!session?.studentUserId) return;
+    let cancelled = false;
+    getStudentProfile(session.studentUserId).then(data => {
+      if (!cancelled) setStudentProfile(data);
+    });
+    return () => { cancelled = true; };
+  }, [expandedSessionId]);
+
   return (
     <>
       <style>{`
@@ -1379,7 +1462,7 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
           50% { opacity: 0.2; }
         }
       `}</style>
-      <div style={{ marginBottom: "32px" }}>
+      <div ref={containerRef} style={{ marginBottom: "32px" }}>
       <h2
         style={{
           fontFamily: "var(--font-sans)",
@@ -1421,91 +1504,34 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
         </div>
 
         {/* Table rows */}
-        {sessions.map((s, idx) => {
+        {orderedSessions.map((s, idx) => {
+          const isExpanded = expandedSessionId === s.id;
+          const isCollapsing = collapsingSessionId === s.id;
+          const isActive = isExpanded || isCollapsing;
           return (
-            <div
-              key={s.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "140px 1fr 100px 100px 100px 80px 50px",
-                gap: "12px",
-                padding: "12px 20px",
-                borderBottom: idx < sessions.length - 1 ? "1px solid var(--borderColor-default)" : "none",
-                alignItems: "center",
-                transition: "background-color 0.1s ease",
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-            >
-              {/* User */}
-              <span
+            <div key={s.id}>
+              {/* Row */}
+              <div
                 style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
+                  display: "grid",
+                  gridTemplateColumns: "140px 1fr 100px 100px 100px 80px 50px",
+                  gap: "12px",
+                  padding: "12px 20px",
+                  borderBottom: isActive ? "none" : idx < orderedSessions.length - 1 ? "1px solid var(--borderColor-default)" : "none",
+                  alignItems: "center",
+                  transition: "background-color 0.1s ease",
+                  cursor: "pointer",
+                  backgroundColor: "transparent",
+                }}
+                onClick={() => handleRowClick(s.id)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--bgColor-default)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
                 }}
               >
-                {s.userName}
-              </span>
-
-              {/* Domain */}
-              <span
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {s.domain}
-              </span>
-
-              {/* Service Type */}
-              <span
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {s.serviceType}
-              </span>
-
-              {/* Time Elapsed */}
-              <span
-                style={{
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {formatElapsed(s.startedAt)}
-              </span>
-
-              {/* Earnings */}
-              <span
-                style={{
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {`\u20B9${(s.earningsCents / 100).toFixed(2)}`}
-              </span>
-
-              {/* Status */}
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    backgroundColor: "#05C004",
-                    animation: "liveBlink 1.5s ease-in-out infinite",
-                  }}
-                />
+                {/* User */}
                 <span
                   style={{
                     fontFamily: "var(--font-sans)",
@@ -1513,14 +1539,351 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
                     color: "var(--fgColor-default)",
                   }}
                 >
-                  Live
+                  {s.userName}
                 </span>
+
+                {/* Domain */}
+                <span
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "0.8125rem",
+                    color: "var(--fgColor-default)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {s.domain}
+                </span>
+
+                {/* Service Type */}
+                <span
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "0.8125rem",
+                    color: "var(--fgColor-default)",
+                  }}
+                >
+                  {s.serviceType}
+                </span>
+
+                {/* Time Elapsed */}
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono, monospace)",
+                    fontSize: "0.8125rem",
+                    color: "var(--fgColor-default)",
+                  }}
+                >
+                  {formatElapsed(s.startedAt)}
+                </span>
+
+                {/* Earnings */}
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono, monospace)",
+                    fontSize: "0.8125rem",
+                    color: "var(--fgColor-default)",
+                  }}
+                >
+                  {`\u20B9${(s.earningsCents / 100).toFixed(2)}`}
+                </span>
+
+                {/* Status */}
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      backgroundColor: "#05C004",
+                      animation: "liveBlink 1.5s ease-in-out infinite",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    Live
+                  </span>
+                </div>
+
+                {/* Actions */}
+                <LiveActionDropdown
+                  onReport={() => handleReport(s.id)}
+                />
               </div>
 
-              {/* Actions */}
-              <LiveActionDropdown
-                onReport={() => handleReport(s.id)}
-              />
+              {/* Expanded Panel */}
+              {(isExpanded || isCollapsing) && (
+                <div
+                  ref={panelRef}
+                  style={{
+                    maxHeight: "0px",
+                    overflowY: "auto",
+                    transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+                    backgroundColor: "var(--bgColor-default)",
+                    borderBottom: "1px solid var(--borderColor-default)",
+                  }}
+                >
+                  <div style={{ padding: "24px" }}>
+                    {/* Identity Bar — matching analytics dashboard exactly, email+verified replaces name+sso */}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr auto",
+                        gap: "24px",
+                        padding: "16px",
+                        background: "var(--bgColor-mild)",
+                        borderRadius: "6px",
+                        border: "1px solid var(--borderColor-default)",
+                      }}
+                    >
+                      {/* Left Column: Avatar + Email + Status */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
+                        <div
+                          style={{
+                            width: "48px",
+                            height: "48px",
+                            borderRadius: "50%",
+                            background: "var(--bgColor-muted)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: "var(--font-sans)",
+                              fontSize: "1.125rem",
+                              fontWeight: 600,
+                              color: "var(--fgColor-default)",
+                            }}
+                          >
+                            {studentProfile?.email?.charAt(0)?.toUpperCase() || "?"}
+                          </span>
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "1rem",
+                                fontWeight: 600,
+                                color: "var(--fgColor-default)",
+                              }}
+                            >
+                              {studentProfile?.email || "Loading..."}
+                            </span>
+                            {studentProfile?.emailVerified && (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  padding: "2px 8px",
+                                  borderRadius: "9999px",
+                                  fontSize: "0.6875rem",
+                                  fontWeight: 500,
+                                  fontFamily: "var(--font-sans)",
+                                  background: "#059669",
+                                  color: "#fff",
+                                }}
+                              >
+                                Verified
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                            <span
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                backgroundColor: "#818178",
+                                flexShrink: 0,
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "0.8125rem",
+                                color: "var(--fgColor-muted)",
+                              }}
+                            >
+                              Offline
+                            </span>
+                            <span style={{ color: "var(--fgColor-muted)", fontSize: "0.8125rem" }}>·</span>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "0.8125rem",
+                                color: "var(--fgColor-muted)",
+                              }}
+                            >
+                              {studentProfile?.lastLoginAt
+                                ? `Last login ${formatRelativeTime(studentProfile.lastLoginAt)}`
+                                : "Never logged in"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column: Academic details */}
+                      {(studentProfile?.collegeName || studentProfile?.courseName) && (
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "32px", minWidth: 0 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {studentProfile.collegeName && (
+                              <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--fgColor-default)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {studentProfile.collegeName}
+                              </div>
+                            )}
+                            {studentProfile.departmentName && (
+                              <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {studentProfile.departmentName}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                            {studentProfile.courseName && (
+                              <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4 }}>
+                                {studentProfile.courseName}{studentProfile.academicYear ? ` \u00B7 Year ${studentProfile.academicYear}` : ""}
+                              </div>
+                            )}
+                            {studentProfile.expertiseLevel && (
+                              <span style={{ display: "inline-block", fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, padding: "3px 12px", borderRadius: "4px", marginTop: "6px", background: getExpertiseColor(studentProfile.expertiseLevel).bg, color: getExpertiseColor(studentProfile.expertiseLevel).text }}>
+                                {studentProfile.expertiseLevel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2-Column Grid: Account | Socials */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "20px" }}>
+                      {/* Account Section */}
+                      <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                        <div
+                          style={{
+                            background: "var(--bgColor-muted)",
+                            padding: "0 20px",
+                            height: "40px",
+                            display: "flex",
+                            alignItems: "center",
+                            borderBottom: "1px solid var(--borderColor-default)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              fontWeight: 500,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              color: "var(--fgColor-default)",
+                              fontFamily: "var(--font-sans)",
+                            }}
+                          >
+                            Account
+                          </span>
+                        </div>
+                        <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+                          <InfoRow label="Phone" value={studentProfile?.phone || "Not set"} isLast={false} />
+                          <InfoRow label="Profession" value={studentProfile?.profession || "Not set"} isLast={!studentProfile?.skills?.length} />
+                          {studentProfile?.skills && studentProfile.skills.length > 0 && (
+                            <div style={{ borderTop: "1px solid var(--borderColor-default)", padding: "12px 20px" }}>
+                              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "8px" }}>
+                                Skills
+                              </span>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                {studentProfile.skills.map((skill: string) => (
+                                  <Pill key={skill} label={skill} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Socials Section */}
+                      <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                        <div
+                          style={{
+                            background: "var(--bgColor-muted)",
+                            padding: "0 20px",
+                            height: "40px",
+                            display: "flex",
+                            alignItems: "center",
+                            borderBottom: "1px solid var(--borderColor-default)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              fontWeight: 500,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              color: "var(--fgColor-default)",
+                              fontFamily: "var(--font-sans)",
+                            }}
+                          >
+                            Socials
+                          </span>
+                        </div>
+                        <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+                          <InfoRow label="GitHub" value={studentProfile?.githubUrl || "Not set"} isLast={false} />
+                          <InfoRow label="LinkedIn" value={studentProfile?.linkedinUrl || "Not set"} isLast={false} />
+                          <InfoRow label="Website" value={studentProfile?.websiteUrl || "Not set"} isLast={true} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Session Info Section */}
+                    {(s.subject || s.studentNotes || s.attachmentFileName) && (
+                      <div style={{ marginTop: "20px", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                        <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+                          <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
+                            Session Info
+                          </span>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                            {s.subject && (
+                              <div>
+                                <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Subject</span>
+                                <span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>{s.subject}</span>
+                              </div>
+                            )}
+                            {s.studentNotes && (
+                              <div>
+                                <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Description</span>
+                                <span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>{s.studentNotes}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ padding: "16px 20px" }}>
+                            <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Attachments</span>
+                            {s.attachmentFileName ? (
+                              <a href={`/api/mentor-sessions/attachment/${s.id}`} download style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--fgColor-default)", fontSize: "0.8125rem", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                {s.attachmentFileName}
+                              </a>
+                            ) : (
+                              <span style={{ fontSize: "0.8125rem", color: "var(--fgColor-muted)", fontStyle: "italic", fontFamily: "var(--font-sans)" }}>No attachments</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getPublicMentorProfile } from "@/lib/api";
+import { getPublicMentorProfile, checkMeetNowAvailability } from "@/lib/api";
 import type { MentorProfileDetail } from "@/lib/api";
 import BookSessionModal from "@/components/mentor/book-session-modal";
 
@@ -139,6 +139,10 @@ export default function MentorProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
+  const [showMeetNow, setShowMeetNow] = useState(false);
+  const [meetNowAvailable, setMeetNowAvailable] = useState<boolean | null>(null);
+  const [meetNowReason, setMeetNowReason] = useState<string | undefined>();
+  const [meetNowLoading, setMeetNowLoading] = useState(false);
 
   useEffect(() => {
     if (!mentorProfileId) return;
@@ -153,6 +157,22 @@ export default function MentorProfilePage() {
         setError(true);
       })
       .finally(() => setLoading(false));
+  }, [mentorProfileId]);
+
+  // Check Meet Now availability
+  useEffect(() => {
+    if (!mentorProfileId) return;
+    setMeetNowLoading(true);
+    checkMeetNowAvailability(mentorProfileId)
+      .then((result) => {
+        setMeetNowAvailable(result.available);
+        setMeetNowReason(result.reason);
+      })
+      .catch(() => {
+        setMeetNowAvailable(false);
+        setMeetNowReason("Unable to check availability");
+      })
+      .finally(() => setMeetNowLoading(false));
   }, [mentorProfileId]);
 
   if (loading) {
@@ -632,27 +652,100 @@ export default function MentorProfilePage() {
               </div>
             </div>
 
+            {/* Meet Now Button */}
+            <button
+              type="button"
+              disabled={!meetNowAvailable || meetNowLoading}
+              onClick={() => setShowMeetNow(true)}
+              style={{
+                width: "100%",
+                padding: "12px 0",
+                marginBottom: "8px",
+                backgroundColor:
+                  meetNowAvailable && !meetNowLoading
+                    ? "#C8AA6E"
+                    : "var(--bgColor-muted)",
+                border: "none",
+                borderRadius: "4px",
+                fontFamily: "var(--font-sans)",
+                fontSize: "0.9375rem",
+                fontWeight: 600,
+                color:
+                  meetNowAvailable && !meetNowLoading
+                    ? "#0B0B0B"
+                    : "var(--fgColor-muted)",
+                cursor:
+                  meetNowAvailable && !meetNowLoading
+                    ? "pointer"
+                    : "not-allowed",
+                opacity: meetNowAvailable && !meetNowLoading ? 1 : 0.5,
+                transition: "all 0.15s ease",
+              }}
+              onMouseOver={(e) => {
+                if (meetNowAvailable && !meetNowLoading)
+                  e.currentTarget.style.filter = "brightness(1.1)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.filter = "brightness(1)";
+              }}
+            >
+              Meet Now
+            </button>
+
+            {/* Availability hint */}
+            {meetNowAvailable === false && !meetNowLoading && meetNowReason && (
+              <div
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "0.6875rem",
+                  color: "var(--fgColor-muted)",
+                  marginBottom: "12px",
+                  padding: "6px 10px",
+                  backgroundColor: "var(--bgColor-muted)",
+                  borderRadius: "4px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {meetNowReason}
+              </div>
+            )}
+
+            {/* Loading state */}
+            {meetNowLoading && (
+              <div
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "0.6875rem",
+                  color: "var(--fgColor-muted)",
+                  marginBottom: "12px",
+                  textAlign: "center",
+                }}
+              >
+                Checking availability...
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setShowBooking(true)}
               style={{
                 width: "100%",
                 padding: "12px 0",
-                backgroundColor: "#C8AA6E",
-                border: "none",
+                backgroundColor: "transparent",
+                border: "1px solid var(--borderColor-default)",
                 borderRadius: "4px",
                 fontFamily: "var(--font-sans)",
                 fontSize: "0.9375rem",
                 fontWeight: 600,
-                color: "#0B0B0B",
+                color: "var(--fgColor-default)",
                 cursor: "pointer",
-                transition: "filter 0.15s ease",
+                transition: "all 0.15s ease",
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.filter = "brightness(1.1)";
+                e.currentTarget.style.backgroundColor = "var(--bgColor-mild)";
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.filter = "brightness(1)";
+                e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
               Schedule Session
@@ -666,6 +759,15 @@ export default function MentorProfilePage() {
         <BookSessionModal
           mentor={profile}
           onClose={() => setShowBooking(false)}
+        />
+      )}
+
+      {/* Meet Now Modal */}
+      {showMeetNow && profile && (
+        <BookSessionModal
+          mentor={profile}
+          onClose={() => setShowMeetNow(false)}
+          mode="meet_now"
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { AuditService } from '../audit/audit.service';
@@ -44,6 +45,11 @@ export interface LiveSessionEntry {
   serviceType: string;
   startedAt: string;
   earningsCents: number;
+  studentUserId: string;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
 }
 
 export interface PastEntry {
@@ -102,8 +108,148 @@ export class MentorSessionsService {
     return profile;
   }
 
+  /**
+   * Auto-expire pending meet_now sessions past their 15-min TTL.
+   * Called by cron AND on-demand from getRequests / getStudentRequests.
+   */
+  async expireOverdueSessions() {
+    const now = new Date();
+    const overdue = await this.prisma.mentorSession.findMany({
+      where: {
+        status: 'pending',
+        expiresAt: { lt: now },
+      },
+      include: {
+        mentorProfile: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
+        },
+      },
+    });
+
+    for (const session of overdue) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // 1. Update session status
+          await tx.mentorSession.update({
+            where: { id: session.id },
+            data: {
+              status: 'request_expired',
+              paymentStatus: session.paymentStatus === 'fully_paid' ? 'unpaid' : undefined,
+              cancelReason: '15-min TTL expired',
+            },
+          });
+
+          // 2. Record status history
+          await tx.mentorSessionStatusHistory.create({
+            data: {
+              mentorSessionId: session.id,
+              fromStatus: 'pending',
+              toStatus: 'request_expired',
+              changedBy: 'system',
+              reason: '15-min TTL expired, no mentor action',
+            },
+          });
+
+          // 3. Process full refund for meet_now sessions
+          if (session.paymentStatus === 'fully_paid' && session.earningsCents > 0) {
+            const amount = session.earningsCents;
+
+            // Refund to student wallet
+            const studentWallet = await tx.wallet.findUnique({ where: { userId: session.studentUserId } });
+            if (studentWallet) {
+              await tx.wallet.update({
+                where: { userId: session.studentUserId },
+                data: { balanceCents: studentWallet.balanceCents + BigInt(amount) },
+              });
+              await tx.walletTransaction.create({
+                data: {
+                  walletId: studentWallet.id,
+                  userId: session.studentUserId,
+                  txnType: 'credit',
+                  amountCents: BigInt(amount),
+                  balanceAfterCents: studentWallet.balanceCents + BigInt(amount),
+                  description: 'Refund: Meet Now session expired',
+                  referenceType: 'mentor_session_refund',
+                },
+              });
+            }
+
+            // Debit from mentor wallet
+            if (session.mentorProfile?.user?.id) {
+              const mentorWallet = await tx.wallet.findUnique({ where: { userId: session.mentorProfile.user.id } });
+              if (mentorWallet && mentorWallet.balanceCents >= BigInt(amount)) {
+                await tx.wallet.update({
+                  where: { userId: session.mentorProfile.user.id },
+                  data: { balanceCents: mentorWallet.balanceCents - BigInt(amount) },
+                });
+                await tx.walletTransaction.create({
+                  data: {
+                    walletId: mentorWallet.id,
+                    userId: session.mentorProfile.user.id,
+                    txnType: 'debit',
+                    amountCents: BigInt(amount),
+                    balanceAfterCents: mentorWallet.balanceCents - BigInt(amount),
+                    description: 'Reversal: Meet Now session expired',
+                    referenceType: 'mentor_session_refund',
+                  },
+                });
+              }
+            }
+
+            // Update payment record status to refunded
+            await tx.mentorSessionPayment.updateMany({
+              where: { mentorSessionId: session.id, status: 'held' },
+              data: { status: 'refunded' },
+            });
+          }
+        });
+
+        // Send expiration email to student (outside transaction)
+        const student = await this.prisma.user.findUnique({
+          where: { id: session.studentUserId },
+          select: { email: true, firstName: true, lastName: true },
+        });
+
+        if (student?.email) {
+          const mentorName = session.mentorProfile?.user
+            ? `${session.mentorProfile.user.firstName} ${session.mentorProfile.user.lastName}`.trim()
+            : 'Mentor';
+          const categoryLabel = session.serviceType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+          const sessionCost = session.earningsCents
+            ? `\u20B9${(session.earningsCents / 100).toLocaleString('en-IN')}`
+            : 'N/A';
+
+          this.mailService.sendSessionCancelledStudentEmail(student.email, {
+            studentName: `${student.firstName} ${student.lastName}`.trim(),
+            mentorName,
+            sessionCategory: categoryLabel,
+            sessionDate: 'N/A',
+            sessionTime: 'N/A',
+            duration: session.durationMinutes,
+            sessionCost,
+            advanceAmount: sessionCost,
+            reason: 'The session request expired because the mentor did not respond within 15 minutes.',
+          }).catch(err => this.logger.error('Failed to send expiration email', err));
+        }
+
+        this.logger.log(`Expired session ${session.id} — refund processed`);
+      } catch (err) {
+        this.logger.error(`Failed to expire session ${session.id}`, err);
+      }
+    }
+  }
+
+  /** Cron job: check for overdue pending sessions every 30 seconds */
+  @Cron('*/30 * * * * *')
+  async handleSessionExpirations() {
+    await this.expireOverdueSessions();
+  }
+
   /** Get pending session requests (status: pending) */
   async getRequests(userId: string): Promise<RequestEntry[]> {
+    await this.expireOverdueSessions();
     const profile = await this.findMentorProfile(userId);
 
     const sessions = await this.prisma.mentorSession.findMany({
@@ -210,6 +356,11 @@ export class MentorSessionsService {
       serviceType: s.serviceType,
       startedAt: (s.startedAt || s.requestedAt).toISOString(),
       earningsCents: s.earningsCents,
+      studentUserId: s.studentUserId,
+      subject: s.subject ?? null,
+      studentNotes: s.studentNotes ?? null,
+      attachmentFileName: s.attachmentFileName ?? null,
+      attachmentFilePath: s.attachmentFilePath ?? null,
     }));
   }
 
@@ -304,6 +455,61 @@ export class MentorSessionsService {
     };
   }
 
+  /** Fetch mentor profile details for the student's accordion panel */
+  async getMentorProfileForAccordion(mentorProfileId: string): Promise<{
+    email: string;
+    emailVerified: boolean;
+    authType: string;
+    oauthProvider: string | null;
+    phone: string | null;
+    profession: string | null;
+    skills: string[];
+    githubUrl: string | null;
+    linkedinUrl: string | null;
+    websiteUrl: string | null;
+    collegeName: string | null;
+    departmentName: string | null;
+    courseName: string | null;
+    academicYear: number | null;
+    expertiseLevel: string | null;
+    lastLoginAt: string | null;
+  }> {
+    const profile = await this.prisma.mentorProfile.findUnique({
+      where: { id: mentorProfileId },
+      include: {
+        user: {
+          include: { profile: true },
+        },
+      },
+    });
+    if (!profile) throw new NotFoundException('Mentor profile not found');
+    const user = profile.user;
+
+    const userDept = await this.prisma.userDepartment.findFirst({
+      where: { userId: user.id },
+      include: { department: { select: { name: true } } },
+    });
+
+    return {
+      email: user.email,
+      emailVerified: !!user.emailVerifiedAt,
+      authType: user.authType,
+      oauthProvider: user.oauthProvider,
+      phone: user.phone,
+      profession: profile.headline ?? user.profile?.profession ?? null,
+      skills: user.profile?.skills ?? [],
+      githubUrl: user.profile?.githubUrl ?? null,
+      linkedinUrl: user.profile?.linkedinUrl ?? null,
+      websiteUrl: user.profile?.websiteUrl ?? null,
+      collegeName: user.profile?.collegeName ?? null,
+      departmentName: userDept?.department?.name ?? null,
+      courseName: user.profile?.courseName ?? null,
+      academicYear: user.profile?.academicYear ?? null,
+      expertiseLevel: user.profile?.expertiseLevel ?? null,
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    };
+  }
+
   /** Get all sessions for calendar view (scheduled, live, and past with start/end times) */
   async getCalendar(userId: string): Promise<CalendarEvent[]> {
     const profile = await this.findMentorProfile(userId);
@@ -382,7 +588,7 @@ export class MentorSessionsService {
     });
 
     // Audit log
-    const student = await this.prisma.user.findUnique({ where: { id: session.studentUserId }, select: { firstName: true, lastName: true } });
+    const student = await this.prisma.user.findUnique({ where: { id: session.studentUserId }, select: { firstName: true, lastName: true, email: true } });
     this.auditService.log({
       userId,
       action: 'mentoring.session_approved',
@@ -390,6 +596,30 @@ export class MentorSessionsService {
       status: 'success',
       details: { sessionId, studentName: `${student?.firstName || ''} ${student?.lastName || ''}`.trim(), domain: session.domain, serviceType: session.serviceType },
     }).catch(err => this.logger.error('Audit log failed for session approve', err));
+
+    // Notify student via email for meet_now sessions
+    if (session.type === 'meet_now' && student?.email) {
+      const mentorUser = await this.prisma.user.findUnique({ where: { id: profile.userId }, select: { firstName: true, lastName: true } });
+      const mentorName = mentorUser ? `${mentorUser.firstName} ${mentorUser.lastName}`.trim() : 'Mentor';
+      const dateStr = scheduledFrom.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const timeStr = `${String(scheduledFrom.getHours()).padStart(2, '0')}:${String(scheduledFrom.getMinutes()).padStart(2, '0')}`;
+      const categoryLabel = session.serviceType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      const sessionCost = session.earningsCents ? `\u20B9${(session.earningsCents / 100).toLocaleString('en-IN')}` : 'N/A';
+      const sessionAny = session as any;
+
+      this.mailService.sendSessionBookedStudentEmail(student.email, {
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        mentorName,
+        sessionCategory: categoryLabel,
+        sessionDate: dateStr,
+        sessionTime: timeStr,
+        duration: session.durationMinutes,
+        subject: sessionAny.subject || '',
+        sessionCost,
+        advanceAmount: sessionCost,
+        balanceAmount: '\u20B90',
+      }).catch(err => this.logger.error('Failed to send meet now approved email', err));
+    }
 
     return { success: true };
   }
@@ -425,7 +655,7 @@ export class MentorSessionsService {
     });
 
     // Audit log
-    const student = await this.prisma.user.findUnique({ where: { id: session.studentUserId }, select: { firstName: true, lastName: true } });
+    const student = await this.prisma.user.findUnique({ where: { id: session.studentUserId }, select: { firstName: true, lastName: true, email: true } });
     this.auditService.log({
       userId,
       action: 'mentoring.session_rejected',
@@ -433,6 +663,74 @@ export class MentorSessionsService {
       status: 'success',
       details: { sessionId, studentName: `${student?.firstName || ''} ${student?.lastName || ''}`.trim(), reason: reason || 'Mentor rejected session request' },
     }).catch(err => this.logger.error('Audit log failed for session reject', err));
+
+    // For meet_now sessions with full payment, process full refund
+    if (session.type === 'meet_now' && session.paymentStatus === 'fully_paid' && session.earningsCents > 0) {
+      const refundAmount = session.earningsCents;
+
+      await this.prisma.$transaction(async (tx) => {
+        // Refund to student wallet
+        const studentWallet = await tx.wallet.findUnique({ where: { userId: session.studentUserId } });
+        if (studentWallet) {
+          const newStudentBalance = studentWallet.balanceCents + BigInt(refundAmount);
+          await tx.wallet.update({
+            where: { userId: session.studentUserId },
+            data: { balanceCents: newStudentBalance },
+          });
+          await tx.walletTransaction.create({
+            data: {
+              walletId: studentWallet.id,
+              userId: session.studentUserId,
+              txnType: 'credit',
+              amountCents: BigInt(refundAmount),
+              balanceAfterCents: newStudentBalance,
+              description: 'Refund: Meet Now session rejected by mentor',
+              referenceType: 'mentor_session_refund',
+            },
+          });
+        }
+
+        // Debit from mentor wallet
+        const mentorWallet = await tx.wallet.findUnique({ where: { userId: profile.userId } });
+        if (mentorWallet) {
+          const newMentorBalance = mentorWallet.balanceCents - BigInt(refundAmount);
+          await tx.wallet.update({
+            where: { userId: profile.userId },
+            data: { balanceCents: newMentorBalance },
+          });
+          await tx.walletTransaction.create({
+            data: {
+              walletId: mentorWallet.id,
+              userId: profile.userId,
+              txnType: 'debit',
+              amountCents: BigInt(refundAmount),
+              balanceAfterCents: newMentorBalance,
+              description: 'Reversal: Meet Now session rejected',
+              referenceType: 'mentor_session_refund',
+            },
+          });
+        }
+      });
+    }
+
+    // Send rejection email to student
+    if (student?.email) {
+      const mentorUser = await this.prisma.user.findUnique({ where: { id: profile.userId }, select: { firstName: true, lastName: true } });
+      const mentorName = mentorUser ? `${mentorUser.firstName} ${mentorUser.lastName}`.trim() : 'Mentor';
+      const categoryLabel = session.serviceType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+
+      this.mailService.sendSessionCancelledStudentEmail(student.email, {
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        mentorName,
+        sessionCategory: categoryLabel,
+        sessionDate: 'N/A',
+        sessionTime: 'N/A',
+        duration: session.durationMinutes,
+        sessionCost: session.earningsCents ? `\u20B9${(session.earningsCents / 100).toLocaleString('en-IN')}` : 'N/A',
+        advanceAmount: session.earningsCents ? `\u20B9${(session.earningsCents / 100).toLocaleString('en-IN')}` : 'N/A',
+        reason: reason || 'Mentor rejected the session request',
+      }).catch(err => this.logger.error('Failed to send rejection email', err));
+    }
 
     return { success: true };
   }
@@ -877,7 +1175,7 @@ export class MentorSessionsService {
       where: {
         mentorProfileId_blockedDate: {
           mentorProfileId,
-          blockedDate: date,
+          blockedDate: dateStr + 'T12:00:00.000Z',
         },
       },
     });
@@ -895,7 +1193,7 @@ export class MentorSessionsService {
         mentorProfileId,
         OR: [
           { isRecurring: true, dayOfWeek },
-          { isRecurring: false, specificDate: date },
+          { isRecurring: false, specificDate: dateStr + 'T12:00:00.000Z' },
         ],
       },
     });
@@ -1294,6 +1592,87 @@ export class MentorSessionsService {
     };
   }
 
+  /** Check if a mentor is currently available for a Meet Now session */
+  async checkMentorAvailability(studentUserId: string, mentorProfileId: string): Promise<{ available: boolean; reason?: string }> {
+    // 1. Check mentor exists and is available
+    const mentor = await this.prisma.mentorProfile.findUnique({
+      where: { id: mentorProfileId },
+    });
+
+    if (!mentor) {
+      return { available: false, reason: 'Mentor not found' };
+    }
+
+    if (!mentor.isAvailable) {
+      return { available: false, reason: 'Mentor is currently unavailable' };
+    }
+
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T12:00:00.000Z`;
+
+    // 2. Check if today is blocked
+    const blockedToday = await this.prisma.mentorBlockedDate.findFirst({
+      where: {
+        mentorProfileId,
+        blockedDate: todayISO,
+      },
+    });
+
+    if (blockedToday) {
+      return { available: false, reason: 'Mentor has blocked today' };
+    }
+
+    // 3. Check if mentor is currently in a LIVE session
+    const liveSession = await this.prisma.mentorSession.findFirst({
+      where: {
+        mentorProfileId,
+        status: 'live',
+      },
+    });
+
+    if (liveSession) {
+      return { available: false, reason: 'Mentor is currently in a live session' };
+    }
+
+    // 4. Check if mentor has any upcoming SCHEDULED session within 45 minutes
+    const nearFuture = new Date(now.getTime() + 45 * 60 * 1000);
+    const upcomingSession = await this.prisma.mentorSession.findFirst({
+      where: {
+        mentorProfileId,
+        status: 'scheduled',
+        scheduledFrom: { gte: now, lt: nearFuture },
+      },
+    });
+
+    if (upcomingSession) {
+      return { available: false, reason: 'Mentor has a session starting soon' };
+    }
+
+    // 5. Check if current time + 30 minutes fits within any availability slot for today
+    const thirtyMinLater = new Date(now.getTime() + 30 * 60 * 1000);
+    const thirtyMinLaterStr = `${String(thirtyMinLater.getHours()).padStart(2, '0')}:${String(thirtyMinLater.getMinutes()).padStart(2, '0')}`;
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const availability = await this.prisma.mentorAvailabilitySlot.findFirst({
+      where: {
+        mentorProfileId,
+        OR: [
+          { isRecurring: true, dayOfWeek },
+          { isRecurring: false, specificDate: todayISO },
+        ],
+        startTime: { lte: currentTimeStr },
+        endTime: { gte: thirtyMinLaterStr },
+      },
+    });
+
+    if (!availability) {
+      return { available: false, reason: 'Mentor is not available for the next 30 minutes' };
+    }
+
+    return { available: true };
+  }
+
   /** Book a mentoring session (student side) */
   async bookSession(studentUserId: string, body: any) {
     const {
@@ -1570,6 +1949,244 @@ export class MentorSessionsService {
     return { sessionId: result.sessionId };
   }
 
+  /** Book a meet_now session (student side, full payment, no advance) */
+  async bookMeetNowSession(studentUserId: string, body: any) {
+    const {
+      mentorProfileId,
+      category,
+      durationMinutes = 60,
+      subject,
+      description,
+      attachmentFileName,
+      attachmentFilePath,
+      attachmentMimeType,
+      attachmentSizeBytes,
+    } = body;
+
+    // Validate required fields
+    if (!mentorProfileId || !category || !subject || !description) {
+      throw new BadRequestException('Missing required fields');
+    }
+
+    // Validate duration
+    if (![30, 60].includes(durationMinutes)) {
+      throw new BadRequestException('Duration must be 30 or 60 minutes');
+    }
+
+    // Validate subject word count (max 10)
+    const subjectWords = subject.trim().split(/\s+/).filter(Boolean);
+    if (subjectWords.length > 10) {
+      throw new BadRequestException('Subject must be 10 words or fewer');
+    }
+
+    // Validate description word count (min 10)
+    const descWords = description.trim().split(/\s+/).filter(Boolean);
+    if (descWords.length < 10) {
+      throw new BadRequestException('Description must be at least 10 words');
+    }
+
+    // Validate category
+    const validCategories = ['consultation', 'project_review', 'concept_exploration', 'hands_on'];
+    if (!validCategories.includes(category)) {
+      throw new BadRequestException('Invalid session category');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Verify mentor exists and is available
+      const mentor = await tx.mentorProfile.findUnique({
+        where: { id: mentorProfileId },
+        include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
+      });
+
+      if (!mentor || !mentor.isAvailable) {
+        throw new NotFoundException('Mentor not found or not available');
+      }
+
+      // 2. Calculate cost (full amount, no advance) — prorated by duration
+      const sessionCost = Math.round(mentor.pricePerHourCents * (durationMinutes / 60));
+      
+      // 3. Check student wallet balance
+      const wallet = await tx.wallet.findUnique({
+        where: { userId: studentUserId },
+      });
+      
+      if (!wallet) {
+        throw new BadRequestException('Wallet not found');
+      }
+      
+      const balanceCentsNum = Number(wallet.balanceCents);
+      if (balanceCentsNum < sessionCost) {
+        throw new BadRequestException(
+          `Insufficient balance. Required: \u20B9${(sessionCost / 100).toFixed(2)}, Available: \u20B9${(balanceCentsNum / 100).toFixed(2)}`,
+        );
+      }
+      
+      // 4. Debit FULL amount from student wallet
+      const newStudentBalance = wallet.balanceCents - BigInt(sessionCost);
+      await tx.wallet.update({
+        where: { userId: studentUserId },
+        data: { balanceCents: newStudentBalance },
+      });
+      
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          userId: studentUserId,
+          txnType: 'debit',
+          amountCents: BigInt(sessionCost),
+          balanceAfterCents: newStudentBalance,
+          description: `Meet Now session payment: ${category}`,
+          referenceType: 'mentor_session_payment',
+        },
+      });
+      
+      // 5. Create MentorSession record
+      const jitsiRoomName = `session-${randomUUID()}`;
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 15 * 60 * 1000); // 15-min TTL
+      
+      const session = await tx.mentorSession.create({
+        data: {
+          mentorProfileId,
+          studentUserId,
+          type: 'meet_now',
+          status: 'pending',
+          paymentStatus: 'fully_paid',
+          requestedAt: now,
+          expiresAt,
+          durationMinutes,
+          domain: 'Mentoring',
+          serviceType: category.replace(/_/g, ' '),
+          jitsiRoomName,
+          earningsCents: sessionCost,
+          studentNotes: description,
+          subject,
+          attachmentFileName: attachmentFileName || null,
+          attachmentFilePath: attachmentFilePath || null,
+          attachmentMimeType: attachmentMimeType || null,
+          attachmentSizeBytes: attachmentSizeBytes || null,
+          ...(category ? { category } : {}),
+        } as any,
+      });
+      
+      // 6. Create status history entry
+      await tx.mentorSessionStatusHistory.create({
+        data: {
+          mentorSessionId: session.id,
+          fromStatus: 'pending',
+          toStatus: 'pending',
+          changedBy: 'system',
+          reason: 'Meet Now session request created',
+        },
+      });
+      
+      // 7. Create payment record (full amount, held in escrow)
+      await tx.mentorSessionPayment.create({
+        data: {
+          mentorSessionId: session.id,
+          amountCents: sessionCost,
+          paymentType: 'full',
+          payerUserId: studentUserId,
+          payeeUserId: mentor.user.id,
+          status: 'held',
+        },
+      });
+      
+      // 8. Credit full amount to mentor's wallet (held)
+      let mentorWallet = await tx.wallet.findUnique({
+        where: { userId: mentor.user.id },
+      });
+
+      if (!mentorWallet) {
+        mentorWallet = await tx.wallet.create({
+          data: {
+            userId: mentor.user.id,
+            balanceCents: BigInt(0),
+          },
+        });
+      }
+
+      const newMentorBalance = mentorWallet.balanceCents + BigInt(sessionCost);
+      await tx.wallet.update({
+        where: { userId: mentor.user.id },
+        data: { balanceCents: newMentorBalance },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          walletId: mentorWallet.id,
+          userId: mentor.user.id,
+          txnType: 'credit',
+          amountCents: BigInt(sessionCost),
+          balanceAfterCents: newMentorBalance,
+          description: `Meet Now session payment received: ${category}`,
+          referenceType: 'mentor_session_payment',
+        },
+      });
+
+      return {
+        sessionId: session.id,
+        mentorUserId: mentor.user.id,
+        studentId: studentUserId,
+        mentorName: `${mentor.user.firstName} ${mentor.user.lastName}`.trim(),
+        sessionCost,
+      };
+    });
+
+    // Send emails after transaction (non-blocking)
+    try {
+      const student = await this.prisma.user.findUnique({
+        where: { id: result.studentId },
+        select: { email: true, firstName: true, lastName: true },
+      });
+      const mentor = await this.prisma.user.findUnique({
+        where: { id: result.mentorUserId },
+        select: { email: true, firstName: true, lastName: true },
+      });
+
+      if (student && mentor) {
+        const fmtRupees = (cents: number) => `\u20B9${(cents / 100).toLocaleString('en-IN')}`;
+        const categoryLabel = category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+
+        // Audit log
+        this.auditService.log({
+          userId: studentUserId,
+          action: 'mentoring.session_booked',
+          category: 'mentoring',
+          status: 'success',
+          details: { sessionId: result.sessionId, mentorName: result.mentorName, sessionCategory: categoryLabel, type: 'meet_now', amountCents: result.sessionCost },
+        }).catch(err => this.logger.error('Audit log failed for meet now booking', err));
+
+        // Student confirmation
+        this.mailService.sendMeetNowRequestStudentEmail(student.email, {
+          studentName: `${student.firstName} ${student.lastName}`.trim(),
+          mentorName: result.mentorName,
+          sessionCategory: categoryLabel,
+          duration: durationMinutes,
+          subject,
+          sessionCost: fmtRupees(result.sessionCost),
+        }).catch(err => this.logger.error('Failed to send meet now student email', err));
+
+        // Mentor notification
+        this.mailService.sendMeetNowRequestMentorEmail(mentor.email, {
+          mentorName: result.mentorName,
+          studentName: `${student.firstName} ${student.lastName}`.trim(),
+          sessionCategory: categoryLabel,
+          duration: durationMinutes,
+          subject,
+          description,
+          sessionCost: fmtRupees(result.sessionCost),
+          hasAttachment: !!attachmentFileName,
+          attachmentName: attachmentFileName || undefined,
+        }).catch(err => this.logger.error('Failed to send meet now mentor email', err));
+      }
+    } catch (err) {
+      this.logger.error('Failed to send meet now notification emails', err);
+    }
+
+    return { sessionId: result.sessionId };
+  }
+
   /** Get student's upcoming scheduled sessions */
   async getStudentUpcoming(studentUserId: string) {
     const sessions = await this.prisma.mentorSession.findMany({
@@ -1598,6 +2215,7 @@ export class MentorSessionsService {
       mentorName: `${s.mentorProfile.user.firstName} ${s.mentorProfile.user.lastName}`.trim(),
       mentorHeadline: s.mentorProfile.headline,
       mentorCompany: s.mentorProfile.company,
+      mentorProfileId: s.mentorProfileId,
       scheduledFrom: s.scheduledFrom,
       scheduledTo: s.scheduledTo,
       durationMinutes: s.durationMinutes,
@@ -1606,11 +2224,16 @@ export class MentorSessionsService {
       paymentStatus: s.paymentStatus,
       earningsCents: s.earningsCents,
       advanceCents: s.advanceCents,
+      subject: (s as any).subject ?? null,
+      studentNotes: (s as any).studentNotes ?? null,
+      attachmentFileName: (s as any).attachmentFileName ?? null,
+      attachmentFilePath: (s as any).attachmentFilePath ?? null,
     }));
   }
 
   /** Get student's pending requests (sessions awaiting mentor approval) */
   async getStudentRequests(studentUserId: string) {
+    await this.expireOverdueSessions();
     const sessions = await this.prisma.mentorSession.findMany({
       where: {
         studentUserId,
@@ -1629,10 +2252,15 @@ export class MentorSessionsService {
     return sessions.map((s) => ({
       id: s.id,
       mentorName: `${s.mentorProfile.user.firstName} ${s.mentorProfile.user.lastName}`.trim(),
+      mentorProfileId: s.mentorProfileId,
       domain: s.domain,
       serviceType: s.serviceType,
       durationMinutes: s.durationMinutes,
       earningsCents: s.earningsCents,
+      subject: (s as any).subject ?? null,
+      studentNotes: (s as any).studentNotes ?? null,
+      attachmentFileName: (s as any).attachmentFileName ?? null,
+      attachmentFilePath: (s as any).attachmentFilePath ?? null,
       createdAt: s.requestedAt.toISOString(),
     }));
   }

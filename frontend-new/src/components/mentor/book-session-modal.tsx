@@ -9,6 +9,8 @@ import {
   getAvailableDates,
   uploadMentorAttachment,
   bookMentorSession,
+  bookMeetNowSession,
+  getWithdrawableBalance,
 } from "@/lib/api";
 import type { TimeSlot } from "@/lib/api";
 
@@ -64,14 +66,17 @@ function formatTime12(time: string): string {
 export default function BookSessionModal({
   mentor,
   onClose,
+  mode = "slot_booking",
 }: {
   mentor: MentorProfileDetail;
   onClose: () => void;
+  mode?: "slot_booking" | "meet_now";
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Step 1 state
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedDuration, setSelectedDuration] = useState(60);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [viewMonth, setViewMonth] = useState(dayjs().add(1, "day").startOf("month"));
   const [availableDates, setAvailableDates] = useState<string[] | null>(null);
@@ -92,6 +97,7 @@ export default function BookSessionModal({
   const [success, setSuccess] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [fading, setFading] = useState(false);
+  const [walletBalanceCents, setWalletBalanceCents] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -102,6 +108,39 @@ export default function BookSessionModal({
   const advanceValue = (advanceCents / 100).toLocaleString("en-IN");
   const balanceCents = mentor.pricePerHourCents - advanceCents;
   const balanceValue = (balanceCents / 100).toLocaleString("en-IN");
+  // Prorated cost for meet_now based on selected duration
+  const sessionCostCents = mode === "meet_now"
+    ? Math.round(mentor.pricePerHourCents * (selectedDuration / 60))
+    : mentor.pricePerHourCents;
+  const sessionCostDisplay = (sessionCostCents / 100).toLocaleString("en-IN");
+
+  // Wallet balance check
+  useEffect(() => {
+    getWithdrawableBalance().then(data => {
+      if (data) setWalletBalanceCents(data.balanceCents);
+    }).catch(() => {});
+  }, []);
+
+  const requiredCents = mode === "meet_now"
+    ? Math.round(mentor.pricePerHourCents * (selectedDuration / 60))
+    : mentor.pricePerHourCents;
+  const hasInsufficientBalance = walletBalanceCents !== null && walletBalanceCents < requiredCents;
+  const balanceDisplay = walletBalanceCents !== null
+    ? `\u20B9${(walletBalanceCents / 100).toLocaleString("en-IN")}`
+    : null;
+
+  // Meet Now time range (current time + selected duration)
+  const meetNowTime = mode === "meet_now" ? (() => {
+    const now = new Date();
+    const startH = String(now.getHours()).padStart(2, '0');
+    const startM = String(now.getMinutes()).padStart(2, '0');
+    const startStr = `${startH}:${startM}`;
+    const end = new Date(now.getTime() + selectedDuration * 60 * 1000);
+    const endH = String(end.getHours()).padStart(2, '0');
+    const endM = String(end.getMinutes()).padStart(2, '0');
+    const endStr = `${endH}:${endM}`;
+    return { start: formatTime12(startStr), end: formatTime12(endStr), date: now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) };
+  })() : null;
 
   const today = dayjs().startOf("day");
 
@@ -171,12 +210,16 @@ export default function BookSessionModal({
   };
 
   const handleConfirm = () => {
-    if (!selectedDate || !selectedSlot || !selectedCategory) return;
+    if (mode === "meet_now") {
+      if (!selectedCategory) return;
+    } else if (!selectedDate || !selectedSlot || !selectedCategory) return;
     setShowConfirmation(true);
   };
 
   const handleFinalConfirm = async () => {
-    if (!selectedDate || !selectedSlot || !selectedCategory) return;
+    if (mode === "meet_now") {
+      if (!selectedCategory) return;
+    } else if (!selectedDate || !selectedSlot || !selectedCategory) return;
 
     setBooking(true);
     setError("");
@@ -201,23 +244,36 @@ export default function BookSessionModal({
         setUploading(false);
       }
 
-      await bookMentorSession({
-        mentorProfileId: mentor.id,
-        category: selectedCategory,
-        scheduledDate: selectedDate,
-        startTime: selectedSlot.startTime,
-        durationMinutes: 60,
-        subject,
-        description,
-        ...attachmentInfo,
-      });
+      if (mode === "meet_now") {
+        await bookMeetNowSession({
+          mentorProfileId: mentor.id,
+          category: selectedCategory,
+          durationMinutes: selectedDuration,
+          subject,
+          description,
+          ...attachmentInfo,
+        });
+      } else {
+        await bookMentorSession({
+          mentorProfileId: mentor.id,
+          category: selectedCategory,
+          scheduledDate: selectedDate!,
+          startTime: selectedSlot!.startTime,
+          durationMinutes: 60,
+          subject,
+          description,
+          ...attachmentInfo,
+        });
+      }
 
       setSuccess(true);
       setTimeout(() => {
         onClose();
-        setTimeout(() => {
-          router.push("/mentor?tab=upcoming");
-        }, 150);
+        if (mode !== "meet_now") {
+          setTimeout(() => {
+            router.push("/mentor?tab=upcoming");
+          }, 150);
+        }
       }, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Booking failed. Please try again.";
@@ -314,8 +370,8 @@ export default function BookSessionModal({
                 color: "var(--fgColor-default)",
               }}
             >
-              {step === 1 && "Schedule a Session"}
-              {step === 2 && "Select a Time Slot"}
+              {step === 1 && (mode === "meet_now" ? "Request a Session" : "Schedule a Session")}
+              {step === 2 && (mode === "meet_now" ? "Session Details" : "Select a Time Slot")}
               {step === 3 && "Confirm Your Session"}
             </div>
           </div>
@@ -417,6 +473,28 @@ export default function BookSessionModal({
               </div>
             </div>
 
+            {/* Insufficient balance warning */}
+            {hasInsufficientBalance && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 12px",
+                  backgroundColor: "var(--fgColor-warning)",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  fontWeight: 500,
+                  color: "var(--bgColor-default)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  marginTop: "12px",
+                }}
+              >
+                Insufficient Credit Balance
+              </div>
+            )}
+
             {/* Selected info */}
             {selectedCategory && (
               <div style={{ marginBottom: "8px" }}>
@@ -500,7 +578,46 @@ export default function BookSessionModal({
               </div>
             )}
 
-            {step === 3 && (
+            {/* Meet Now time display */}
+            {mode === "meet_now" && step === 3 && meetNowTime && (
+              <div style={{ marginBottom: "8px" }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "0.6875rem",
+                    color: "var(--fgColor-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Time
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "0.8125rem",
+                    color: "var(--fgColor-default)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {meetNowTime.date}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "0.8125rem",
+                    color: "var(--fgColor-default)",
+                    fontWeight: 500,
+                    marginTop: "2px",
+                  }}
+                >
+                  {meetNowTime.start} – {meetNowTime.end}
+                </div>
+              </div>
+            )}
+
+            {step === 3 && mode !== "meet_now" && (
               <div
                 style={{
                   borderTop: "1px solid var(--borderColor-default)",
@@ -650,136 +767,307 @@ export default function BookSessionModal({
                   })}
                 </div>
 
-                {/* Calendar */}
+                {/* Calendar or Duration Picker */}
+                {mode === "meet_now" ? (
+                  <div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                        color: "var(--fgColor-default)",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      Select duration
+                    </div>
+                    <div style={{ display: "flex", gap: "12px" }}>
+                      {[30, 60].map((mins) => (
+                        <button
+                          key={mins}
+                          onClick={() => setSelectedDuration(mins)}
+                          style={{
+                            flex: 1,
+                            padding: "16px",
+                            backgroundColor:
+                              selectedDuration === mins
+                                ? "rgba(200, 170, 110, 0.08)"
+                                : "var(--bgColor-mild)",
+                            border: `1px solid ${
+                              selectedDuration === mins
+                                ? "#C8AA6E"
+                                : "var(--borderColor-default)"
+                            }`,
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            textAlign: "center",
+                            fontFamily: "var(--font-sans)",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "1.25rem",
+                              fontWeight: 700,
+                              color: "var(--fgColor-default)",
+                            }}
+                          >
+                            {mins}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "var(--fgColor-muted)",
+                              marginTop: "4px",
+                            }}
+                          >
+                            minutes
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Calendar */}
+                    <div
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                        color: "var(--fgColor-default)",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      Select date
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <button
+                        onClick={() =>
+                          setViewMonth((m) => m.subtract(1, "month"))
+                        }
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--fgColor-muted)",
+                          padding: "4px",
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                      </button>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                          color: "var(--fgColor-default)",
+                        }}
+                      >
+                        {viewMonth.format("MMMM YYYY")}
+                      </div>
+                      <button
+                        onClick={() => setViewMonth((m) => m.add(1, "month"))}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--fgColor-muted)",
+                          padding: "4px",
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(7, 1fr)",
+                        gap: "2px",
+                      }}
+                    >
+                      {DAYS.map((day) => (
+                        <div
+                          key={day}
+                          style={{
+                            textAlign: "center",
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "0.6875rem",
+                            color: "var(--fgColor-muted)",
+                            padding: "4px 0",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {day}
+                        </div>
+                      ))}
+                      {calendarDays.map((date, i) => {
+                        const isCurrentMonth = date.month() === viewMonth.month();
+                        const disabled = isDateDisabled(date);
+                        const isSelected =
+                          selectedDate === date.format("YYYY-MM-DD");
+                        return (
+                          <button
+                            key={i}
+                            disabled={disabled || !isCurrentMonth}
+                            onClick={() =>
+                              setSelectedDate(date.format("YYYY-MM-DD"))
+                            }
+                            style={{
+                              width: "100%",
+                              aspectRatio: "1",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontFamily: "var(--font-sans)",
+                              fontSize: "0.8125rem",
+                              border: "none",
+                              borderRadius: "4px",
+                              cursor:
+                                disabled || !isCurrentMonth
+                                  ? "default"
+                                  : "pointer",
+                              backgroundColor: isSelected
+                                ? "#C8AA6E"
+                                : "transparent",
+                              color: isSelected
+                                ? "#0B0B0B"
+                                : disabled || !isCurrentMonth
+                                ? "var(--fgColor-muted)"
+                                : "var(--fgColor-default)",
+                              opacity: disabled || !isCurrentMonth ? 0.3 : 1,
+                              fontWeight: isSelected ? 600 : 400,
+                              transition: "all 0.1s ease",
+                            }}
+                          >
+                            {date.date()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── Step 2: Time Slots (slot_booking) / Session Details (meet_now) ── */}
+            {step === 2 ? (mode === "meet_now" ? (
+              <div>
                 <div
                   style={{
                     fontFamily: "var(--font-sans)",
                     fontSize: "0.875rem",
                     fontWeight: 600,
                     color: "var(--fgColor-default)",
-                    marginBottom: "12px",
+                    marginBottom: "16px",
                   }}
                 >
-                  Select date
+                  Session Details
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "8px",
-                  }}
-                >
-                  <button
-                    onClick={() =>
-                      setViewMonth((m) => m.subtract(1, "month"))
-                    }
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--fgColor-muted)",
-                      padding: "4px",
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                  </button>
+                {/* Subject */}
+                <div style={{ marginBottom: "16px" }}>
                   <div
                     style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.875rem",
-                      fontWeight: 500,
-                      color: "var(--fgColor-default)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "6px",
                     }}
                   >
-                    {viewMonth.format("MMMM YYYY")}
+                    <label style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", fontWeight: 500, color: "var(--fgColor-default)" }}>
+                      Subject
+                    </label>
+                    <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: getWordCount(subject) > 10 ? "#f85149" : "var(--fgColor-muted)" }}>
+                      {getWordCount(subject)}/10 words
+                    </span>
                   </div>
-                  <button
-                    onClick={() => setViewMonth((m) => m.add(1, "month"))}
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="e.g., ML model deployment guidance"
                     style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--fgColor-muted)",
-                      padding: "4px",
+                      width: "100%", backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)",
+                      borderRadius: "4px", height: "36px", padding: "0 12px", fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem", color: "var(--fgColor-default)", outline: "none", boxSizing: "border-box",
                     }}
+                  />
+                </div>
+
+                {/* Description */}
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <label style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", fontWeight: 500, color: "var(--fgColor-default)" }}>
+                      Description
+                    </label>
+                    <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: getWordCount(description) < 10 ? "#f85149" : "var(--fgColor-muted)" }}>
+                      {getWordCount(description)} words (min 10)
+                    </span>
+                  </div>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe what you&apos;d like help with, your current level, and what you hope to achieve..."
+                    rows={5}
+                    style={{
+                      width: "100%", backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)",
+                      borderRadius: "4px", padding: "10px 12px", fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem", color: "var(--fgColor-default)", outline: "none",
+                      resize: "vertical", boxSizing: "border-box", lineHeight: 1.5,
+                    }}
+                  />
+                </div>
+
+                {/* Attachment */}
+                <div>
+                  <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", fontWeight: 500, color: "var(--fgColor-default)", marginBottom: "6px" }}>
+                    Attachment <span style={{ fontWeight: 400, color: "var(--fgColor-muted)" }}>(optional, max 2MB)</span>
+                  </div>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: "1px dashed var(--borderColor-default)", borderRadius: "6px", padding: "24px",
+                      textAlign: "center", cursor: "pointer", backgroundColor: "var(--bgColor-mild)",
+                      transition: "border-color 0.15s ease",
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.borderColor = "var(--fgColor-muted)"; }}
+                    onMouseOut={(e) => { e.currentTarget.style.borderColor = "var(--borderColor-default)"; }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                  </button>
+                    <input ref={fileInputRef} type="file" hidden onChange={handleFileChange} accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.gif,.webp" />
+                    {file ? (
+                      <div>
+                        <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", fontWeight: 500 }}>{file.name}</div>
+                        <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", marginTop: "2px" }}>{(file.size / 1024).toFixed(1)} KB</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--fgColor-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 8px", display: "block" }}>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)" }}>Click to upload PDF, DOCX, TXT, PNG, JPG, GIF, WEBP</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, 1fr)",
-                    gap: "2px",
-                  }}
-                >
-                  {DAYS.map((day) => (
-                    <div
-                      key={day}
-                      style={{
-                        textAlign: "center",
-                        fontFamily: "var(--font-sans)",
-                        fontSize: "0.6875rem",
-                        color: "var(--fgColor-muted)",
-                        padding: "4px 0",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {day}
-                    </div>
-                  ))}
-                  {calendarDays.map((date, i) => {
-                    const isCurrentMonth = date.month() === viewMonth.month();
-                    const disabled = isDateDisabled(date);
-                    const isSelected =
-                      selectedDate === date.format("YYYY-MM-DD");
-                    return (
-                      <button
-                        key={i}
-                        disabled={disabled || !isCurrentMonth}
-                        onClick={() =>
-                          setSelectedDate(date.format("YYYY-MM-DD"))
-                        }
-                        style={{
-                          width: "100%",
-                          aspectRatio: "1",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontFamily: "var(--font-sans)",
-                          fontSize: "0.8125rem",
-                          border: "none",
-                          borderRadius: "4px",
-                          cursor:
-                            disabled || !isCurrentMonth
-                              ? "default"
-                              : "pointer",
-                          backgroundColor: isSelected
-                            ? "#C8AA6E"
-                            : "transparent",
-                          color: isSelected
-                            ? "#0B0B0B"
-                            : disabled || !isCurrentMonth
-                            ? "var(--fgColor-muted)"
-                            : "var(--fgColor-default)",
-                          opacity: disabled || !isCurrentMonth ? 0.3 : 1,
-                          fontWeight: isSelected ? 600 : 400,
-                          transition: "all 0.1s ease",
-                        }}
-                      >
-                        {date.date()}
-                      </button>
-                    );
-                  })}
-                </div>
+                {error && (
+                  <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "#f85149", marginTop: "12px", padding: "8px 12px", backgroundColor: "rgba(248, 81, 73, 0.1)", borderRadius: "4px", border: "1px solid rgba(248, 81, 73, 0.2)" }}>
+                    {error}
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* ── Step 2: Time Slots ── */}
-            {step === 2 && (
+            ) : (
               <div>
                 <div
                   style={{
@@ -887,7 +1175,7 @@ export default function BookSessionModal({
                   </div>
                 )}
               </div>
-            )}
+              )) : null}
 
             {/* ── Step 3: Details + Confirm ── */}
             {step === 3 && (
@@ -935,7 +1223,7 @@ export default function BookSessionModal({
                         marginBottom: "8px",
                       }}
                     >
-                      Session Booked!
+                      {mode === "meet_now" ? "Request Sent!" : "Session Booked!"}
                     </div>
                     <div
                       style={{
@@ -944,7 +1232,9 @@ export default function BookSessionModal({
                         color: "var(--fgColor-muted)",
                       }}
                     >
-                      Your session with {mentor.name} is confirmed.
+                      {mode === "meet_now"
+                        ? `Your meet request has been sent to ${mentor.name}. They will respond within 15 minutes.`
+                        : `Your session with ${mentor.name} is confirmed.`}
                     </div>
                   </div>
                 ) : showConfirmation ? (
@@ -1088,58 +1378,116 @@ export default function BookSessionModal({
                             {currencySymbol}{priceValue}
                           </span>
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            marginBottom: "6px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: "0.8125rem",
-                              color: "var(--fgColor-muted)",
-                            }}
-                          >
-                            Advance (10%) &mdash; deducted now
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "0.8125rem",
-                              color: "#C8AA6E",
-                              fontWeight: 600,
-                            }}
-                          >
-                            &minus;{currencySymbol}{advanceValue}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            borderTop: "1px solid var(--borderColor-default)",
-                            paddingTop: "8px",
-                            display: "flex",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: "0.875rem",
-                              color: "var(--fgColor-default)",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Balance Due
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "0.875rem",
-                              color: "var(--fgColor-default)",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {currencySymbol}{balanceValue}
-                          </span>
-                        </div>
+                        {mode === "meet_now" ? (
+                          <>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.8125rem",
+                                  color: "var(--fgColor-muted)",
+                                }}
+                              >
+                                Session Fee ({selectedDuration} min)
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "0.8125rem",
+                                  color: "var(--fgColor-default)",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {currencySymbol}{sessionCostDisplay}
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                borderTop: "1px solid var(--borderColor-default)",
+                                paddingTop: "8px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.875rem",
+                                  color: "var(--fgColor-default)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Total Deducted
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "0.875rem",
+                                  color: "#C8AA6E",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {currencySymbol}{sessionCostDisplay}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.8125rem",
+                                  color: "var(--fgColor-muted)",
+                                }}
+                              >
+                                Advance (10%) &mdash; deducted now
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "0.8125rem",
+                                  color: "#C8AA6E",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                &minus;{currencySymbol}{advanceValue}
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                borderTop: "1px solid var(--borderColor-default)",
+                                paddingTop: "8px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.875rem",
+                                  color: "var(--fgColor-default)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Balance Due
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "0.875rem",
+                                  color: "var(--fgColor-default)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {currencySymbol}{balanceValue}
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -1184,7 +1532,7 @@ export default function BookSessionModal({
                             marginBottom: "4px",
                           }}
                         >
-                          How the advance works
+                          {mode === "meet_now" ? "How Meet Now works" : "How the advance works"}
                         </div>
                         <div
                           style={{
@@ -1195,65 +1543,104 @@ export default function BookSessionModal({
                             margin: 0,
                           }}
                         >
-                          The <strong style={{color: "var(--fgColor-default)"}}>10% advance</strong> secures your slot
-                          and confirms the mentor&apos;s time. This amount is{" "}
-                          <strong style={{color: "var(--fgColor-default)"}}>redeemable towards the final payment</strong>.
-                          The remaining balance will be{" "}
-                          <strong style={{color: "var(--fgColor-default)"}}>due before the session begins</strong>.
+                          {mode === "meet_now" ? (
+                            <>
+                              The <strong style={{color: "var(--fgColor-default)"}}>full amount</strong> will be deducted from your wallet now.
+                              Your request will be sent to the mentor who has <strong style={{color: "var(--fgColor-default)"}}>15 minutes</strong> to respond.
+                              If approved, you can join the session immediately. If rejected or expired, you&apos;ll receive a <strong style={{color: "var(--fgColor-default)"}}>full refund</strong>.
+                            </>
+                          ) : (
+                            <>
+                              The <strong style={{color: "var(--fgColor-default)"}}>10% advance</strong> secures your slot
+                              and confirms the mentor&apos;s time. This amount is{" "}
+                              <strong style={{color: "var(--fgColor-default)"}}>redeemable towards the final payment</strong>.
+                              The remaining balance will be{" "}
+                              <strong style={{color: "var(--fgColor-default)"}}>due before the session begins</strong>.
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     {/* Cancellation Policy */}
-                    <div
-                      style={{
-                        padding: "14px 16px",
-                        backgroundColor: "rgba(248, 81, 73, 0.08)",
-                        borderRadius: "8px",
-                        border: "1px solid rgba(248, 81, 73, 0.35)",
-                      }}
-                    >
+                    {mode === "meet_now" ? (
                       <div
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          marginBottom: "10px",
+                          padding: "14px 16px",
+                          backgroundColor: "rgba(248, 81, 73, 0.08)",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(248, 81, 73, 0.35)",
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                          <line x1="12" y1="9" x2="12" y2="13" />
-                          <line x1="12" y1="17" x2="12.01" y2="17" />
-                        </svg>
-                        <span
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                          </svg>
+                          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", fontWeight: 700, color: "#f85149" }}>
+                            Terms
+                          </span>
+                        </div>
+                        <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", lineHeight: 1.7 }}>
+                          The mentor has <strong style={{color: "#f85149"}}>15 minutes</strong> to respond to your request.
+                          <br />
+                          If rejected or expired, you&apos;ll receive a <strong>full refund</strong>.
+                          <br />
+                          You <strong>cannot cancel</strong> this request once sent.
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          padding: "14px 16px",
+                          backgroundColor: "rgba(248, 81, 73, 0.08)",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(248, 81, 73, 0.35)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            marginBottom: "10px",
+                          }}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                          </svg>
+                          <span
+                            style={{
+                              fontFamily: "var(--font-sans)",
+                              fontSize: "0.8125rem",
+                              fontWeight: 700,
+                              color: "#f85149",
+                            }}
+                          >
+                            Cancellation Policy
+                          </span>
+                        </div>
+                        <div
                           style={{
                             fontFamily: "var(--font-sans)",
                             fontSize: "0.8125rem",
-                            fontWeight: 700,
-                            color: "#f85149",
+                            color: "var(--fgColor-default)",
+                            lineHeight: 1.7,
                           }}
                         >
-                          Cancellation Policy
-                        </span>
+                          If <strong style={{color: "#f85149"}}>you</strong> cancel: The
+                          advance payment is <strong>non-refundable</strong>.
+                          <br />
+                          If <strong style={{color: "#f85149"}}>the mentor</strong> cancels:
+                          You&apos;ll receive a <strong>full refund</strong>.
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          fontFamily: "var(--font-sans)",
-                          fontSize: "0.8125rem",
-                          color: "var(--fgColor-default)",
-                          lineHeight: 1.7,
-                        }}
-                      >
-                        If <strong style={{color: "#f85149"}}>you</strong> cancel: The
-                        advance payment is <strong>non-refundable</strong>.
-                        <br />
-                        If <strong style={{color: "#f85149"}}>the mentor</strong> cancels:
-                        You&apos;ll receive a <strong>full refund</strong>.
-                      </div>
-                    </div>
+                    )}
                   </div>
-                ) : (
+                ) : mode !== "meet_now" ? (
                   <div>
                     {/* Subject */}
                     <div style={{ marginBottom: "16px" }}>
@@ -1476,7 +1863,7 @@ export default function BookSessionModal({
                       </div>
                     )}
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
@@ -1515,16 +1902,33 @@ export default function BookSessionModal({
           {step < 3 ? (
             <button
               disabled={
-                step === 1
-                  ? !selectedCategory || !selectedDate
-                  : !selectedSlot
+                hasInsufficientBalance ||
+                (step === 1
+                  ? mode === "meet_now"
+                    ? !selectedCategory
+                    : !selectedCategory || !selectedDate
+                  : mode === "meet_now"
+                  ? false
+                  : !selectedSlot)
               }
-              onClick={() => setStep(((step + 1) as 1 | 2 | 3))}
+              onClick={() => {
+                if (mode === "meet_now" && step === 2) {
+                  handleConfirm();
+                  setStep(3);
+                } else {
+                  setStep(((step + 1) as 1 | 2 | 3));
+                }
+              }}
               style={{
                 padding: "8px 24px",
                 backgroundColor:
-                  (step === 1 && (!selectedCategory || !selectedDate)) ||
-                  (step === 2 && !selectedSlot)
+                  (step === 1
+                    ? mode === "meet_now"
+                      ? !selectedCategory
+                      : !selectedCategory || !selectedDate
+                    : mode === "meet_now"
+                    ? false
+                    : !selectedSlot)
                     ? "var(--bgColor-muted)"
                     : "#C8AA6E",
                 border: "none",
@@ -1533,18 +1937,33 @@ export default function BookSessionModal({
                 fontSize: "0.875rem",
                 fontWeight: 600,
                 color:
-                  (step === 1 && (!selectedCategory || !selectedDate)) ||
-                  (step === 2 && !selectedSlot)
+                  (step === 1
+                    ? mode === "meet_now"
+                      ? !selectedCategory
+                      : !selectedCategory || !selectedDate
+                    : mode === "meet_now"
+                    ? false
+                    : !selectedSlot)
                     ? "var(--fgColor-muted)"
                     : "#0B0B0B",
                 cursor:
-                  (step === 1 && (!selectedCategory || !selectedDate)) ||
-                  (step === 2 && !selectedSlot)
+                  (step === 1
+                    ? mode === "meet_now"
+                      ? !selectedCategory
+                      : !selectedCategory || !selectedDate
+                    : mode === "meet_now"
+                    ? false
+                    : !selectedSlot)
                     ? "not-allowed"
                     : "pointer",
                 opacity:
-                  (step === 1 && (!selectedCategory || !selectedDate)) ||
-                  (step === 2 && !selectedSlot)
+                  (step === 1
+                    ? mode === "meet_now"
+                      ? !selectedCategory
+                      : !selectedCategory || !selectedDate
+                    : mode === "meet_now"
+                    ? false
+                    : !selectedSlot)
                     ? 0.5
                     : 1,
                 transition: "all 0.15s ease",
@@ -1555,12 +1974,12 @@ export default function BookSessionModal({
           ) : !success ? (
             showConfirmation ? (
               <button
-                disabled={booking || uploading}
+                disabled={hasInsufficientBalance || booking || uploading}
                 onClick={handleFinalConfirm}
                 style={{
                   padding: "8px 24px",
                   backgroundColor:
-                    booking || uploading
+                    hasInsufficientBalance || booking || uploading
                       ? "var(--bgColor-muted)"
                       : "#C8AA6E",
                   border: "none",
@@ -1569,15 +1988,15 @@ export default function BookSessionModal({
                   fontSize: "0.875rem",
                   fontWeight: 600,
                   color:
-                    booking || uploading
+                    hasInsufficientBalance || booking || uploading
                       ? "var(--fgColor-muted)"
                       : "#0B0B0B",
                   cursor:
-                    booking || uploading
+                    hasInsufficientBalance || booking || uploading
                       ? "not-allowed"
                       : "pointer",
                   opacity:
-                    booking || uploading
+                    hasInsufficientBalance || booking || uploading
                       ? 0.5
                       : 1,
                   transition: "all 0.15s ease",
@@ -1587,6 +2006,8 @@ export default function BookSessionModal({
                   ? "Booking..."
                   : uploading
                   ? "Uploading..."
+                  : mode === "meet_now"
+                  ? "Pay & Send Request"
                   : "Confirm & Pay Advance"}
               </button>
             ) : (

@@ -311,4 +311,49 @@ export class MailService {
       attachments: this.getLogoAttachments(),
     });
   }
+
+  // ── Meet Now Session Emails ──
+
+  async sendMeetNowRequestMentorEmail(
+    to: string,
+    context: {
+      mentorName: string;
+      studentName: string;
+      sessionCategory: string;
+      duration: number;
+      subject: string;
+      description: string;
+      sessionCost: string;
+      hasAttachment: boolean;
+      attachmentName?: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `LaaS: Meet Now Request from ${context.studentName}`,
+      template: 'session-meetnow-mentor',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
+
+  async sendMeetNowRequestStudentEmail(
+    to: string,
+    context: {
+      studentName: string;
+      mentorName: string;
+      sessionCategory: string;
+      duration: number;
+      subject: string;
+      sessionCost: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `LaaS: Meet Now Request Sent — ${context.mentorName}`,
+      template: 'session-meetnow-student',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
 }
