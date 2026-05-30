@@ -1949,6 +1949,11 @@ export interface RequestEntry {
   serviceType: string;
   durationMinutes: number;
   earningsCents: number;
+  studentUserId: string;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
   createdAt: string;
 }
 
@@ -1962,6 +1967,10 @@ export interface UpcomingEntry {
   toTime: string;
   date: string;
   earningsCents: number;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
   advanceCents: number | null;
   paymentStatus: string;
   studentUserId: string;
@@ -2016,6 +2025,38 @@ export async function getMentorPast(): Promise<PastEntry[]> {
   const res = await apiFetch(`${API_BASE}/api/mentor-sessions/past`);
   if (!res.ok) return [];
   return res.json();
+}
+
+export interface StudentProfileDetail {
+  email: string;
+  emailVerified: boolean;
+  authType: string;
+  oauthProvider: string | null;
+  phone: string | null;
+  profession: string | null;
+  skills: string[];
+  githubUrl: string | null;
+  linkedinUrl: string | null;
+  websiteUrl: string | null;
+  collegeName: string | null;
+  departmentName: string | null;
+  courseName: string | null;
+  academicYear: number | null;
+  expertiseLevel: string | null;
+  lastLoginAt: string | null;
+}
+
+export async function getStudentProfile(studentUserId: string): Promise<StudentProfileDetail | null> {
+  try {
+    const token = getAccessToken();
+    const res = await fetch(`${API_BASE}/api/mentor-sessions/student-profile/${studentUserId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 /** Approve a pending session request */

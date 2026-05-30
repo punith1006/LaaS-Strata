@@ -6,10 +6,13 @@ import {
   Body,
   Query,
   Req,
+  Res,
   UseGuards,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { IsOptional, IsString } from 'class-validator';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MentorSessionsService } from './mentor-sessions.service';
 
@@ -131,6 +134,12 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('student-profile/:studentUserId')
+  async getStudentProfile(@Param('studentUserId') studentUserId: string) {
+    return this.service.getStudentProfile(studentUserId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('explore')
   async exploreMentors(
     @Query('search') search?: string,
@@ -166,6 +175,16 @@ export class MentorSessionsController {
     @Body() body: any,
   ) {
     return this.service.bookSession(req.user.id, body);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('attachment/:sessionId')
+  async downloadAttachment(@Param('sessionId') sessionId: string, @Res() res: Response) {
+    const result = await this.service.getAttachment(sessionId);
+    if (!result) throw new NotFoundException('No attachment found');
+    res.setHeader('Content-Type', result.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.fileName}"`);
+    res.sendFile(result.filePath, { root: process.cwd() });
   }
 
   @UseGuards(JwtAuthGuard)

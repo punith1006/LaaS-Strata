@@ -13,6 +13,11 @@ export interface RequestEntry {
   serviceType: string;
   durationMinutes: number;
   earningsCents: number;
+  studentUserId: string;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
   createdAt: string;
 }
 
@@ -26,6 +31,10 @@ export interface UpcomingEntry {
   toTime: string;
   date: string;
   earningsCents: number;
+  subject: string | null;
+  studentNotes: string | null;
+  attachmentFileName: string | null;
+  attachmentFilePath: string | null;
 }
 
 export interface LiveSessionEntry {
@@ -117,6 +126,11 @@ export class MentorSessionsService {
       serviceType: s.serviceType,
       durationMinutes: s.durationMinutes,
       earningsCents: s.earningsCents,
+      studentUserId: s.studentUserId,
+      subject: s.subject ?? null,
+      studentNotes: s.studentNotes ?? null,
+      attachmentFileName: s.attachmentFileName ?? null,
+      attachmentFilePath: s.attachmentFilePath ?? null,
       createdAt: s.requestedAt.toISOString(),
     }));
   }
@@ -159,6 +173,10 @@ export class MentorSessionsService {
         toTime,
         date: dateStr,
         earningsCents: s.earningsCents,
+        subject: s.subject ?? null,
+        studentNotes: s.studentNotes ?? null,
+        attachmentFileName: s.attachmentFileName ?? null,
+        attachmentFilePath: s.attachmentFilePath ?? null,
         advanceCents: s.advanceCents,
         paymentStatus: s.paymentStatus,
         studentUserId: s.studentUserId,
@@ -234,6 +252,56 @@ export class MentorSessionsService {
       createdAt: s.createdAt.toISOString(),
       status: statusMap[s.status] || 'Completed',
     }));
+  }
+
+  /** Fetch student profile details for the accordion panel */
+  async getStudentProfile(studentUserId: string): Promise<{
+    email: string;
+    emailVerified: boolean;
+    authType: string;
+    oauthProvider: string | null;
+    phone: string | null;
+    profession: string | null;
+    skills: string[];
+    githubUrl: string | null;
+    linkedinUrl: string | null;
+    websiteUrl: string | null;
+    collegeName: string | null;
+    departmentName: string | null;
+    courseName: string | null;
+    academicYear: number | null;
+    expertiseLevel: string | null;
+    lastLoginAt: string | null;
+  }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: studentUserId },
+      include: { profile: true },
+    });
+    if (!user) throw new NotFoundException('Student not found');
+
+    const userDept = await this.prisma.userDepartment.findFirst({
+      where: { userId: studentUserId },
+      include: { department: { select: { name: true } } },
+    });
+
+    return {
+      email: user.email,
+      emailVerified: !!user.emailVerifiedAt,
+      authType: user.authType,
+      oauthProvider: user.oauthProvider,
+      phone: user.phone,
+      profession: user.profile?.profession ?? null,
+      skills: user.profile?.skills ?? [],
+      githubUrl: user.profile?.githubUrl ?? null,
+      linkedinUrl: user.profile?.linkedinUrl ?? null,
+      websiteUrl: user.profile?.websiteUrl ?? null,
+      collegeName: user.profile?.collegeName ?? null,
+      departmentName: userDept?.department?.name ?? null,
+      courseName: user.profile?.courseName ?? null,
+      academicYear: user.profile?.academicYear ?? null,
+      expertiseLevel: user.profile?.expertiseLevel ?? null,
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    };
   }
 
   /** Get all sessions for calendar view (scheduled, live, and past with start/end times) */
@@ -1208,6 +1276,24 @@ export class MentorSessionsService {
     };
   }
 
+  /** Get attachment metadata for file download */
+  async getAttachment(sessionId: string): Promise<{ fileName: string; filePath: string; mimeType: string } | null> {
+    const session = await this.prisma.mentorSession.findUnique({
+      where: { id: sessionId },
+      select: {
+        attachmentFileName: true,
+        attachmentFilePath: true,
+        attachmentMimeType: true,
+      },
+    });
+    if (!session?.attachmentFileName || !session?.attachmentFilePath) return null;
+    return {
+      fileName: session.attachmentFileName,
+      filePath: session.attachmentFilePath,
+      mimeType: session.attachmentMimeType || 'application/octet-stream',
+    };
+  }
+
   /** Book a mentoring session (student side) */
   async bookSession(studentUserId: string, body: any) {
     const {
@@ -1242,7 +1328,7 @@ export class MentorSessionsService {
     }
 
     // Validate category
-    const validCategories = ['consultation', 'guidance', 'doubt_clarification', 'hands_on'];
+    const validCategories = ['consultation', 'project_review', 'concept_exploration', 'hands_on'];
     if (!validCategories.includes(category)) {
       throw new BadRequestException('Invalid session category');
     }
@@ -1361,6 +1447,7 @@ export class MentorSessionsService {
           advanceCents,
           balanceCents,
           studentNotes: description,
+          subject,
           attachmentFileName: attachmentFileName || null,
           attachmentFilePath: attachmentFilePath || null,
           attachmentMimeType: attachmentMimeType || null,

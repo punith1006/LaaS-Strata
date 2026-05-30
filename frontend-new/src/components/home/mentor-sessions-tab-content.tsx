@@ -7,6 +7,7 @@ import {
   type UpcomingEntry,
   type LiveSessionEntry,
   type PastEntry as PastEntryApi,
+  type StudentProfileDetail,
   getMentorRequests,
   getMentorUpcoming,
   getMentorLive,
@@ -15,6 +16,7 @@ import {
   rejectMentorSession,
   cancelMentorSession,
   getWithdrawableBalance,
+  getStudentProfile,
 } from "@/lib/api";
 
 type SessionsSubTab = "requests" | "upcoming" | "past";
@@ -114,9 +116,108 @@ function formatDuration(minutes: number): string {
   return hrs % 1 === 0 ? `${hrs} hr` : `${hrs.toFixed(1)} hrs`;
 }
 
-// --- Earnings formatting (80% platform cut) ---
+// --- Earnings formatting ---
 function formatEarnings(cents: number): string {
   return `\u20B9${(cents / 100).toFixed(2)}`;
+}
+
+/** A single label-value row matching the profile page InfoRow style */
+function InfoRow({ label, value, valueColor, isLast = false }: { label: string; value: string | React.ReactNode; valueColor?: string; isLast?: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        minHeight: "48px",
+        padding: "0 20px",
+        borderBottom: isLast ? "none" : "1px solid var(--borderColor-default)",
+      }}
+    >
+      <span
+        style={{
+          width: "160px",
+          flexShrink: 0,
+          color: "var(--fgColor-muted)",
+          fontSize: "0.75rem",
+          fontWeight: 400,
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          flex: 1,
+          fontSize: "0.875rem",
+          fontWeight: 400,
+          color: valueColor ?? "var(--fgColor-default)",
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/** A small pill tag matching the profile page PillTag style */
+function Pill({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "0 8px",
+        borderRadius: "2px",
+        background: "var(--bgColor-muted)",
+        fontSize: "0.75rem",
+        fontWeight: 500,
+        height: "22px",
+        color: "var(--fgColor-default)",
+        fontFamily: "var(--font-sans)",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Format a relative time string like analytics dashboard */
+function formatRelativeTime(isoString: string | null | undefined): string {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = Date.now();
+  const diffMs = now - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+/** Return background/text colors for expertise level badge */
+function getExpertiseColor(level: string): { bg: string; text: string } {
+  switch (level.toLowerCase()) {
+    case "beginner":
+      return { bg: "#D97706", text: "#fff" };
+    case "intermediate":
+      return { bg: "#0891B2", text: "#fff" };
+    case "advanced":
+      return { bg: "#7C3AED", text: "#fff" };
+    case "expert":
+      return { bg: "#B45309", text: "#fff" };
+    default:
+      return { bg: "var(--bgColor-muted)", text: "var(--fgColor-muted)" };
+  }
 }
 
 // --- Countdown hook (15-min TTL) ---
@@ -168,7 +269,10 @@ function RequestActionDropdown({
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(!isOpen);
+                }}
         style={{
           width: "32px",
           height: "32px",
@@ -213,7 +317,8 @@ function RequestActionDropdown({
           }}
         >
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setIsOpen(false);
               onApprove();
             }}
@@ -245,7 +350,8 @@ function RequestActionDropdown({
             Approve
           </button>
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setIsOpen(false);
               onReject();
             }}
@@ -286,38 +392,49 @@ function RequestActionDropdown({
 // --- Request Row (separate component so useCountdown runs at top level) ---
 function RequestRow({
   req,
-  idx,
   isFirstRow,
   isLastRow,
   firstRowRef,
+  isExpanded,
+  isCollapsing,
   onApprove,
   onReject,
+  onRowClick,
 }: {
   req: RequestEntry;
-  idx: number;
   isFirstRow: boolean;
   isLastRow: boolean;
   firstRowRef: React.RefObject<HTMLDivElement | null>;
+  isExpanded: boolean;
+  isCollapsing: boolean;
   onApprove: () => void;
   onReject: () => void;
+  onRowClick: () => void;
 }) {
   const { display, isExpired, isUrgent } = useCountdown(req.createdAt);
+  const isActive = isExpanded || isCollapsing;
 
   return (
     <div
-      key={req.id}
       ref={isFirstRow ? firstRowRef : undefined}
       style={{
         display: "grid",
         gridTemplateColumns: "140px 1fr 120px 90px 100px 90px 90px 50px",
         gap: "12px",
         padding: "12px 20px",
-        borderBottom: isLastRow ? "none" : "1px solid var(--borderColor-default)",
+        borderBottom: isActive ? "none" : isLastRow ? "none" : "1px solid var(--borderColor-default)",
         alignItems: "center",
         transition: "background-color 0.1s ease",
+        cursor: "pointer",
+        backgroundColor: "transparent",
       }}
-      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
-      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+      onClick={onRowClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "var(--bgColor-default)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "transparent";
+      }}
     >
       <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{req.userName}</span>
       <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.domain}</span>
@@ -378,11 +495,40 @@ function RequestsTable({
   const paginationRowRef = useRef<HTMLDivElement>(null);
   const calcLayoutRef = useRef<() => void>(null);
 
+  // Accordion state
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [collapsingRequestId, setCollapsingRequestId] = useState<string | null>(null);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(400);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [studentProfile, setStudentProfile] = useState<StudentProfileDetail | null>(null);
+
   const total = activeRequests.length;
   const totalPages = Math.ceil(total / dynamicPageSize);
   const rangeStart = total === 0 ? 0 : (page - 1) * dynamicPageSize + 1;
   const rangeEnd = Math.min(page * dynamicPageSize, total);
   const pageData = activeRequests.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
+
+  // Reorder requests when one is expanded
+  const orderedRequests = useMemo(() => {
+    const activeId = expandedRequestId ?? collapsingRequestId;
+    if (!activeId) return pageData;
+    const idx = pageData.findIndex((r) => r.id === activeId);
+    if (idx === -1) return pageData;
+    const expanded = pageData[idx];
+    const rest = [...pageData.slice(0, idx), ...pageData.slice(idx + 1)];
+    return [expanded, ...rest];
+  }, [pageData, expandedRequestId, collapsingRequestId]);
+
+  // Click handler for row expand/collapse
+  const handleRowClick = (requestId: string) => {
+    if (expandedRequestId === requestId) {
+      setCollapsingRequestId(requestId);
+      setExpandedRequestId(null);
+    } else {
+      setCollapsingRequestId(null);
+      setExpandedRequestId(requestId);
+    }
+  };
 
   useEffect(() => {
     const calcLayout = () => {
@@ -403,6 +549,17 @@ function RequestsTable({
         window.innerHeight - containerTop - 2 - actualHeaderHeight - actualPaginationHeight - LAYOUT_BUFFER;
       const rows = Math.max(1, Math.floor(availableForRows / actualRowHeight));
       setDynamicPageSize(rows);
+
+      // Panel height: space from expanded row bottom to pagination row top
+      const panelH =
+        window.innerHeight -
+        containerTop -
+        2 -
+        actualHeaderHeight -
+        actualRowHeight -
+        actualPaginationHeight -
+        8;
+      setPanelMaxHeight(Math.max(200, Math.floor(panelH)));
     };
     calcLayout();
     calcLayoutRef.current = calcLayout;
@@ -415,6 +572,45 @@ function RequestsTable({
   useEffect(() => {
     requestAnimationFrame(() => calcLayoutRef.current && calcLayoutRef.current());
   }, [activeRequests.length]);
+
+  // Animate panel open
+  useEffect(() => {
+    if (expandedRequestId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const raf = requestAnimationFrame(() => {
+        el.style.maxHeight = `${panelMaxHeight}px`;
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [expandedRequestId, panelMaxHeight]);
+
+  // Collapse animation
+  useEffect(() => {
+    if (collapsingRequestId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const timeout = setTimeout(() => {
+        setCollapsingRequestId(null);
+      }, 400);
+      return () => clearTimeout(timeout);
+    }
+  }, [collapsingRequestId]);
+
+  // Fetch student profile when accordion expands
+  useEffect(() => {
+    if (!expandedRequestId) {
+      setStudentProfile(null);
+      return;
+    }
+    const req = requests.find(r => r.id === expandedRequestId);
+    if (!req?.studentUserId) return;
+    let cancelled = false;
+    getStudentProfile(req.studentUserId).then(data => {
+      if (!cancelled) setStudentProfile(data);
+    });
+    return () => { cancelled = true; };
+  }, [expandedRequestId]);
 
   return (
     <div>
@@ -513,18 +709,296 @@ function RequestsTable({
           </div>
         ) : (
           /* Table rows */
-          pageData.map((req, idx) => (
-            <RequestRow
-              key={req.id}
-              req={req}
-              idx={idx}
-              isFirstRow={pageData.length > 0 && idx === 0}
-              isLastRow={idx === pageData.length - 1}
-              firstRowRef={firstRowRef}
-              onApprove={() => onApprove(req.id)}
-              onReject={() => onReject(req.id)}
-            />
-          ))
+          orderedRequests.map((s, idx) => {
+            const isExpanded = expandedRequestId === s.id;
+            const isCollapsing = collapsingRequestId === s.id;
+            return (
+              <div key={s.id}>
+                <RequestRow
+                  req={s}
+                  isFirstRow={idx === 0}
+                  isLastRow={idx === orderedRequests.length - 1}
+                  firstRowRef={firstRowRef}
+                  isExpanded={isExpanded}
+                  isCollapsing={isCollapsing}
+                  onApprove={() => onApprove(s.id)}
+                  onReject={() => onReject(s.id)}
+                  onRowClick={() => handleRowClick(s.id)}
+                />
+                {/* Expanded Panel */}
+                {(isExpanded || isCollapsing) && (
+                  <div
+                    ref={panelRef}
+                    style={{
+                      maxHeight: "0px",
+                      overflowY: "auto",
+                      transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+                      backgroundColor: "var(--bgColor-default)",
+                      borderBottom: "1px solid var(--borderColor-default)",
+                    }}
+                  >
+                    <div style={{ padding: "24px" }}>
+                      {/* Identity Bar — matching analytics dashboard exactly, email+verified replaces name+sso */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr auto",
+                          gap: "24px",
+                          padding: "16px",
+                          background: "var(--bgColor-mild)",
+                          borderRadius: "6px",
+                          border: "1px solid var(--borderColor-default)",
+                        }}
+                      >
+                        {/* Left Column: Avatar + Email + Status */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
+                          <div
+                            style={{
+                              width: "48px",
+                              height: "48px",
+                              borderRadius: "50%",
+                              background: "var(--bgColor-muted)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "1.125rem",
+                                fontWeight: 600,
+                                color: "var(--fgColor-default)",
+                              }}
+                            >
+                              {studentProfile?.email?.charAt(0)?.toUpperCase() || "?"}
+                            </span>
+                          </div>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "1rem",
+                                  fontWeight: 600,
+                                  color: "var(--fgColor-default)",
+                                }}
+                              >
+                                {studentProfile?.email || "Loading..."}
+                              </span>
+                              {studentProfile?.emailVerified && (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    padding: "2px 8px",
+                                    borderRadius: "9999px",
+                                    fontSize: "0.6875rem",
+                                    fontWeight: 500,
+                                    fontFamily: "var(--font-sans)",
+                                    background: "#059669",
+                                    color: "#fff",
+                                  }}
+                                >
+                                  Verified
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                              <span
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  backgroundColor: "#818178",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "0.8125rem",
+                                  color: "var(--fgColor-muted)",
+                                }}
+                              >
+                                Offline
+                              </span>
+                              <span style={{ color: "var(--fgColor-muted)", fontSize: "0.8125rem" }}>·</span>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "0.8125rem",
+                                  color: "var(--fgColor-muted)",
+                                }}
+                              >
+                                {studentProfile?.lastLoginAt
+                                  ? `Last login ${formatRelativeTime(studentProfile.lastLoginAt)}`
+                                  : "Never logged in"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Column: Academic details */}
+                        {(studentProfile?.collegeName || studentProfile?.courseName) && (
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: "32px", minWidth: 0 }}>
+                            {/* Institution + Department stacked */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {studentProfile.collegeName && (
+                                <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--fgColor-default)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {studentProfile.collegeName}
+                                </div>
+                              )}
+                              {studentProfile.departmentName && (
+                                <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {studentProfile.departmentName}
+                                </div>
+                              )}
+                            </div>
+                            {/* Course + Expertise tag */}
+                            <div style={{ textAlign: "right", flexShrink: 0 }}>
+                              {studentProfile.courseName && (
+                                <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4 }}>
+                                  {studentProfile.courseName}{studentProfile.academicYear ? ` \u00B7 Year ${studentProfile.academicYear}` : ""}
+                                </div>
+                              )}
+                              {studentProfile.expertiseLevel && (
+                                <span style={{ display: "inline-block", fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, padding: "3px 12px", borderRadius: "4px", marginTop: "6px", background: getExpertiseColor(studentProfile.expertiseLevel).bg, color: getExpertiseColor(studentProfile.expertiseLevel).text }}>
+                                  {studentProfile.expertiseLevel}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2-Column Grid: Account | Socials */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "20px" }}>
+                        {/* Account Section */}
+                        <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                          <div
+                            style={{
+                              background: "var(--bgColor-muted)",
+                              padding: "0 20px",
+                              height: "40px",
+                              display: "flex",
+                              alignItems: "center",
+                              borderBottom: "1px solid var(--borderColor-default)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 500,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                color: "var(--fgColor-default)",
+                                fontFamily: "var(--font-sans)",
+                              }}
+                            >
+                              Account
+                            </span>
+                          </div>
+                          <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+                            <InfoRow label="Phone" value={studentProfile?.phone || "Not set"} isLast={false} />
+                            <InfoRow label="Profession" value={studentProfile?.profession || "Not set"} isLast={!studentProfile?.skills?.length} />
+                            {studentProfile?.skills && studentProfile.skills.length > 0 && (
+                              <div style={{ borderTop: "1px solid var(--borderColor-default)", padding: "12px 20px" }}>
+                                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "8px" }}>
+                                  Skills
+                                </span>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                  {studentProfile.skills.map((skill: string) => (
+                                    <Pill key={skill} label={skill} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Socials Section */}
+                        <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                          <div
+                            style={{
+                              background: "var(--bgColor-muted)",
+                              padding: "0 20px",
+                              height: "40px",
+                              display: "flex",
+                              alignItems: "center",
+                              borderBottom: "1px solid var(--borderColor-default)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 500,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                color: "var(--fgColor-default)",
+                                fontFamily: "var(--font-sans)",
+                              }}
+                            >
+                              Socials
+                            </span>
+                          </div>
+                          <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+                            <InfoRow label="GitHub" value={studentProfile?.githubUrl || "Not set"} isLast={false} />
+                            <InfoRow label="LinkedIn" value={studentProfile?.linkedinUrl || "Not set"} isLast={false} />
+                            <InfoRow label="Website" value={studentProfile?.websiteUrl || "Not set"} isLast={true} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Session Info Section */}
+                      {(s.subject || s.studentNotes || s.attachmentFileName) && (
+                        <div style={{ marginTop: "20px", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                          <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
+                              Session Info
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                            {/* Left column: Subject + Description */}
+                            <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                              {s.subject && (
+                                <div>
+                                  <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Subject</span>
+                                  <span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>{s.subject}</span>
+                                </div>
+                              )}
+                              {s.studentNotes && (
+                                <div>
+                                  <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Description</span>
+                                  <span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>{s.studentNotes}</span>
+                                </div>
+                              )}
+                            </div>
+                            {/* Right column: Attachments */}
+                            <div style={{ padding: "16px 20px" }}>
+                              <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Attachments</span>
+                              {s.attachmentFileName ? (
+                                <a href={`/api/mentor-sessions/attachment/${s.id}`} download style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--fgColor-default)", fontSize: "0.8125rem", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                  </svg>
+                                  {s.attachmentFileName}
+                                </a>
+                              ) : (
+                                <span style={{ fontSize: "0.8125rem", color: "var(--fgColor-muted)", fontStyle: "italic", fontFamily: "var(--font-sans)" }}>No attachments</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -651,7 +1125,10 @@ function UpcomingActionDropdown({
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(!isOpen);
+                }}
         style={{
           width: "32px",
           height: "32px",
@@ -724,7 +1201,8 @@ function UpcomingActionDropdown({
             Reschedule
           </button>
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setIsOpen(false);
               onCancel();
             }}
@@ -800,7 +1278,10 @@ function LiveActionDropdown({ onReport }: { onReport: () => void }) {
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(!isOpen);
+                }}
         style={{
           width: "32px",
           height: "32px",
@@ -1062,6 +1543,13 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
   const [checkingBalance, setCheckingBalance] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
+  // Accordion state
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [collapsingSessionId, setCollapsingSessionId] = useState<string | null>(null);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(400);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [studentProfile, setStudentProfile] = useState<StudentProfileDetail | null>(null);
+
   useEffect(() => {
     setLoading(true);
     getMentorUpcoming().then((data) => {
@@ -1146,6 +1634,28 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
   const rangeEnd = Math.min(page * dynamicPageSize, total);
   const pageData = sortedSessions.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
 
+  // Reorder sessions when one is expanded: expanded row moves to top
+  const orderedSessions = useMemo(() => {
+    const activeId = expandedSessionId ?? collapsingSessionId;
+    if (!activeId) return pageData;
+    const idx = pageData.findIndex((s) => s.id === activeId);
+    if (idx === -1) return pageData;
+    const expanded = pageData[idx];
+    const rest = [...pageData.slice(0, idx), ...pageData.slice(idx + 1)];
+    return [expanded, ...rest];
+  }, [pageData, expandedSessionId, collapsingSessionId]);
+
+  // Click handler for row expand/collapse
+  const handleRowClick = (sessionId: string) => {
+    if (expandedSessionId === sessionId) {
+      setCollapsingSessionId(sessionId);
+      setExpandedSessionId(null);
+    } else {
+      setCollapsingSessionId(null);
+      setExpandedSessionId(sessionId);
+    }
+  };
+
   useEffect(() => {
     const calcLayout = () => {
       if (!tableContainerRef.current) return;
@@ -1165,6 +1675,17 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
         window.innerHeight - containerTop - 2 - actualHeaderHeight - actualPaginationHeight - LAYOUT_BUFFER;
       const rows = Math.max(1, Math.floor(availableForRows / actualRowHeight));
       setDynamicPageSize(rows);
+
+      // Panel height: space from expanded row bottom to pagination row top
+      const panelH =
+        window.innerHeight -
+        containerTop -
+        2 -
+        actualHeaderHeight -
+        actualRowHeight -
+        actualPaginationHeight -
+        8;
+      setPanelMaxHeight(Math.max(200, Math.floor(panelH)));
     };
     calcLayout();
     calcLayoutRef.current = calcLayout;
@@ -1177,6 +1698,45 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
   useEffect(() => {
     requestAnimationFrame(() => calcLayoutRef.current && calcLayoutRef.current());
   }, [liveSessionVisible]);
+
+  // Animate panel open
+  useEffect(() => {
+    if (expandedSessionId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const raf = requestAnimationFrame(() => {
+        el.style.maxHeight = `${panelMaxHeight}px`;
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [expandedSessionId, panelMaxHeight]);
+
+  // Collapse animation
+  useEffect(() => {
+    if (collapsingSessionId && panelRef.current) {
+      const el = panelRef.current;
+      el.style.maxHeight = "0px";
+      const timeout = setTimeout(() => {
+        setCollapsingSessionId(null);
+      }, 400);
+      return () => clearTimeout(timeout);
+    }
+  }, [collapsingSessionId]);
+
+  // Fetch student profile when accordion expands
+  useEffect(() => {
+    if (!expandedSessionId) {
+      setStudentProfile(null);
+      return;
+    }
+    const session = sessions.find(s => s.id === expandedSessionId);
+    if (!session?.studentUserId) return;
+    let cancelled = false;
+    getStudentProfile(session.studentUserId).then(data => {
+      if (!cancelled) setStudentProfile(data);
+    });
+    return () => { cancelled = true; };
+  }, [expandedSessionId]);
 
   return (
     <>
@@ -1278,141 +1838,427 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
           </div>
         ) : (
           /* Table rows */
-          pageData.map((s, idx) => (
-            <div
-              key={s.id}
-              ref={pageData.length > 0 && idx === 0 ? firstRowRef : undefined}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "140px 1fr 100px 80px 80px 80px 100px 100px 80px 50px",
-                gap: "12px",
-                padding: "12px 20px",
-                borderBottom: idx < pageData.length - 1 ? "1px solid var(--borderColor-default)" : "none",
-                alignItems: "center",
-                transition: "background-color 0.1s ease",
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-            >
-              {/* User */}
-              <span
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {s.userName}
-              </span>
-
-              {/* Domain */}
-              <span
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {s.domain}
-              </span>
-
-              {/* Service Type */}
-              <span
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {s.serviceType}
-              </span>
-
-              {/* Duration */}
-              <span
-                style={{
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {formatDuration(s.durationMinutes)}
-              </span>
-
-              {/* From-time */}
-              <span
-                style={{
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {s.fromTime}
-              </span>
-
-              {/* To-time */}
-              <span
-                style={{
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {s.toTime}
-              </span>
-
-              {/* Date */}
-              <span
-                style={{
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {s.date}
-              </span>
-
-              {/* Earnings */}
-              <span
-                style={{
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: "0.8125rem",
-                  color: "var(--fgColor-default)",
-                }}
-              >
-                {formatEarnings(s.earningsCents)}
-              </span>
-
-              {/* Status */}
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span
+          orderedSessions.map((s, idx) => {
+            const isExpanded = expandedSessionId === s.id;
+            const isCollapsing = collapsingSessionId === s.id;
+            const isActive = isExpanded || isCollapsing;
+            return (
+              <div key={s.id}>
+                {/* Row */}
+                <div
+                  ref={idx === 0 ? firstRowRef : undefined}
                   style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    backgroundColor: "#05C004",
+                    display: "grid",
+                    gridTemplateColumns: "140px 1fr 100px 80px 80px 80px 100px 100px 80px 50px",
+                    gap: "12px",
+                    padding: "12px 20px",
+                    borderBottom: isActive ? "none" : idx < orderedSessions.length - 1 ? "1px solid var(--borderColor-default)" : "none",
+                    alignItems: "center",
+                    transition: "background-color 0.1s ease",
+                    cursor: "pointer",
+                    backgroundColor: "transparent",
                   }}
-                />
-                <span
-                  style={{
-                    fontFamily: "var(--font-sans)",
-                    fontSize: "0.8125rem",
-                    color: "var(--fgColor-default)",
+                  onClick={() => handleRowClick(s.id)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "var(--bgColor-default)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
                   }}
                 >
-                  Confirmed
-                </span>
-              </div>
+                  {/* User */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    {s.userName}
+                  </span>
 
-              {/* Actions */}
-              <UpcomingActionDropdown
-                onReschedule={() => handleReschedule(s.id)}
-                onCancel={() => handleCancel(s.id)}
-              />
-            </div>
-          ))
+                  {/* Domain */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {s.domain}
+                  </span>
+
+                  {/* Service Type */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    {s.serviceType}
+                  </span>
+
+                  {/* Duration */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono, monospace)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    {formatDuration(s.durationMinutes)}
+                  </span>
+
+                  {/* From-time */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono, monospace)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    {s.fromTime}
+                  </span>
+
+                  {/* To-time */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono, monospace)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    {s.toTime}
+                  </span>
+
+                  {/* Date */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono, monospace)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    {s.date}
+                  </span>
+
+                  {/* Earnings */}
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono, monospace)",
+                      fontSize: "0.8125rem",
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    {formatEarnings(s.earningsCents)}
+                  </span>
+
+                  {/* Status */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        backgroundColor: "#05C004",
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                        color: "var(--fgColor-default)",
+                      }}
+                    >
+                      Confirmed
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <UpcomingActionDropdown
+                    onReschedule={() => handleReschedule(s.id)}
+                    onCancel={() => handleCancel(s.id)}
+                  />
+                </div>
+
+                {/* Expanded Panel */}
+                {(isExpanded || isCollapsing) && (
+                  <div
+                    ref={panelRef}
+                    style={{
+                      maxHeight: "0px",
+                      overflowY: "auto",
+                      transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+                      backgroundColor: "var(--bgColor-default)",
+                      borderBottom: "1px solid var(--borderColor-default)",
+                    }}
+                  >
+                    <div style={{ padding: "24px" }}>
+                      {/* Identity Bar — matching analytics dashboard exactly, email+verified replaces name+sso */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr auto",
+                          gap: "24px",
+                          padding: "16px",
+                          background: "var(--bgColor-mild)",
+                          borderRadius: "6px",
+                          border: "1px solid var(--borderColor-default)",
+                        }}
+                      >
+                        {/* Left Column: Avatar + Email + Status */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
+                          <div
+                            style={{
+                              width: "48px",
+                              height: "48px",
+                              borderRadius: "50%",
+                              background: "var(--bgColor-muted)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "1.125rem",
+                                fontWeight: 600,
+                                color: "var(--fgColor-default)",
+                              }}
+                            >
+                              {studentProfile?.email?.charAt(0)?.toUpperCase() || "?"}
+                            </span>
+                          </div>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "1rem",
+                                  fontWeight: 600,
+                                  color: "var(--fgColor-default)",
+                                }}
+                              >
+                                {studentProfile?.email || "Loading..."}
+                              </span>
+                              {studentProfile?.emailVerified && (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    padding: "2px 8px",
+                                    borderRadius: "9999px",
+                                    fontSize: "0.6875rem",
+                                    fontWeight: 500,
+                                    fontFamily: "var(--font-sans)",
+                                    background: "#059669",
+                                    color: "#fff",
+                                  }}
+                                >
+                                  Verified
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                              <span
+                                style={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: "50%",
+                                  backgroundColor: "#818178",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "0.8125rem",
+                                  color: "var(--fgColor-muted)",
+                                }}
+                              >
+                                Offline
+                              </span>
+                              <span style={{ color: "var(--fgColor-muted)", fontSize: "0.8125rem" }}>·</span>
+                              <span
+                                style={{
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "0.8125rem",
+                                  color: "var(--fgColor-muted)",
+                                }}
+                              >
+                                {studentProfile?.lastLoginAt
+                                  ? `Last login ${formatRelativeTime(studentProfile.lastLoginAt)}`
+                                  : "Never logged in"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Column: Academic details */}
+                        {(studentProfile?.collegeName || studentProfile?.courseName) && (
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: "32px", minWidth: 0 }}>
+                            {/* Institution + Department stacked */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {studentProfile.collegeName && (
+                                <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--fgColor-default)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {studentProfile.collegeName}
+                                </div>
+                              )}
+                              {studentProfile.departmentName && (
+                                <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {studentProfile.departmentName}
+                                </div>
+                              )}
+                            </div>
+                            {/* Course + Expertise tag */}
+                            <div style={{ textAlign: "right", flexShrink: 0 }}>
+                              {studentProfile.courseName && (
+                                <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4 }}>
+                                  {studentProfile.courseName}{studentProfile.academicYear ? ` \u00B7 Year ${studentProfile.academicYear}` : ""}
+                                </div>
+                              )}
+                              {studentProfile.expertiseLevel && (
+                                <span style={{ display: "inline-block", fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, padding: "3px 12px", borderRadius: "4px", marginTop: "6px", background: getExpertiseColor(studentProfile.expertiseLevel).bg, color: getExpertiseColor(studentProfile.expertiseLevel).text }}>
+                                  {studentProfile.expertiseLevel}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2-Column Grid: Account | Socials */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "20px" }}>
+                        {/* Account Section */}
+                        <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                          <div
+                            style={{
+                              background: "var(--bgColor-muted)",
+                              padding: "0 20px",
+                              height: "40px",
+                              display: "flex",
+                              alignItems: "center",
+                              borderBottom: "1px solid var(--borderColor-default)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 500,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                color: "var(--fgColor-default)",
+                                fontFamily: "var(--font-sans)",
+                              }}
+                            >
+                              Account
+                            </span>
+                          </div>
+                          <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+                            <InfoRow label="Phone" value={studentProfile?.phone || "Not set"} isLast={false} />
+                            <InfoRow label="Profession" value={studentProfile?.profession || "Not set"} isLast={!studentProfile?.skills?.length} />
+                            {studentProfile?.skills && studentProfile.skills.length > 0 && (
+                              <div style={{ borderTop: "1px solid var(--borderColor-default)", padding: "12px 20px" }}>
+                                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "8px" }}>
+                                  Skills
+                                </span>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                  {studentProfile.skills.map((skill: string) => (
+                                    <Pill key={skill} label={skill} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Socials Section */}
+                        <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                          <div
+                            style={{
+                              background: "var(--bgColor-muted)",
+                              padding: "0 20px",
+                              height: "40px",
+                              display: "flex",
+                              alignItems: "center",
+                              borderBottom: "1px solid var(--borderColor-default)",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "0.75rem",
+                                fontWeight: 500,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                color: "var(--fgColor-default)",
+                                fontFamily: "var(--font-sans)",
+                              }}
+                            >
+                              Socials
+                            </span>
+                          </div>
+                          <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+                            <InfoRow label="GitHub" value={studentProfile?.githubUrl || "Not set"} isLast={false} />
+                            <InfoRow label="LinkedIn" value={studentProfile?.linkedinUrl || "Not set"} isLast={false} />
+                            <InfoRow label="Website" value={studentProfile?.websiteUrl || "Not set"} isLast={true} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Session Info Section */}
+                      {(s.subject || s.studentNotes || s.attachmentFileName) && (
+                        <div style={{ marginTop: "20px", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+                          <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+                            <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>
+                              Session Info
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                            {/* Left column: Subject + Description */}
+                            <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                              {s.subject && (
+                                <div>
+                                  <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Subject</span>
+                                  <span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>{s.subject}</span>
+                                </div>
+                              )}
+                              {s.studentNotes && (
+                                <div>
+                                  <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Description</span>
+                                  <span style={{ fontSize: "0.875rem", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)", lineHeight: 1.5 }}>{s.studentNotes}</span>
+                                </div>
+                              )}
+                            </div>
+                            {/* Right column: Attachments */}
+                            <div style={{ padding: "16px 20px" }}>
+                              <span style={{ fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "4px", fontFamily: "var(--font-sans)" }}>Attachments</span>
+                              {s.attachmentFileName ? (
+                                <a href={`/api/mentor-sessions/attachment/${s.id}`} download style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "var(--fgColor-default)", fontSize: "0.8125rem", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                  </svg>
+                                  {s.attachmentFileName}
+                                </a>
+                              ) : (
+                                <span style={{ fontSize: "0.8125rem", color: "var(--fgColor-muted)", fontStyle: "italic", fontFamily: "var(--font-sans)" }}>No attachments</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 

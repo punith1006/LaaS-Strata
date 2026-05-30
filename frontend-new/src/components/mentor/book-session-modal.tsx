@@ -22,16 +22,16 @@ const SESSION_TYPES = [
       "Career advice, professional guidance, and industry insights from an experienced mentor.",
   },
   {
-    id: "guidance",
-    label: "Guidance",
+    id: "project_review",
+    label: "Project Review",
     description:
-      "Project guidance, technical mentorship, and hands-on skill development.",
+      "Project guidance, code/design review, and technical mentorship for your work.",
   },
   {
-    id: "doubt_clarification",
-    label: "Doubt Clarification",
+    id: "concept_exploration",
+    label: "Concept Exploration",
     description:
-      "Clear specific doubts, concepts, and problem-solving with expert help.",
+      "In-depth concept exploration, doubt resolution, and problem-solving with expert guidance.",
   },
   {
     id: "hands_on",

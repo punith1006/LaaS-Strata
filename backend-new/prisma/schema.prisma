@@ -183,8 +183,8 @@ enum MentorPaymentRecordStatus {
 
 enum MentorSessionCategory {
   consultation
-  guidance
-  doubt_clarification
+  project_review
+  concept_exploration
   hands_on
 }
 
@@ -1925,6 +1925,7 @@ model MentorSession {
   // Notes and reason
   studentNotes String? @map("student_notes")
   mentorNotes  String? @map("mentor_notes")
+  subject      String? @map("subject")
   cancelReason String? @map("cancel_reason")
 
   // Attachment (one file per session)

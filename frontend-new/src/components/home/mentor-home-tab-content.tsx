@@ -405,8 +405,8 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
         />
         <QuickStatCard
           title="Total Earnings"
-          value={`Rs.${(totalEarningsCents * 0.8 / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtitle={totalEarningsCents === 0 ? "This month" : "Net earnings after platform fee"}
+          value={`Rs.${(totalEarningsCents / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtitle="Gross earnings before platform fee"
         />
         <QuickStatCard
           title="Avg. Rating"
