@@ -564,12 +564,15 @@ export class MentorSessionsService {
     const scheduledFrom = now;
     const scheduledTo = new Date(now.getTime() + session.durationMinutes * 60 * 1000);
 
+    const isMeetNow = session.type === 'meet_now';
+
     await this.prisma.$transaction(async (tx) => {
       await tx.mentorSession.update({
         where: { id: sessionId },
         data: {
-          status: 'scheduled',
+          status: isMeetNow ? 'live' : 'scheduled',
           approvedAt: now,
+          ...(isMeetNow ? { startedAt: now } : {}),
           scheduledFrom,
           scheduledTo,
           updatedBy: userId,
@@ -580,9 +583,9 @@ export class MentorSessionsService {
         data: {
           mentorSessionId: sessionId,
           fromStatus: 'pending',
-          toStatus: 'scheduled',
+          toStatus: isMeetNow ? 'live' : 'scheduled',
           changedBy: userId,
-          reason: 'Mentor approved session request',
+          reason: isMeetNow ? 'Mentor approved Meet Now request — session live' : 'Mentor approved session request',
         },
       });
     });
@@ -601,24 +604,18 @@ export class MentorSessionsService {
     if (session.type === 'meet_now' && student?.email) {
       const mentorUser = await this.prisma.user.findUnique({ where: { id: profile.userId }, select: { firstName: true, lastName: true } });
       const mentorName = mentorUser ? `${mentorUser.firstName} ${mentorUser.lastName}`.trim() : 'Mentor';
-      const dateStr = scheduledFrom.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-      const timeStr = `${String(scheduledFrom.getHours()).padStart(2, '0')}:${String(scheduledFrom.getMinutes()).padStart(2, '0')}`;
       const categoryLabel = session.serviceType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
       const sessionCost = session.earningsCents ? `\u20B9${(session.earningsCents / 100).toLocaleString('en-IN')}` : 'N/A';
       const sessionAny = session as any;
 
-      this.mailService.sendSessionBookedStudentEmail(student.email, {
+      this.mailService.sendMeetNowLiveStudentEmail(student.email, {
         studentName: `${student.firstName} ${student.lastName}`.trim(),
         mentorName,
         sessionCategory: categoryLabel,
-        sessionDate: dateStr,
-        sessionTime: timeStr,
         duration: session.durationMinutes,
         subject: sessionAny.subject || '',
         sessionCost,
-        advanceAmount: sessionCost,
-        balanceAmount: '\u20B90',
-      }).catch(err => this.logger.error('Failed to send meet now approved email', err));
+      }).catch(err => this.logger.error('Failed to send meet now live email', err));
     }
 
     return { success: true };
@@ -2228,6 +2225,40 @@ export class MentorSessionsService {
       studentNotes: (s as any).studentNotes ?? null,
       attachmentFileName: (s as any).attachmentFileName ?? null,
       attachmentFilePath: (s as any).attachmentFilePath ?? null,
+    }));
+  }
+
+  /** Get student's live sessions */
+  async getStudentLive(studentUserId: string) {
+    const sessions = await this.prisma.mentorSession.findMany({
+      where: {
+        studentUserId,
+        status: 'live',
+      },
+      include: {
+        mentorProfile: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    return sessions.map((s) => ({
+      id: s.id,
+      mentorName: `${s.mentorProfile.user.firstName} ${s.mentorProfile.user.lastName}`.trim(),
+      mentorProfileId: s.mentorProfileId,
+      startedAt: s.startedAt?.toISOString() ?? s.requestedAt.toISOString(),
+      durationMinutes: s.durationMinutes,
+      domain: s.domain,
+      serviceType: s.serviceType,
+      earningsCents: s.earningsCents,
     }));
   }
 

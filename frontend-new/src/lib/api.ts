@@ -2560,3 +2560,21 @@ export async function getStudentSessionPast(): Promise<StudentPastEntry[]> {
   if (!res.ok) return [];
   return res.json();
 }
+
+/** Get student's live sessions */
+export interface StudentLiveEntry {
+  id: string;
+  mentorName: string;
+  mentorProfileId: string;
+  startedAt: string;
+  durationMinutes: number;
+  domain: string;
+  serviceType: string;
+  earningsCents: number;
+}
+
+export async function getStudentLiveSessions(): Promise<StudentLiveEntry[]> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/student-live`);
+  if (!res.ok) return [];
+  return res.json();
+}

@@ -5,10 +5,12 @@ import {
   type StudentRequestEntry,
   type StudentUpcomingSession,
   type StudentPastEntry,
+  type StudentLiveEntry,
   type MentorProfileDetail,
   getStudentSessionRequests,
   getStudentUpcomingSessions,
   getStudentSessionPast,
+  getStudentLiveSessions,
   studentCancelMentorSession,
   getMentorProfileForAccordion,
 } from "@/lib/api";
@@ -739,11 +741,47 @@ function PastTable({ entries }: { entries: StudentPastEntry[] }) {
   );
 }
 
+// --- Student Live Session Section ---
+function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
+  return (
+    <div style={{ marginBottom: "24px" }}>
+      <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, color: "var(--fgColor-default)", margin: "24px 0 16px 0" }}>
+        Live Session
+      </h2>
+      <div style={{ backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "visible" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", backgroundColor: "var(--bgColor-muted)" }}>
+          {["Mentor", "Domain", "Service", "Duration", "Started", "Status"].map(h => (
+            <span key={h} style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</span>
+          ))}
+        </div>
+        {sessions.map((s) => {
+          const startDate = new Date(s.startedAt);
+          const timeStr = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+          return (
+            <div key={s.id} style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", alignItems: "center" }}>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.mentorName}</span>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.domain}</span>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.serviceType}</span>
+              <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.durationMinutes} min</span>
+              <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{timeStr}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#22c55e", animation: "pulse 1.5s infinite" }} />
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "#22c55e", fontWeight: 600 }}>Live</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Component ---
 export default function MentorUserSessionsTab({ activeTab }: { activeTab: "requests" | "upcoming" | "past" }) {
   const [requests, setRequests] = useState<StudentRequestEntry[]>([]);
   const [upcoming, setUpcoming] = useState<StudentUpcomingSession[]>([]);
   const [past, setPast] = useState<StudentPastEntry[]>([]);
+  const [live, setLive] = useState<StudentLiveEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelType, setCancelType] = useState<
@@ -759,10 +797,12 @@ export default function MentorUserSessionsTab({ activeTab }: { activeTab: "reque
       getStudentSessionRequests(),
       getStudentUpcomingSessions(),
       getStudentSessionPast(),
-    ]).then(([reqs, up, p]) => {
+      getStudentLiveSessions(),
+    ]).then(([reqs, up, p, l]) => {
       setRequests(reqs);
       setUpcoming(up);
       setPast(p);
+      setLive(l);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
@@ -839,7 +879,10 @@ export default function MentorUserSessionsTab({ activeTab }: { activeTab: "reque
     <>
     <div>
       {activeTab === "requests" && <RequestsTable requests={requests} onCancel={handleCancelRequest} />}
-      {activeTab === "upcoming" && <UpcomingTable sessions={upcoming} onCancel={handleCancelUpcoming} />}
+      {activeTab === "upcoming" && <>
+        {live.length > 0 && <StudentLiveSection sessions={live} />}
+        <UpcomingTable sessions={upcoming} onCancel={handleCancelUpcoming} />
+      </>}
       {activeTab === "past" && <PastTable entries={past} />}
     </div>
 

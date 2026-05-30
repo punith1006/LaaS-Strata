@@ -212,6 +212,12 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('student-live')
+  async getStudentLive(@Req() req: { user: { id: string } }) {
+    return this.service.getStudentLive(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post('book-meet-now')
   async bookMeetNow(@Req() req: { user: { id: string } }, @Body() body: any) {
     return this.service.bookMeetNowSession(req.user.id, body);

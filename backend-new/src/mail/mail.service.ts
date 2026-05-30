@@ -356,4 +356,24 @@ export class MailService {
       attachments: this.getLogoAttachments(),
     });
   }
+
+  async sendMeetNowLiveStudentEmail(
+    to: string,
+    context: {
+      studentName: string;
+      mentorName: string;
+      sessionCategory: string;
+      duration: number;
+      subject: string;
+      sessionCost: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `LaaS: Session Live — ${context.mentorName}`,
+      template: 'session-meetnow-live-student',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
 }
