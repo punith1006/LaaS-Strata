@@ -68,6 +68,8 @@ class UpdateProfileDto {
   @IsOptional() @IsString() githubUrl?: string;
   @IsOptional() @IsString() linkedinUrl?: string;
   @IsOptional() @IsString() websiteUrl?: string;
+  @IsOptional() @IsString() xUrl?: string;
+  @IsOptional() @IsString() substackUrl?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) skills?: string[];
 }
 

@@ -1962,6 +1962,11 @@ export interface UpcomingEntry {
   toTime: string;
   date: string;
   earningsCents: number;
+  advanceCents: number | null;
+  paymentStatus: string;
+  studentUserId: string;
+  scheduledFrom: string;
+  scheduledTo: string;
 }
 
 export interface LiveSessionEntry {
@@ -1980,6 +1985,7 @@ export interface PastEntry {
   serviceType: string;
   durationMinutes: number;
   earningsCents: number;
+  scheduledFrom: string;
   createdAt: string;
   status: 'Expired' | 'Approved' | 'Rejected' | 'Completed' | 'Cancelled' | 'Missed' | 'Disputed';
 }
@@ -2324,6 +2330,7 @@ export interface StudentUpcomingSession {
   serviceType: string;
   paymentStatus: string;
   earningsCents: number;
+  advanceCents: number | null;
 }
 
 export interface StudentRequestEntry {
@@ -2343,6 +2350,9 @@ export interface StudentPastEntry {
   serviceType: string;
   durationMinutes: number;
   earningsCents: number;
+  advanceCents: number | null;
+  cancelledByStudent: boolean;
+  scheduledFrom: string;
   createdAt: string;
   status: 'Completed' | 'Cancelled' | 'Rejected' | 'Expired' | 'Missed' | 'Disputed';
 }

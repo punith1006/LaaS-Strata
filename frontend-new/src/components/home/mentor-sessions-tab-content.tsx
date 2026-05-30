@@ -14,6 +14,7 @@ import {
   approveMentorSession,
   rejectMentorSession,
   cancelMentorSession,
+  getWithdrawableBalance,
 } from "@/lib/api";
 
 type SessionsSubTab = "requests" | "upcoming" | "past";
@@ -115,8 +116,7 @@ function formatDuration(minutes: number): string {
 
 // --- Earnings formatting (80% platform cut) ---
 function formatEarnings(cents: number): string {
-  const net = cents * 0.8;
-  return `\u20B9${(net / 100).toFixed(2)}`;
+  return `\u20B9${(cents / 100).toFixed(2)}`;
 }
 
 // --- Countdown hook (15-min TTL) ---
@@ -696,10 +696,7 @@ function UpcomingActionDropdown({
           }}
         >
           <button
-            onClick={() => {
-              setIsOpen(false);
-              onReschedule();
-            }}
+            disabled
             style={{
               width: "100%",
               display: "flex",
@@ -708,18 +705,12 @@ function UpcomingActionDropdown({
               padding: "10px 12px",
               backgroundColor: "transparent",
               border: "none",
-              cursor: "pointer",
+              cursor: "not-allowed",
               fontFamily: "var(--font-sans)",
               fontSize: "0.8125rem",
-              color: "var(--fgColor-default)",
+              color: "var(--fgColor-muted)",
               textAlign: "left",
-              transition: "background-color 0.15s ease",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--bgColor-muted)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
+              opacity: 0.5,
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1062,6 +1053,14 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
 function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) {
   const [sessions, setSessions] = useState<UpcomingEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellingSessionId, setCancellingSessionId] = useState<
+    string | null
+  >(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [checkingBalance, setCheckingBalance] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -1077,11 +1076,49 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
   };
 
   const handleCancel = async (id: string) => {
-    const ok = await cancelMentorSession(id);
-    if (ok) {
-      setSessions((prev) => prev.filter((s) => s.id !== id));
+    setCancellingSessionId(id);
+    setShowCancelModal(true);
+    setCancelReason("");
+    setCheckingBalance(true);
+    setWalletBalance(null);
+    const result = await getWithdrawableBalance();
+    if (result) {
+      setWalletBalance(result.balanceCents);
     }
+    setCheckingBalance(false);
   };
+
+  const cancellingSession = useMemo(
+    () => sessions.find((s) => s.id === cancellingSessionId) ?? null,
+    [sessions, cancellingSessionId],
+  );
+
+  const confirmCancel = async () => {
+    if (!cancellingSessionId) return;
+    setCancelling(true);
+    const ok = await cancelMentorSession(
+      cancellingSessionId,
+      cancelReason.trim() || undefined,
+    );
+    if (ok) {
+      setSessions((prev) => prev.filter((s) => s.id !== cancellingSessionId));
+    }
+    setCancelling(false);
+    setShowCancelModal(false);
+    setCancellingSessionId(null);
+    setCancelReason("");
+  };
+
+  const wordCount = cancelReason.trim()
+    ? cancelReason.trim().split(/\s+/).length
+    : 0;
+
+  const isBalanceInsufficient = Boolean(
+    cancellingSession?.advanceCents &&
+    cancellingSession.advanceCents > 0 &&
+    walletBalance !== null &&
+    walletBalance < cancellingSession.advanceCents
+  );
 
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => {
@@ -1142,6 +1179,7 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
   }, [liveSessionVisible]);
 
   return (
+    <>
     <div>
       <h2
         style={{
@@ -1474,6 +1512,383 @@ function UpcomingTable({ liveSessionVisible }: { liveSessionVisible: boolean }) 
         </div>
       )}
     </div>
+
+      {/* ── Cancel Session Modal ── */}
+      {showCancelModal && cancellingSession && (
+        <>
+          {/* Overlay */}
+          <div
+            onClick={() => {
+              setShowCancelModal(false);
+              setCancellingSessionId(null);
+            }}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(11, 11, 11, 0.60)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
+              zIndex: 1000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          />
+
+          {/* Modal Container */}
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "100%",
+              maxWidth: "500px",
+              backgroundColor: "var(--bgColor-default)",
+              border: "1px solid var(--borderColor-default)",
+              borderRadius: 0,
+              zIndex: 1001,
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "none",
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "24px 32px 0 32px",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
+                  color: "var(--fgColor-default)",
+                  margin: 0,
+                }}
+              >
+                Cancel Session
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancellingSessionId(null);
+                }}
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "var(--fgColor-default)",
+                  padding: 0,
+                }}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: "24px 32px" }}>
+              <h3
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "1rem",
+                  fontWeight: 500,
+                  color: "var(--fgColor-default)",
+                  margin: "0 0 16px 0",
+                }}
+              >
+                Cancel session with {cancellingSession.userName}?
+              </h3>
+
+              {/* Session Info */}
+              <div
+                style={{
+                  marginBottom: "16px",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "0.875rem",
+                  color: "var(--fgColor-muted)",
+                  lineHeight: "1.6",
+                }}
+              >
+                <div>
+                  {cancellingSession.domain} ·{" "}
+                  {cancellingSession.serviceType} ·{" "}
+                  {formatDuration(cancellingSession.durationMinutes)}
+                </div>
+                <div>
+                  {cancellingSession.date} ·{" "}
+                  {cancellingSession.fromTime} -{" "}
+                  {cancellingSession.toTime}
+                </div>
+              </div>
+
+              {/* Advance / Refund Info */}
+              {checkingBalance ? (
+                <div
+                  style={{
+                    backgroundColor: "#fef3c7",
+                    border: "1px solid #f59e0b",
+                    borderRadius: "4px",
+                    padding: "12px 16px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color: "#92400e",
+                    }}
+                  >
+                    Checking wallet balance...
+                  </span>
+                </div>
+              ) : cancellingSession.advanceCents &&
+                cancellingSession.advanceCents > 0 ? (
+                walletBalance !== null &&
+                walletBalance >= cancellingSession.advanceCents ? (
+                  <p
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.875rem",
+                      color: "var(--fgColor-default)",
+                      margin: "0 0 16px 0",
+                    }}
+                  >
+                    The advance of ₹
+                    {(cancellingSession.advanceCents / 100).toFixed(
+                      2,
+                    )}{" "}
+                    will be refunded to the student from your wallet.
+                  </p>
+                ) : (
+                  <div
+                    style={{
+                      backgroundColor: "#fef2f2",
+                      border: "1px solid #ef4444",
+                      borderRadius: "4px",
+                      padding: "12px 16px",
+                      marginBottom: "16px",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "10px",
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ flexShrink: 0, marginTop: "2px" }}
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line
+                        x1="12"
+                        y1="16"
+                        x2="12.01"
+                        y2="16"
+                      />
+                    </svg>
+                    <div>
+                      <p
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.8125rem",
+                          color: "#991b1b",
+                          margin: 0,
+                          fontWeight: 500,
+                        }}
+                      >
+                        Insufficient balance to process refund
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.8125rem",
+                          color: "#b91c1c",
+                          margin: "4px 0 0 0",
+                        }}
+                      >
+                        Your wallet balance (₹
+                        {((walletBalance ?? 0) / 100).toFixed(2)})
+                        is less than the advance amount of ₹
+                        {(cancellingSession.advanceCents / 100).toFixed(
+                          2,
+                        )}
+                        . Please add funds to your wallet before
+                        cancelling.
+                      </p>
+                    </div>
+                  </div>
+                )
+              ) : null}
+
+              {/* Reason Input */}
+              <div style={{ marginBottom: "16px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <label
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      fontWeight: 500,
+                      color: "var(--fgColor-default)",
+                    }}
+                  >
+                    Reason for cancellation
+                  </label>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono, monospace)",
+                      fontSize: "0.75rem",
+                      color:
+                        wordCount >= 10
+                          ? "#ef4444"
+                          : "var(--fgColor-muted)",
+                    }}
+                  >
+                    {wordCount}/10
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={cancelReason}
+                  onChange={(e) => {
+                    const words = e.target.value.trim()
+                      ? e.target.value.trim().split(/\s+/)
+                      : [];
+                    if (words.length <= 10)
+                      setCancelReason(e.target.value);
+                  }}
+                  placeholder="Enter cancellation reason (optional)"
+                  style={{
+                    width: "100%",
+                    fontFamily: "var(--font-sans)",
+                    fontSize: "0.875rem",
+                    color: "var(--fgColor-default)",
+                    backgroundColor: "transparent",
+                    border: "1px solid #818178",
+                    borderRadius: "4px",
+                    padding: "8px 12px",
+                    height: "40px",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.border =
+                      "1px solid var(--fgColor-default)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.border = "1px solid #818178";
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                padding: "0 32px 24px 32px",
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancellingSessionId(null);
+                }}
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  color: "var(--fgColor-default)",
+                  backgroundColor: "transparent",
+                  border: "1px solid #818178",
+                  borderRadius: "4px",
+                  padding: "0 20px",
+                  height: "40px",
+                  cursor: "pointer",
+                  transition: "opacity 0.15s ease",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.opacity = "0.85")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.opacity = "1")
+                }
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmCancel}
+                disabled={
+                  cancelling || isBalanceInsufficient
+                }
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  color: "#ffffff",
+                  backgroundColor: "#da3633",
+                  border: "1px solid #da3633",
+                  borderRadius: "4px",
+                  padding: "0 20px",
+                  height: "40px",
+                  cursor:
+                    cancelling || isBalanceInsufficient
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity:
+                    cancelling || isBalanceInsufficient ? 0.5 : 1,
+                  transition: "opacity 0.15s ease",
+                }}
+              >
+                {cancelling
+                  ? "Cancelling..."
+                  : "Confirm Cancellation"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
@@ -1493,7 +1908,7 @@ function PastTable({ entries }: { entries: PastEntryApi[] }) {
 
   const sortedEntries = useMemo(() => {
     return [...entries].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) => new Date(b.scheduledFrom).getTime() - new Date(a.scheduledFrom).getTime(),
     );
   }, [entries]);
 
@@ -1580,7 +1995,7 @@ function PastTable({ entries }: { entries: PastEntryApi[] }) {
 
         {pageData.map((entry, idx) => {
           const sc = statusConfig[entry.status];
-          const dateStr = new Date(entry.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+          const dateStr = new Date(entry.scheduledFrom).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
           return (
             <div key={entry.id} ref={pageData.length > 0 && idx === 0 ? firstRowRef : undefined} style={{ display: "grid", gridTemplateColumns: "140px 1fr 120px 90px 100px 100px 130px", gap: "12px", padding: "12px 20px", borderBottom: idx < pageData.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease" }} onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.02)"; }} onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}>
               <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{entry.userName}</span>

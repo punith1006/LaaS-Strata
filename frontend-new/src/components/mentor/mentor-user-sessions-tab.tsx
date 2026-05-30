@@ -280,7 +280,7 @@ function UpcomingTable({ sessions, onCancel }: { sessions: StudentUpcomingSessio
 
 // --- Past Table ---
 function PastTable({ entries }: { entries: StudentPastEntry[] }) {
-  const sorted = useMemo(() => [...entries].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [entries]);
+  const sorted = useMemo(() => [...entries].sort((a, b) => new Date(b.scheduledFrom).getTime() - new Date(a.scheduledFrom).getTime()), [entries]);
   const { page, setPage, totalPages, rangeStart, rangeEnd, dynamicPageSize, tableContainerRef, firstRowRef, paginationRowRef } = useDynamicPagination(sorted.length);
   const pageData = sorted.slice((page - 1) * dynamicPageSize, page * dynamicPageSize);
 
@@ -307,7 +307,7 @@ function PastTable({ entries }: { entries: StudentPastEntry[] }) {
         ) : (
           pageData.map((entry, idx) => {
             const sc = statusConfig[entry.status] || { color: "#818178", label: entry.status };
-            const dateStr = new Date(entry.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+            const dateStr = new Date(entry.scheduledFrom).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
             return (
               <div key={entry.id} ref={idx === 0 ? firstRowRef : undefined}
                 style={{ display: "grid", gridTemplateColumns: "160px 1fr 120px 90px 120px 100px 120px", gap: "12px", padding: "12px 20px", borderBottom: idx < pageData.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease" }}
@@ -318,7 +318,7 @@ function PastTable({ entries }: { entries: StudentPastEntry[] }) {
                 <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{entry.serviceType}</span>
                 <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{formatDuration(entry.durationMinutes)}</span>
                 <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{dateStr}</span>
-                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{entry.status === "Completed" ? formatCost(entry.earningsCents) : "--"}</span>
+                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{entry.status === "Completed" ? formatCost(entry.earningsCents) : entry.status === "Cancelled" && entry.cancelledByStudent && entry.advanceCents ? formatCost(entry.advanceCents) : "--"}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: sc.color }} />
                   <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{sc.label}</span>
@@ -339,6 +339,13 @@ export default function MentorUserSessionsTab({ activeTab }: { activeTab: "reque
   const [upcoming, setUpcoming] = useState<StudentUpcomingSession[]>([]);
   const [past, setPast] = useState<StudentPastEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelType, setCancelType] = useState<
+    'upcoming' | 'request'
+  >('upcoming');
+  const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchData = () => {
     setLoading(true);
@@ -356,19 +363,63 @@ export default function MentorUserSessionsTab({ activeTab }: { activeTab: "reque
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleCancelRequest = async (id: string) => {
-    const ok = await studentCancelMentorSession(id);
-    if (ok) {
-      setRequests((prev) => prev.filter((r) => r.id !== id));
-    }
+  const handleCancelRequest = (id: string) => {
+    setCancelType('request');
+    setCancelId(id);
+    setCancelReason('');
+    setShowCancelModal(true);
   };
 
-  const handleCancelUpcoming = async (id: string) => {
-    const ok = await studentCancelMentorSession(id);
-    if (ok) {
-      setUpcoming((prev) => prev.filter((s) => s.id !== id));
-    }
+  const handleCancelUpcoming = (id: string) => {
+    setCancelType('upcoming');
+    setCancelId(id);
+    setCancelReason('');
+    setShowCancelModal(true);
   };
+
+  const cancellingUpcoming = useMemo(
+    () =>
+      cancelType === 'upcoming'
+        ? upcoming.find((s) => s.id === cancelId) ?? null
+        : null,
+    [cancelType, cancelId, upcoming],
+  );
+
+  const cancellingRequest = useMemo(
+    () =>
+      cancelType === 'request'
+        ? requests.find((r) => r.id === cancelId) ?? null
+        : null,
+    [cancelType, cancelId, requests],
+  );
+
+  const confirmStudentCancel = async () => {
+    if (!cancelId) return;
+    setCancelling(true);
+    const ok = await studentCancelMentorSession(
+      cancelId,
+      cancelReason.trim() || undefined,
+    );
+    if (ok) {
+      if (cancelType === 'upcoming') {
+        setUpcoming((prev) =>
+          prev.filter((s) => s.id !== cancelId),
+        );
+      } else {
+        setRequests((prev) =>
+          prev.filter((r) => r.id !== cancelId),
+        );
+      }
+    }
+    setCancelling(false);
+    setShowCancelModal(false);
+    setCancelId(null);
+    setCancelReason('');
+  };
+
+  const wordCount = cancelReason.trim()
+    ? cancelReason.trim().split(/\s+/).length
+    : 0;
 
   if (loading) {
     return (
@@ -379,10 +430,386 @@ export default function MentorUserSessionsTab({ activeTab }: { activeTab: "reque
   }
 
   return (
+    <>
     <div>
       {activeTab === "requests" && <RequestsTable requests={requests} onCancel={handleCancelRequest} />}
       {activeTab === "upcoming" && <UpcomingTable sessions={upcoming} onCancel={handleCancelUpcoming} />}
       {activeTab === "past" && <PastTable entries={past} />}
     </div>
+
+      {/* ── Cancel Session Modal ── */}
+      {showCancelModal && (cancelType === 'upcoming' ? cancellingUpcoming : cancellingRequest) && (
+        <>
+          {/* Overlay */}
+          <div
+            onClick={() => {
+              setShowCancelModal(false);
+              setCancelId(null);
+              setCancelReason('');
+            }}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(11, 11, 11, 0.60)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
+              zIndex: 1000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          />
+
+          {/* Modal Container */}
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "100%",
+              maxWidth: "500px",
+              backgroundColor: "var(--bgColor-default)",
+              border: "1px solid var(--borderColor-default)",
+              borderRadius: 0,
+              zIndex: 1001,
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "none",
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "24px 32px 0 32px",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
+                  color: "var(--fgColor-default)",
+                  margin: 0,
+                }}
+              >
+                {cancelType === 'request'
+                  ? 'Cancel Request'
+                  : 'Cancel Session'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelId(null);
+                  setCancelReason('');
+                }}
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  backgroundColor: "transparent",
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "var(--fgColor-default)",
+                  padding: 0,
+                }}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: "24px 32px" }}>
+              <h3
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "1rem",
+                  fontWeight: 500,
+                  color: "var(--fgColor-default)",
+                  margin: "0 0 16px 0",
+                }}
+              >
+                {cancelType === 'request'
+                  ? 'Cancel session request with '
+                  : 'Cancel session with '}
+                {cancelType === 'upcoming'
+                  ? cancellingUpcoming?.mentorName
+                  : cancellingRequest?.mentorName}
+                ?
+              </h3>
+
+              {/* Session Info */}
+              <div
+                style={{
+                  marginBottom: '16px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.875rem',
+                  color: 'var(--fgColor-muted)',
+                  lineHeight: '1.6',
+                }}
+              >
+                {cancelType === 'upcoming' && cancellingUpcoming ? (
+                  <>
+                    <div>
+                      {cancellingUpcoming.domain} ·{" "}
+                      {cancellingUpcoming.serviceType} ·{" "}
+                      {formatDuration(
+                        cancellingUpcoming.durationMinutes,
+                      )}
+                    </div>
+                    <div>
+                      {new Date(
+                        cancellingUpcoming.scheduledFrom,
+                      ).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}{" "}
+                      ·{' '}
+                      {`${String(
+                        new Date(cancellingUpcoming.scheduledFrom)
+                          .getHours(),
+                      ).padStart(2, '0')}:${String(
+                        new Date(cancellingUpcoming.scheduledFrom)
+                          .getMinutes(),
+                      ).padStart(2, '0')}`}
+                      {' '}-
+                      {' '}
+                      {`${String(
+                        new Date(cancellingUpcoming.scheduledTo)
+                          .getHours(),
+                      ).padStart(2, '0')}:${String(
+                        new Date(cancellingUpcoming.scheduledTo)
+                          .getMinutes(),
+                      ).padStart(2, '0')}`}
+                    </div>
+                  </>
+                ) : cancellingRequest ? (
+                  <div>
+                    {cancellingRequest.domain} ·{" "}
+                    {cancellingRequest.serviceType} ·{" "}
+                    {formatDuration(
+                      cancellingRequest.durationMinutes,
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Payment Warning for upcoming */}
+              {cancelType === 'upcoming' && cancellingUpcoming && (
+                <>
+                  {cancellingUpcoming.advanceCents &&
+                  cancellingUpcoming.advanceCents > 0 ? (
+                    <div
+                      style={{
+                        backgroundColor: '#fef2f2',
+                        border: '1px solid #ef4444',
+                        borderRadius: '4px',
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: '0.8125rem',
+                          color: '#991b1b',
+                          margin: 0,
+                          fontWeight: 500,
+                        }}
+                      >
+                        You have paid an advance of ₹
+                        {(cancellingUpcoming.advanceCents / 100).toFixed(
+                          2,
+                        )}
+                        {' '}which is non-refundable as per
+                        T&C.
+                      </p>
+                    </div>
+                  ) : cancellingUpcoming.paymentStatus === 'paid' ? (
+                    <div
+                      style={{
+                        backgroundColor: '#fef2f2',
+                        border: '1px solid #ef4444',
+                        borderRadius: '4px',
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: '0.8125rem',
+                          color: '#991b1b',
+                          margin: 0,
+                          fontWeight: 500,
+                        }}
+                      >
+                        The full session fee of ₹
+                        {(cancellingUpcoming.earningsCents / 100).toFixed(
+                          2,
+                        )}
+                        {' '}has been paid and is
+                        non-refundable as per T&C.
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              )}
+
+              {/* Reason Input */}
+              <div style={{ marginBottom: '16px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <label
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      color: 'var(--fgColor-default)',
+                    }}
+                  >
+                    Reason for cancellation
+                  </label>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontSize: '0.75rem',
+                      color:
+                        wordCount >= 10
+                          ? '#ef4444'
+                          : 'var(--fgColor-muted)',
+                    }}
+                  >
+                    {wordCount}/10
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={cancelReason}
+                  onChange={(e) => {
+                    const words = e.target.value.trim()
+                      ? e.target.value.trim().split(/\s+/)
+                      : [];
+                    if (words.length <= 10)
+                      setCancelReason(e.target.value);
+                  }}
+                  placeholder="Enter cancellation reason (optional)"
+                  style={{
+                    width: '100%',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.875rem',
+                    color: 'var(--fgColor-default)',
+                    backgroundColor: 'transparent',
+                    border: '1px solid #818178',
+                    borderRadius: '4px',
+                    padding: '8px 12px',
+                    height: '40px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.border =
+                      '1px solid var(--fgColor-default)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.border = '1px solid #818178';
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '12px',
+                padding: '0 32px 24px 32px',
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelId(null);
+                  setCancelReason('');
+                }}
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: 'var(--fgColor-default)',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #818178',
+                  borderRadius: '4px',
+                  padding: '0 20px',
+                  height: '40px',
+                  cursor: 'pointer',
+                  transition: 'opacity 0.15s ease',
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.opacity = '0.85')
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.opacity = '1')
+                }
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmStudentCancel}
+                disabled={cancelling}
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#ffffff',
+                  backgroundColor: '#da3633',
+                  border: '1px solid #da3633',
+                  borderRadius: '4px',
+                  padding: '0 20px',
+                  height: '40px',
+                  cursor: cancelling
+                    ? 'not-allowed'
+                    : 'pointer',
+                  opacity: cancelling ? 0.5 : 1,
+                  transition: 'opacity 0.15s ease',
+                }}
+              >
+                {cancelling
+                  ? 'Cancelling...'
+                  : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

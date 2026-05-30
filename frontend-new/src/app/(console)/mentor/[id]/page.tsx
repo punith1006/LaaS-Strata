@@ -204,7 +204,6 @@ export default function MentorProfilePage() {
   if (profile.linkedinUrl) socials.push({ href: profile.linkedinUrl, src: "/images/Linkedin_dark_theme.png", alt: "LinkedIn" });
   if (profile.xUrl) socials.push({ href: profile.xUrl, src: "/images/X_logo_(dark_theme).png", alt: "X" });
   if (profile.substackUrl) socials.push({ href: profile.substackUrl, src: "/images/Substack.png", alt: "Substack" });
-  if (profile.websiteUrl) socials.push({ href: profile.websiteUrl, src: "/images/Github.png", alt: "Website" }); // fallback, will override with globe
 
   return (
     <div style={{ padding: "15px" }}>

@@ -44,6 +44,7 @@ export interface PastEntry {
   serviceType: string;
   durationMinutes: number;
   earningsCents: number;
+  scheduledFrom: string;
   createdAt: string;
   status: 'Expired' | 'Approved' | 'Rejected' | 'Completed' | 'Cancelled' | 'Missed' | 'Rescheduled' | 'Disputed';
 }
@@ -158,6 +159,11 @@ export class MentorSessionsService {
         toTime,
         date: dateStr,
         earningsCents: s.earningsCents,
+        advanceCents: s.advanceCents,
+        paymentStatus: s.paymentStatus,
+        studentUserId: s.studentUserId,
+        scheduledFrom: s.scheduledFrom,
+        scheduledTo: s.scheduledTo,
       };
     });
   }
@@ -224,6 +230,7 @@ export class MentorSessionsService {
       serviceType: s.serviceType,
       durationMinutes: s.durationMinutes,
       earningsCents: s.earningsCents,
+      scheduledFrom: (s.scheduledFrom || s.createdAt).toISOString(),
       createdAt: s.createdAt.toISOString(),
       status: statusMap[s.status] || 'Completed',
     }));
@@ -383,6 +390,11 @@ export class MentorSessionsService {
       details: { sessionId, studentName: `${student?.firstName || ''} ${student?.lastName || ''}`.trim(), reason: reason || 'Mentor cancelled session' },
     }).catch(err => this.logger.error('Audit log failed for mentor cancel', err));
 
+    // Send cancellation email to student
+    this.sendCancellationEmailToStudent(session, reason).catch(err =>
+      this.logger.error('Failed to send student cancellation email', err),
+    );
+
     return { success: true };
   }
 
@@ -408,7 +420,102 @@ export class MentorSessionsService {
       details: { sessionId, mentorName: `${mentorProfile?.user.firstName || ''} ${mentorProfile?.user.lastName || ''}`.trim(), reason: reason || 'Student cancelled session' },
     }).catch(err => this.logger.error('Audit log failed for student cancel', err));
 
+    // Send cancellation email to mentor
+    this.sendCancellationEmailToMentor(session, reason).catch(err =>
+      this.logger.error('Failed to send mentor cancellation email', err),
+    );
+
     return { success: true };
+  }
+
+  /** Send cancellation email to student when mentor cancels */
+  private async sendCancellationEmailToStudent(session: {
+    id: string;
+    studentUserId: string;
+    mentorProfileId: string;
+    advanceCents: number | null;
+    paymentStatus: string;
+    scheduledFrom: Date | null;
+    scheduledTo: Date | null;
+    durationMinutes: number;
+    domain: string;
+    serviceType: string;
+  }, reason?: string) {
+    const student = await this.prisma.user.findUnique({
+      where: { id: session.studentUserId },
+      select: { email: true, firstName: true, lastName: true },
+    });
+    const mentorProfile = await this.prisma.mentorProfile.findUnique({
+      where: { id: session.mentorProfileId },
+      include: { user: { select: { email: true, firstName: true, lastName: true } } },
+    });
+    if (!student || !mentorProfile) return;
+
+    const fmtRupees = (cents: number) => `\u20B9${(cents / 100).toLocaleString('en-IN')}`;
+    const fromDate = session.scheduledFrom ? new Date(session.scheduledFrom) : new Date();
+    const dateStr = fromDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = `${String(fromDate.getHours()).padStart(2, '0')}:${String(fromDate.getMinutes()).padStart(2, '0')}`;
+    const categoryLabel = session.serviceType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+    const mentorName = `${mentorProfile.user.firstName} ${mentorProfile.user.lastName}`.trim();
+    const studentName = `${student.firstName} ${student.lastName}`.trim();
+    const advanceAmount = session.advanceCents ? fmtRupees(session.advanceCents) : '\u20B90';
+
+    this.mailService.sendSessionCancelledStudentEmail(student.email, {
+      studentName,
+      mentorName,
+      sessionCategory: categoryLabel,
+      sessionDate: dateStr,
+      sessionTime: timeStr,
+      duration: session.durationMinutes,
+      sessionCost: fmtRupees(session.durationMinutes > 0 ? Math.round(session.advanceCents || 0) : 0),
+      advanceAmount,
+      reason: reason || undefined,
+    }).catch(err => this.logger.error('Failed to send student cancellation email', err));
+  }
+
+  /** Send cancellation email to mentor when student cancels */
+  private async sendCancellationEmailToMentor(session: {
+    id: string;
+    studentUserId: string;
+    mentorProfileId: string;
+    advanceCents: number | null;
+    paymentStatus: string;
+    scheduledFrom: Date | null;
+    scheduledTo: Date | null;
+    durationMinutes: number;
+    domain: string;
+    serviceType: string;
+  }, reason?: string) {
+    const student = await this.prisma.user.findUnique({
+      where: { id: session.studentUserId },
+      select: { email: true, firstName: true, lastName: true },
+    });
+    const mentorProfile = await this.prisma.mentorProfile.findUnique({
+      where: { id: session.mentorProfileId },
+      include: { user: { select: { email: true, firstName: true, lastName: true } } },
+    });
+    if (!student || !mentorProfile) return;
+
+    const fmtRupees = (cents: number) => `\u20B9${(cents / 100).toLocaleString('en-IN')}`;
+    const fromDate = session.scheduledFrom ? new Date(session.scheduledFrom) : new Date();
+    const dateStr = fromDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = `${String(fromDate.getHours()).padStart(2, '0')}:${String(fromDate.getMinutes()).padStart(2, '0')}`;
+    const categoryLabel = session.serviceType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+    const mentorName = `${mentorProfile.user.firstName} ${mentorProfile.user.lastName}`.trim();
+    const studentName = `${student.firstName} ${student.lastName}`.trim();
+    const advanceAmount = session.advanceCents ? fmtRupees(session.advanceCents) : '\u20B90';
+
+    this.mailService.sendSessionCancelledMentorEmail(mentorProfile.user.email, {
+      mentorName,
+      studentName,
+      sessionCategory: categoryLabel,
+      sessionDate: dateStr,
+      sessionTime: timeStr,
+      duration: session.durationMinutes,
+      sessionCost: fmtRupees(session.durationMinutes > 0 ? Math.round(session.advanceCents || 0) : 0),
+      advanceAmount,
+      reason: reason || undefined,
+    }).catch(err => this.logger.error('Failed to send mentor cancellation email', err));
   }
 
   /** Shared cancel logic: updates session, refunds advance if paid, records history */
@@ -1411,6 +1518,7 @@ export class MentorSessionsService {
       serviceType: s.serviceType,
       paymentStatus: s.paymentStatus,
       earningsCents: s.earningsCents,
+      advanceCents: s.advanceCents,
     }));
   }
 
@@ -1477,7 +1585,10 @@ export class MentorSessionsService {
       serviceType: s.serviceType,
       durationMinutes: s.durationMinutes,
       earningsCents: s.earningsCents,
-      createdAt: s.requestedAt.toISOString(),
+      advanceCents: s.advanceCents,
+      cancelledByStudent: s.status === 'cancelled' && s.updatedBy === s.studentUserId,
+      scheduledFrom: (s.scheduledFrom || s.createdAt).toISOString(),
+      createdAt: s.createdAt.toISOString(),
       status: statusLabelMap[s.status] || s.status,
     }));
   }

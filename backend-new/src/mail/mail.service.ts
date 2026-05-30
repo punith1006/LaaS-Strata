@@ -265,4 +265,50 @@ export class MailService {
       attachments: this.getLogoAttachments(),
     });
   }
+
+  async sendSessionCancelledStudentEmail(
+    to: string,
+    context: {
+      studentName: string;
+      mentorName: string;
+      sessionCategory: string;
+      sessionDate: string;
+      sessionTime: string;
+      duration: number;
+      sessionCost: string;
+      advanceAmount: string;
+      reason?: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `LaaS: Session Cancelled — ${context.mentorName}`,
+      template: 'session-cancelled-student',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
+
+  async sendSessionCancelledMentorEmail(
+    to: string,
+    context: {
+      mentorName: string;
+      studentName: string;
+      sessionCategory: string;
+      sessionDate: string;
+      sessionTime: string;
+      duration: number;
+      sessionCost: string;
+      advanceAmount: string;
+      reason?: string;
+    },
+  ): Promise<void> {
+    await this.mailer.sendMail({
+      to,
+      subject: `LaaS: Session Cancelled — ${context.studentName}`,
+      template: 'session-cancelled-mentor',
+      context,
+      attachments: this.getLogoAttachments(),
+    });
+  }
 }
