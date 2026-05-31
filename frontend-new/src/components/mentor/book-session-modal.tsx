@@ -78,7 +78,7 @@ export default function BookSessionModal({
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDuration, setSelectedDuration] = useState(60);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [viewMonth, setViewMonth] = useState(dayjs().add(1, "day").startOf("month"));
+  const [viewMonth, setViewMonth] = useState(dayjs().startOf("month"));
   const [availableDates, setAvailableDates] = useState<string[] | null>(null);
   const [datesLoading, setDatesLoading] = useState(false);
 
