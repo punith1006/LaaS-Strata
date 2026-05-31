@@ -45,6 +45,7 @@ export interface LiveSessionEntry {
   domain: string;
   serviceType: string;
   startedAt: string;
+  durationMinutes: number;
   earningsCents: number;
   studentUserId: string;
   subject: string | null;
@@ -356,6 +357,7 @@ export class MentorSessionsService {
       domain: s.domain,
       serviceType: s.serviceType,
       startedAt: (s.startedAt || s.requestedAt).toISOString(),
+      durationMinutes: s.durationMinutes,
       earningsCents: s.earningsCents,
       studentUserId: s.studentUserId,
       subject: s.subject ?? null,

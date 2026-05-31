@@ -161,10 +161,10 @@ export default function MeetingPage() {
         <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(239,68,68,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
         </div>
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 600 }}>Session Expired</h1>
-        <p style={{ color: "#a1a1aa", fontSize: "0.95rem" }}>Your meeting link has expired.</p>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 600 }}>Session Ended</h1>
+        <p style={{ color: "#a1a1aa", fontSize: "0.95rem" }}>Your meeting session has ended.</p>
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/home")}
           style={{ marginTop: "0.5rem", padding: "10px 24px", borderRadius: "8px", border: "1px solid #333", background: "#18181b", color: "#e4e4e7", fontSize: "0.9rem", cursor: "pointer", fontWeight: 500 }}
         >
           Go Home

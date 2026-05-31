@@ -1984,6 +1984,7 @@ export interface LiveSessionEntry {
   domain: string;
   serviceType: string;
   startedAt: string;
+  durationMinutes: number;
   earningsCents: number;
   studentUserId: string;
   subject: string | null;
@@ -2094,6 +2095,20 @@ export async function getMentorProfileForAccordion(mentorProfileId: string): Pro
   } catch {
     return null;
   }
+}
+
+export interface JitsiLinkResult {
+  meetingUrl: string;
+  roomName: string;
+  jwt: string;
+  expiresAt: string;
+}
+
+/** Generate a Jitsi meeting link for a live session */
+export async function getSessionJitsiLink(sessionId: string): Promise<JitsiLinkResult | null> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/jitsi-link`);
+  if (!res.ok) return null;
+  return res.json();
 }
 
 /** Approve a pending session request */

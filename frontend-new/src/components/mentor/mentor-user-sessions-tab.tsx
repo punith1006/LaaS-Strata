@@ -6,6 +6,7 @@ import {
   type StudentUpcomingSession,
   type StudentPastEntry,
   type StudentLiveEntry,
+  type JitsiLinkResult,
   type MentorProfileDetail,
   getStudentSessionRequests,
   getStudentUpcomingSessions,
@@ -13,7 +14,9 @@ import {
   getStudentLiveSessions,
   studentCancelMentorSession,
   getMentorProfileForAccordion,
+  getSessionJitsiLink,
 } from "@/lib/api";
+import { SupportModal } from "@/components/support/support-modal";
 
 // --- Duration formatting ---
 function formatDuration(minutes: number): string {
@@ -750,6 +753,15 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mentorProfile, setMentorProfile] = useState<MentorProfileDetail | null>(null);
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const handleReport = (id: string) => {
+    setShowSupportModal(true);
+  };
+
+  const handleJoinNow = async (sessionId: string) => {
+    const result = await getSessionJitsiLink(sessionId);
+    if (result?.meetingUrl) window.open(result.meetingUrl, '_blank');
+  };
 
   const handleRowClick = (id: string) => {
     if (expandedId === id) { setCollapsingId(id); setExpandedId(null); }
@@ -789,7 +801,33 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
   const renderPanel = (s: StudentLiveEntry) => (
     <div ref={panelRef} style={{ maxHeight: "0px", overflowY: "auto", transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)", backgroundColor: "var(--bgColor-default)", borderBottom: "1px solid var(--borderColor-default)" }}>
       <div style={{ padding: "24px" }}>
-        {/* Identity Bar */}
+        
+                      {/* Join Now */}
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleJoinNow(s.id); }}
+                          style={{
+                            backgroundColor: "var(--fgColor-default)",
+                            color: "var(--bgColor-default)",
+                            border: "1px solid var(--fgColor-default)",
+                            borderRadius: "4px",
+                            padding: "0 20px",
+                            height: "36px",
+                            cursor: "pointer",
+                            fontWeight: 500,
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "0.875rem",
+                            whiteSpace: "nowrap",
+                            transition: "opacity 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.85"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                        >
+                          Join Now
+                        </button>
+                      </div>
+                    
+{/* Identity Bar */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "24px", padding: "16px", background: "var(--bgColor-mild)", borderRadius: "6px", border: "1px solid var(--borderColor-default)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
             <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bgColor-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -861,8 +899,8 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
         Live Session
       </h2>
       <div style={{ backgroundColor: "var(--bgColor-mild)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "visible" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", backgroundColor: "var(--bgColor-muted)" }}>
-          {["Mentor", "Domain", "Service", "Duration", "Started", "Status"].map(h => (
+        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px 50px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", backgroundColor: "var(--bgColor-muted)" }}>
+          {["Mentor", "Domain", "Service", "Duration", "Started", "Status", "Actions"].map(h => (
             <span key={h} style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</span>
           ))}
         </div>
@@ -876,7 +914,7 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
             <div key={s.id}>
               {/* Row */}
               <div
-                style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px", gap: "12px", padding: "12px 20px", borderBottom: isActive ? "none" : idx < orderedSessions.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease", cursor: "pointer", backgroundColor: "transparent" }}
+                style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px 50px", gap: "12px", padding: "12px 20px", borderBottom: isActive ? "none" : idx < orderedSessions.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease", cursor: "pointer", backgroundColor: "transparent" }}
                 onClick={() => handleRowClick(s.id)}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bgColor-default)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
@@ -890,6 +928,29 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
                   <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#22c55e", animation: "pulse 1.5s infinite" }} />
                   <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "#22c55e", fontWeight: 600 }}>Live</span>
                 </div>
+                {/* Actions dropdown */}
+                <div onClick={(e) => e.stopPropagation()} style={{ position: "relative" }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); e.currentTarget.parentElement?.querySelector('[data-dropdown]')?.classList.toggle('hidden'); }}
+                    style={{ width: "28px", height: "28px", borderRadius: "4px", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--fgColor-muted)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+                    </svg>
+                  </button>
+                  <div data-dropdown className="hidden" style={{ position: "absolute", right: 0, top: "100%", zIndex: 50, minWidth: "140px", backgroundColor: "var(--bgColor-default)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", padding: "4px" }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleReport(s.id); }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", backgroundColor: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", textAlign: "left", borderRadius: "4px" }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                        <line x1="4" y1="22" x2="4" y2="15" />
+                      </svg>
+                      Report
+                    </button>
+                  </div>
+                </div>
               </div>
               {/* Expanded Panel */}
               {(isExpanded || isCollapsing) && renderPanel(s)}
@@ -897,6 +958,7 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
           );
         })}
       </div>
+      <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} />
     </div>
   );
 }

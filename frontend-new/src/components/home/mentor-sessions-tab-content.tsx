@@ -17,8 +17,11 @@ import {
   cancelMentorSession,
   getWithdrawableBalance,
   getStudentProfile,
+  getSessionJitsiLink,
+  type JitsiLinkResult,
   checkMentorSessionOverlap,
 } from "@/lib/api";
+import { SupportModal } from "@/components/support/support-modal";
 
 type SessionsSubTab = "requests" | "upcoming" | "past";
 
@@ -1261,6 +1264,17 @@ function formatElapsed(startedAt: string): string {
   return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 }
 
+/** Format remaining time until session end */
+function formatRemaining(startedAt: string, durationMinutes: number): string {
+  const endTime = new Date(startedAt).getTime() + durationMinutes * 60 * 1000;
+  const diff = endTime - Date.now();
+  if (diff <= 0) return "0m 00s";
+  const totalSeconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
 // --- Live Action Dropdown (Report option) ---
 function LiveActionDropdown({ onReport }: { onReport: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -1277,7 +1291,7 @@ function LiveActionDropdown({ onReport }: { onReport: () => void }) {
   }, []);
 
   return (
-    <div ref={dropdownRef} style={{ position: "relative" }}>
+    <div ref={dropdownRef} onClick={(e) => e.stopPropagation()} style={{ position: "relative" }}>
       <button
         onClick={(e) => {
                   e.stopPropagation();
@@ -1327,7 +1341,8 @@ function LiveActionDropdown({ onReport }: { onReport: () => void }) {
           }}
         >
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setIsOpen(false);
               onReport();
             }}
@@ -1367,9 +1382,14 @@ function LiveActionDropdown({ onReport }: { onReport: () => void }) {
 
 // --- Live Session Section ---
 function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEntry[]; tick: number }) {
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const handleReport = (id: string) => {
-    console.log(`Report session: ${id}`);
-    // TODO: API call
+    setShowSupportModal(true);
+  };
+
+  const handleJoinNow = async (sessionId: string) => {
+    const result = await getSessionJitsiLink(sessionId);
+    if (result?.meetingUrl) window.open(result.meetingUrl, '_blank');
   };
 
   // Accordion state
@@ -1488,7 +1508,7 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "140px 1fr 100px 100px 100px 80px 50px",
+            gridTemplateColumns: "140px 1fr 100px 100px 80px 100px 80px 50px",
             gap: "12px",
             padding: "12px 20px",
             borderBottom: "1px solid var(--borderColor-default)",
@@ -1498,7 +1518,8 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
           <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>User</span>
           <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Domain</span>
           <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Service</span>
-          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Time Elapsed</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Time Remaining</span>
+          <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Duration</span>
           <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Earnings</span>
           <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</span>
           <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</span>
@@ -1515,7 +1536,7 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "140px 1fr 100px 100px 100px 80px 50px",
+                  gridTemplateColumns: "140px 1fr 100px 100px 80px 100px 80px 50px",
                   gap: "12px",
                   padding: "12px 20px",
                   borderBottom: isActive ? "none" : idx < orderedSessions.length - 1 ? "1px solid var(--borderColor-default)" : "none",
@@ -1568,7 +1589,7 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
                   {s.serviceType}
                 </span>
 
-                {/* Time Elapsed */}
+                {/* Time Remaining */}
                 <span
                   style={{
                     fontFamily: "var(--font-mono, monospace)",
@@ -1576,7 +1597,18 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
                     color: "var(--fgColor-default)",
                   }}
                 >
-                  {formatElapsed(s.startedAt)}
+                  {formatRemaining(s.startedAt, s.durationMinutes)}
+                </span>
+
+                {/* Duration */}
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono, monospace)",
+                    fontSize: "0.8125rem",
+                    color: "var(--fgColor-default)",
+                  }}
+                >
+                  {s.durationMinutes} min
                 </span>
 
                 {/* Earnings */}
@@ -1631,7 +1663,32 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
                   }}
                 >
                   <div style={{ padding: "24px" }}>
-                    {/* Identity Bar — matching analytics dashboard exactly, email+verified replaces name+sso */}
+                                          {/* Join Now */}
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleJoinNow(s.id); }}
+                          style={{
+                            backgroundColor: "var(--fgColor-default)",
+                            color: "var(--bgColor-default)",
+                            border: "1px solid var(--fgColor-default)",
+                            borderRadius: "4px",
+                            padding: "0 20px",
+                            height: "36px",
+                            cursor: "pointer",
+                            fontWeight: 500,
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "0.875rem",
+                            whiteSpace: "nowrap",
+                            transition: "opacity 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.85"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                        >
+                          Join Now
+                        </button>
+                      </div>
+                    
+{/* Identity Bar — matching analytics dashboard exactly, email+verified replaces name+sso */}
                     <div
                       style={{
                         display: "grid",
@@ -1890,6 +1947,7 @@ function LiveSessionSection({ sessions, tick: _tick }: { sessions: LiveSessionEn
         })}
       </div>
     </div>
+      <SupportModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} />
     </>
   );
 }
