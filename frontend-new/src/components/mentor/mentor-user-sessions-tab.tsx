@@ -754,9 +754,25 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mentorProfile, setMentorProfile] = useState<MentorProfileDetail | null>(null);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [dropdownOpenId, setDropdownOpenId] = useState<string | null>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
   const handleReport = (id: string) => {
+    setDropdownOpenId(null);
     setShowSupportModal(true);
   };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpenId) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setDropdownOpenId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownOpenId]);
 
   const handleJoinNow = async (sessionId: string) => {
     const result = await getSessionJitsiLink(sessionId);
@@ -929,27 +945,29 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
                   <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "#22c55e", fontWeight: 600 }}>Live</span>
                 </div>
                 {/* Actions dropdown */}
-                <div onClick={(e) => e.stopPropagation()} style={{ position: "relative" }}>
+                <div ref={actionsRef} onClick={(e) => e.stopPropagation()} style={{ position: "relative" }}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); e.currentTarget.parentElement?.querySelector('[data-dropdown]')?.classList.toggle('hidden'); }}
-                    style={{ width: "28px", height: "28px", borderRadius: "4px", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--fgColor-muted)" }}
+                    onClick={(e) => { e.stopPropagation(); setDropdownOpenId(dropdownOpenId === s.id ? null : s.id); }}
+                    style={{ width: "28px", height: "28px", borderRadius: "4px", border: "none", background: dropdownOpenId === s.id ? "var(--bgColor-muted)" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--fgColor-muted)" }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
                     </svg>
                   </button>
-                  <div data-dropdown className="hidden" style={{ position: "absolute", right: 0, top: "100%", zIndex: 50, minWidth: "140px", backgroundColor: "var(--bgColor-default)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", padding: "4px" }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleReport(s.id); }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", backgroundColor: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", textAlign: "left", borderRadius: "4px" }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-                        <line x1="4" y1="22" x2="4" y2="15" />
-                      </svg>
-                      Report
-                    </button>
-                  </div>
+                  {dropdownOpenId === s.id && (
+                    <div style={{ position: "absolute", right: 0, top: "100%", zIndex: 50, minWidth: "140px", backgroundColor: "var(--bgColor-default)", border: "1px solid var(--borderColor-default)", borderRadius: "4px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", padding: "4px" }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleReport(s.id); }}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", backgroundColor: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", textAlign: "left", borderRadius: "4px" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                          <line x1="4" y1="22" x2="4" y2="15" />
+                        </svg>
+                        Report
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Expanded Panel */}
