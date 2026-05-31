@@ -17,6 +17,7 @@ import {
   cancelMentorSession,
   getWithdrawableBalance,
   getStudentProfile,
+  checkMentorSessionOverlap,
 } from "@/lib/api";
 
 type SessionsSubTab = "requests" | "upcoming" | "past";
@@ -3318,6 +3319,8 @@ export function MentorSessionsTabContent() {
   const [requests, setRequests] = useState<RequestEntry[]>([]);
   const [pastEntries, setPastEntries] = useState<PastEntryApi[]>([]);
   const [tick, setTick] = useState(0);
+  const [overlapWarning, setOverlapWarning] = useState<any | null>(null);
+  const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
 
   // Fetch all data from API
   const fetchData = useCallback(async () => {
@@ -3348,8 +3351,27 @@ export function MentorSessionsTabContent() {
   }, [liveSessions]);
 
   const handleApprove = async (id: string) => {
-    const ok = await approveMentorSession(id);
+    const overlap = await checkMentorSessionOverlap(id);
+    if (overlap.hasOverlap) {
+      setOverlapWarning(overlap);
+      setPendingApproveId(id);
+    } else {
+      const ok = await approveMentorSession(id);
+      if (ok) fetchData();
+    }
+  };
+
+  const handleProceedOverlap = async () => {
+    if (!pendingApproveId) return;
+    const ok = await approveMentorSession(pendingApproveId);
+    setOverlapWarning(null);
+    setPendingApproveId(null);
     if (ok) fetchData();
+  };
+
+  const handleDismissOverlap = () => {
+    setOverlapWarning(null);
+    setPendingApproveId(null);
   };
 
   const handleReject = async (id: string) => {
@@ -3396,6 +3418,74 @@ export function MentorSessionsTabContent() {
         <PastTable entries={pastEntries} />
       ) : (
         <EmptySessionsState subTab={currentSubTab} />
+      )}
+
+      {/* Overlap warning modal */}
+      {overlapWarning && overlapWarning.overlappingSession && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 50, display: "flex",
+            alignItems: "center", justifyContent: "center",
+            backgroundColor: "rgba(11, 11, 11, 0.15)",
+          }}
+          onClick={handleDismissOverlap}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "calc(100% - 32px)", maxWidth: "420px", maxHeight: "95%",
+              backgroundColor: "var(--bgColor-default)",
+              border: "1px solid var(--borderColor-default)",
+              display: "flex", flexDirection: "column",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", padding: "16px 24px", borderBottom: "1px solid var(--borderColor-default)", lineHeight: "1.375rem" }}>
+              <h3 style={{ flex: 1, color: "var(--fgColor-default)", fontSize: "1.125rem", fontFamily: "var(--font-sans)", fontWeight: 400, margin: 0 }}>Heads Up</h3>
+            </div>
+            <div style={{ overflowY: "auto", overflowX: "hidden", padding: "24px" }}>
+              <p style={{ color: "var(--fgColor-mild)", fontSize: "0.875rem", lineHeight: "1.375rem", fontFamily: "var(--font-sans)", margin: 0, marginBottom: "12px" }}>
+                You have a session with <strong>{overlapWarning.overlappingSession.userName}</strong> scheduled at{" "}
+                {new Date(overlapWarning.overlappingSession.scheduledFrom).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} —{" "}
+                {new Date(overlapWarning.overlappingSession.scheduledTo).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}{" "}
+                ({overlapWarning.overlappingSession.durationMinutes} min).
+              </p>
+              <p style={{ color: "var(--fgColor-mild)", fontSize: "0.875rem", lineHeight: "1.375rem", fontFamily: "var(--font-sans)", margin: 0, marginBottom: "24px" }}>
+                Are you sure you want to continue with this session request as well? The session timings might overlap.
+                If not sure, we recommend you check the upcoming session for details and manage your timings accordingly.
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <button
+                  onClick={handleDismissOverlap}
+                  style={{
+                    color: "var(--fgColor-mild)", backgroundColor: "transparent",
+                    border: "1px solid var(--borderColor-default)", borderRadius: "4px",
+                    padding: "0 24px", height: "40px",
+                    fontFamily: "var(--font-sans)", fontSize: "0.875rem", fontWeight: 500,
+                    cursor: "pointer", transition: "background-color 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(11, 11, 11, 0.05)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleProceedOverlap}
+                  style={{
+                    color: "#ffffff", backgroundColor: "#2E2E2E",
+                    border: "none", borderRadius: "4px",
+                    padding: "0 24px", height: "40px",
+                    fontFamily: "var(--font-sans)", fontSize: "0.875rem", fontWeight: 500,
+                    cursor: "pointer", transition: "background-color 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#0B0B0B"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#2E2E2E"; }}
+                >
+                  Proceed
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

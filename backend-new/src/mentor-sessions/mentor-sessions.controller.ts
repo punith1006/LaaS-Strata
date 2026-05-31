@@ -78,6 +78,12 @@ export class MentorSessionsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(':id/check-overlap')
+  async checkOverlap(@Param('id') id: string) {
+    return this.service.checkSessionOverlap(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':id/reject')
   async reject(
     @Param('id') id: string,
@@ -215,6 +221,12 @@ export class MentorSessionsController {
   @Get('student-live')
   async getStudentLive(@Req() req: { user: { id: string } }) {
     return this.service.getStudentLive(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/jitsi-link')
+  async getSessionJitsiLink(@Param('id') id: string) {
+    return this.service.generateSessionJitsiLink(id);
   }
 
   @UseGuards(JwtAuthGuard)

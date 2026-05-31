@@ -11,6 +11,7 @@ interface UserData {
   email: string;
   firstName: string;
   lastName: string;
+  roles?: string[];
 }
 
 interface SupportModalProps {
@@ -26,6 +27,17 @@ const ISSUE_CATEGORIES = [
   { value: "data_center_partner", label: "Data center partner support" },
 ];
 
+const MENTOR_ISSUE_CATEGORIES = [
+  { value: "session_not_starting", label: "Session not starting or technical issue" },
+  { value: "student_not_responding", label: "Student not responding or no-show" },
+  { value: "revenue_not_reflected", label: "Revenue not reflected in wallet" },
+  { value: "withdrawal_issue", label: "Withdrawal or payout issue" },
+  { value: "availability_slot_issue", label: "Availability slot or scheduling issue" },
+  { value: "platform_fee_query", label: "Platform fee or billing query" },
+  { value: "profile_account_issue", label: "Profile or account issue" },
+  { value: "general_inquiry", label: "General inquiry" },
+];
+
 export function SupportModal({ isOpen, onClose }: SupportModalProps) {
   const [user, setUser] = useState<UserData | null>(null);
   const [category, setCategory] = useState("");
@@ -39,6 +51,12 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
   const [attachmentError, setAttachmentError] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Role-based categories: mentors get mentor-specific issue types
+  const categories = useMemo(() => {
+    if (user?.roles?.includes("mentor")) return MENTOR_ISSUE_CATEGORIES;
+    return ISSUE_CATEGORIES;
+  }, [user]);
 
   const ALLOWED_TYPES = [
     "image/jpeg",
@@ -489,7 +507,7 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
                   <Dropdown
                     value={category}
                     onChange={setCategory}
-                    options={ISSUE_CATEGORIES}
+                    options={categories}
                     placeholder="Select type"
                   />
                 </div>

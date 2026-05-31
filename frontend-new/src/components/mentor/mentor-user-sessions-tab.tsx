@@ -743,8 +743,120 @@ function PastTable({ entries }: { entries: StudentPastEntry[] }) {
 
 // --- Student Live Session Section ---
 function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
+  // Accordion state
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [collapsingId, setCollapsingId] = useState<string | null>(null);
+  const [panelMaxHeight, setPanelMaxHeight] = useState(400);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mentorProfile, setMentorProfile] = useState<MentorProfileDetail | null>(null);
+
+  const handleRowClick = (id: string) => {
+    if (expandedId === id) { setCollapsingId(id); setExpandedId(null); }
+    else { setCollapsingId(null); setExpandedId(id); }
+  };
+
+  const orderedSessions = useMemo(() => {
+    const activeId = expandedId ?? collapsingId;
+    if (!activeId) return sessions;
+    const idx = sessions.findIndex(s => s.id === activeId);
+    if (idx === -1) return sessions;
+    const expanded = sessions[idx];
+    const rest = [...sessions.slice(0, idx), ...sessions.slice(idx + 1)];
+    return [expanded, ...rest];
+  }, [sessions, expandedId, collapsingId]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const calcPanel = () => {
+      setPanelMaxHeight(Math.max(200, Math.floor(window.innerHeight - (containerRef.current?.getBoundingClientRect().top ?? 0) - 80)));
+    };
+    calcPanel();
+    window.addEventListener("resize", calcPanel);
+    return () => window.removeEventListener("resize", calcPanel);
+  }, []);
+  useEffect(() => { if (expandedId && panelRef.current) { const el = panelRef.current; el.style.maxHeight = "0px"; const raf = requestAnimationFrame(() => { el.style.maxHeight = `${panelMaxHeight}px`; }); return () => cancelAnimationFrame(raf); } }, [expandedId, panelMaxHeight]);
+  useEffect(() => { if (collapsingId && panelRef.current) { const el = panelRef.current; el.style.maxHeight = "0px"; const timeout = setTimeout(() => { setCollapsingId(null); }, 400); return () => clearTimeout(timeout); } }, [collapsingId]);
+  useEffect(() => {
+    if (!expandedId) { setMentorProfile(null); return; }
+    const session = sessions.find(s => s.id === expandedId);
+    if (!session?.mentorProfileId) return;
+    let cancelled = false;
+    getMentorProfileForAccordion(session.mentorProfileId).then(data => { if (!cancelled) setMentorProfile(data); });
+    return () => { cancelled = true; };
+  }, [expandedId]);
+
+  const renderPanel = (s: StudentLiveEntry) => (
+    <div ref={panelRef} style={{ maxHeight: "0px", overflowY: "auto", transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)", backgroundColor: "var(--bgColor-default)", borderBottom: "1px solid var(--borderColor-default)" }}>
+      <div style={{ padding: "24px" }}>
+        {/* Identity Bar */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "24px", padding: "16px", background: "var(--bgColor-mild)", borderRadius: "6px", border: "1px solid var(--borderColor-default)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", overflow: "hidden" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "var(--bgColor-muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontFamily: "var(--font-sans)", fontSize: "1.125rem", fontWeight: 600, color: "var(--fgColor-default)" }}>{mentorProfile?.email?.charAt(0)?.toUpperCase() || "?"}</span>
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "1rem", fontWeight: 600, color: "var(--fgColor-default)" }}>{mentorProfile?.email || "Loading..."}</span>
+                {mentorProfile?.emailVerified && (
+                  <span style={{ display: "inline-flex", padding: "2px 8px", borderRadius: "9999px", fontSize: "0.6875rem", fontWeight: 500, fontFamily: "var(--font-sans)", background: "#059669", color: "#fff" }}>Verified</span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", flexWrap: "wrap" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#818178", flexShrink: 0 }} />
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)" }}>Offline</span>
+                <span style={{ color: "var(--fgColor-muted)", fontSize: "0.8125rem" }}>·</span>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)" }}>{mentorProfile?.lastLoginAt ? `Last login ${formatRelativeTime(mentorProfile.lastLoginAt)}` : "Never logged in"}</span>
+              </div>
+            </div>
+          </div>
+          {(mentorProfile?.collegeName || mentorProfile?.courseName) && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "32px", minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {mentorProfile.collegeName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--fgColor-default)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mentorProfile.collegeName}</div>}
+                {mentorProfile.departmentName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4, marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mentorProfile.departmentName}</div>}
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                {mentorProfile.courseName && <div style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-muted)", lineHeight: 1.4 }}>{mentorProfile.courseName}{mentorProfile.academicYear ? ` \u00B7 Year ${mentorProfile.academicYear}` : ""}</div>}
+                {mentorProfile.expertiseLevel && <span style={{ display: "inline-block", fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, padding: "3px 12px", borderRadius: "4px", marginTop: "6px", background: getExpertiseColor(mentorProfile.expertiseLevel).bg, color: getExpertiseColor(mentorProfile.expertiseLevel).text }}>{mentorProfile.expertiseLevel}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Account | Socials */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "20px" }}>
+          <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Account</span>
+            </div>
+            <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+              <InfoRow label="Phone" value={mentorProfile?.phone || "Not set"} isLast={false} />
+              <InfoRow label="Profession" value={mentorProfile?.profession || "Not set"} isLast={!mentorProfile?.skills?.length} />
+              {mentorProfile?.skills && mentorProfile.skills.length > 0 && (
+                <div style={{ borderTop: "1px solid var(--borderColor-default)", padding: "12px 20px" }}>
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", color: "var(--fgColor-muted)", fontWeight: 400, display: "block", marginBottom: "8px" }}>Skills</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>{mentorProfile.skills.map((skill: string) => (<Pill key={skill} label={skill} />))}</div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ border: "1px solid var(--borderColor-default)", borderRadius: "4px", overflow: "hidden", background: "var(--bgColor-mild)" }}>
+            <div style={{ background: "var(--bgColor-muted)", padding: "0 20px", height: "40px", display: "flex", alignItems: "center", borderBottom: "1px solid var(--borderColor-default)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fgColor-default)", fontFamily: "var(--font-sans)" }}>Socials</span>
+            </div>
+            <div style={{ padding: "0", background: "var(--bgColor-mild)" }}>
+              <InfoRow label="GitHub" value={mentorProfile?.githubUrl || "Not set"} isLast={false} />
+              <InfoRow label="LinkedIn" value={mentorProfile?.linkedinUrl || "Not set"} isLast={false} />
+              <InfoRow label="Website" value={mentorProfile?.websiteUrl || "Not set"} isLast={true} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ marginBottom: "24px" }}>
+    <div ref={containerRef} style={{ marginBottom: "24px" }}>
       <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "1.25rem", fontWeight: 600, color: "var(--fgColor-default)", margin: "24px 0 16px 0" }}>
         Live Session
       </h2>
@@ -754,20 +866,33 @@ function StudentLiveSection({ sessions }: { sessions: StudentLiveEntry[] }) {
             <span key={h} style={{ fontFamily: "var(--font-sans)", fontSize: "0.75rem", fontWeight: 500, color: "var(--fgColor-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</span>
           ))}
         </div>
-        {sessions.map((s) => {
+        {orderedSessions.map((s, idx) => {
+          const isExpanded = expandedId === s.id;
+          const isCollapsing = collapsingId === s.id;
+          const isActive = isExpanded || isCollapsing;
           const startDate = new Date(s.startedAt);
           const timeStr = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
           return (
-            <div key={s.id} style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px", gap: "12px", padding: "12px 20px", borderBottom: "1px solid var(--borderColor-default)", alignItems: "center" }}>
-              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.mentorName}</span>
-              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.domain}</span>
-              <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.serviceType}</span>
-              <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.durationMinutes} min</span>
-              <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{timeStr}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#22c55e", animation: "pulse 1.5s infinite" }} />
-                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "#22c55e", fontWeight: 600 }}>Live</span>
+            <div key={s.id}>
+              {/* Row */}
+              <div
+                style={{ display: "grid", gridTemplateColumns: "160px 1fr 100px 80px 80px 80px", gap: "12px", padding: "12px 20px", borderBottom: isActive ? "none" : idx < orderedSessions.length - 1 ? "1px solid var(--borderColor-default)" : "none", alignItems: "center", transition: "background-color 0.1s ease", cursor: "pointer", backgroundColor: "transparent" }}
+                onClick={() => handleRowClick(s.id)}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bgColor-default)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+              >
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.mentorName}</span>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.domain}</span>
+                <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.serviceType}</span>
+                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{s.durationMinutes} min</span>
+                <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: "0.8125rem", color: "var(--fgColor-default)" }}>{timeStr}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#22c55e", animation: "pulse 1.5s infinite" }} />
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "0.8125rem", color: "#22c55e", fontWeight: 600 }}>Live</span>
+                </div>
               </div>
+              {/* Expanded Panel */}
+              {(isExpanded || isCollapsing) && renderPanel(s)}
             </div>
           );
         })}

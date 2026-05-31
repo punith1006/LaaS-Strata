@@ -6,6 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import * as jwt from 'jsonwebtoken';
 
 export interface RequestEntry {
   id: string;
@@ -730,6 +731,60 @@ export class MentorSessionsService {
     }
 
     return { success: true };
+  }
+
+  /** Check if approving a pending session would overlap with an upcoming scheduled session */
+  async checkSessionOverlap(sessionId: string): Promise<{
+    hasOverlap: boolean;
+    overlappingSession?: {
+      id: string;
+      scheduledFrom: string;
+      scheduledTo: string;
+      durationMinutes: number;
+      userName: string;
+    };
+  }> {
+    const session = await this.prisma.mentorSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session || session.status !== 'pending') {
+      return { hasOverlap: false };
+    }
+
+    const now = new Date();
+    const proposedStart = now;
+    const proposedEnd = new Date(now.getTime() + session.durationMinutes * 60 * 1000);
+
+    // Find any SCHEDULED session for this mentor that overlaps with the proposed window
+    const overlapping = await this.prisma.mentorSession.findFirst({
+      where: {
+        mentorProfileId: session.mentorProfileId,
+        status: 'scheduled',
+        scheduledFrom: { lt: proposedEnd },
+        scheduledTo: { gt: proposedStart },
+      },
+      include: {
+        student: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+      orderBy: { scheduledFrom: 'asc' },
+    });
+
+    if (!overlapping || !overlapping.scheduledFrom || !overlapping.scheduledTo) {
+      return { hasOverlap: false };
+    }
+
+    return {
+      hasOverlap: true,
+      overlappingSession: {
+        id: overlapping.id,
+        scheduledFrom: overlapping.scheduledFrom.toISOString(),
+        scheduledTo: overlapping.scheduledTo.toISOString(),
+        durationMinutes: overlapping.durationMinutes,
+        userName: `${overlapping.student.firstName || ''} ${overlapping.student.lastName || ''}`.trim() || 'Unknown',
+      },
+    };
   }
 
   /** Cancel an upcoming session (mentor side) */
@@ -2337,5 +2392,39 @@ export class MentorSessionsService {
       createdAt: s.createdAt.toISOString(),
       status: statusLabelMap[s.status] || s.status,
     }));
+  }
+
+  /** Generate a Jitsi meeting link for a live session */
+  async generateSessionJitsiLink(sessionId: string, displayName?: string) {
+    const session = await this.prisma.mentorSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.status !== 'live') throw new BadRequestException('Session is not live');
+
+    const roomName = session.jitsiRoomName;
+    if (!roomName) throw new BadRequestException('Session has no Jitsi room configured');
+
+    const now = Math.floor(Date.now() / 1000);
+    const scheduledTo = session.scheduledTo;
+    const remainingSeconds = scheduledTo ? Math.max(60, Math.floor((scheduledTo.getTime() - Date.now()) / 1000)) : 300;
+
+    const payload: jwt.JwtPayload = {
+      aud: 'jitsi',
+      iss: process.env.JITSI_APP_ID || 'laas-platform',
+      sub: 'meet.jitsi',
+      room: roomName,
+      exp: now + remainingSeconds,
+      context: {
+        user: { name: displayName || 'User', email: '', id: session.studentUserId },
+      },
+    };
+
+    const token = jwt.sign(payload, process.env.JITSI_APP_SECRET || '', { algorithm: 'HS256' });
+    const baseUrl = process.env.JITSI_BASE_URL || '';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const meetingUrl = `${frontendUrl}/meeting?room=${roomName}&jwt=${token}&baseUrl=${encodeURIComponent(baseUrl)}`;
+
+    return { meetingUrl, roomName, jwt: token, expiresAt: new Date((now + remainingSeconds) * 1000).toISOString() };
   }
 }

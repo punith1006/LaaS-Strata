@@ -2104,6 +2104,24 @@ export async function approveMentorSession(sessionId: string): Promise<boolean> 
   return res.ok;
 }
 
+export interface SessionOverlapResult {
+  hasOverlap: boolean;
+  overlappingSession?: {
+    id: string;
+    scheduledFrom: string;
+    scheduledTo: string;
+    durationMinutes: number;
+    userName: string;
+  };
+}
+
+/** Check if approving a session would overlap with an upcoming scheduled session */
+export async function checkMentorSessionOverlap(sessionId: string): Promise<SessionOverlapResult> {
+  const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/check-overlap`);
+  if (!res.ok) return { hasOverlap: false };
+  return res.json();
+}
+
 /** Reject a pending session request */
 export async function rejectMentorSession(sessionId: string, reason?: string): Promise<boolean> {
   const res = await apiFetch(`${API_BASE}/api/mentor-sessions/${sessionId}/reject`, {
