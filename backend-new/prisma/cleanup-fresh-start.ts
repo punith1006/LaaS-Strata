@@ -1,8 +1,9 @@
 /**
- * Complete Database Cleanup Script for Fresh Start
+ * Complete Database Cleanup Script for Fresh Start (Updated for Current Schema)
  *
- * Wipes ALL user data while preserving system/platform configuration tables.
- * Keeps two specified users: business_lead@ksrce.in, it_admin@ksrce.in
+ * Wipes ALL user transactional data while preserving system/platform configuration tables.
+ * Keeps specified business admin and IT admin users with ALL their data preserved.
+ * Keeps a specified mentor's user record + profile but cleans their transactional data.
  * Designed for dev/test environment reset before multi-node testing.
  *
  * Run: npx ts-node prisma/cleanup-fresh-start.ts --force
@@ -13,13 +14,31 @@ import * as readline from 'readline';
 
 const prisma = new PrismaClient();
 
-// Users to KEEP (will NOT be deleted)
-const KEEP_EMAILS = [
+// ──────────────────────────────────────────────
+// CONFIGURATION
+// ──────────────────────────────────────────────
+
+// Users to FULLY KEEP (user record + ALL data preserved: tokens, wallet, sessions, etc.)
+const FULLY_KEEP_EMAILS = [
   'business_lead@ksrce.in',
   'it_admin@ksrce.in',
 ];
 
-// Tables that should be emptied (reporting only — actual deletion is via TRUNCATE CASCADE)
+// Users whose RECORD and PROFILE stay, but ALL transactional data is deleted
+const KEEP_USER_ONLY_IDS = [
+  'd6e2fea7-4b97-45d4-90b1-2f525eb52371', // protected mentor user
+];
+
+// Mentor profile ID to preserve (the protected mentor's profile)
+const KEEP_MENTOR_PROFILE_IDS = [
+  'eeb5277a-70f7-4d46-94a3-f43e5c0de5eb',
+];
+
+// ──────────────────────────────────────────────
+// TABLE LISTS
+// ──────────────────────────────────────────────
+
+// User-data tables (reporting only — actual deletion is via txn)
 const USER_DATA_TABLES = [
   'users',
   'otp_verifications',
@@ -41,6 +60,7 @@ const USER_DATA_TABLES = [
   'wallets',
   'wallet_holds',
   'wallet_transactions',
+  'withdrawal_requests',
   'subscriptions',
   'payment_transactions',
   'billing_charges',
@@ -56,8 +76,12 @@ const USER_DATA_TABLES = [
   'coursework_content',
   'mentor_profiles',
   'mentor_availability_slots',
+  'mentor_blocked_dates',
   'mentor_bookings',
   'mentor_reviews',
+  'mentor_sessions',
+  'mentor_session_status_history',
+  'mentor_session_payments',
   'discussions',
   'discussion_replies',
   'project_showcases',
@@ -66,6 +90,7 @@ const USER_DATA_TABLES = [
   'audit_log',
   'user_deletion_requests',
   'support_tickets',
+  'support_ticket_attachments',
   'ticket_messages',
   'user_feedback',
   'referrals',
@@ -75,13 +100,14 @@ const USER_DATA_TABLES = [
   'waitlist_entries',
 ];
 
-// Tables that must be preserved
+// Tables that must be preserved (system config / master data)
 const PRESERVED_TABLES = [
   'nodes',
   'compute_configs',
   'organizations',
   'universities',
   'departments',
+  'user_groups',
   'roles',
   'permissions',
   'role_permissions',
@@ -93,13 +119,16 @@ const PRESERVED_TABLES = [
   'node_base_images',
   'notification_templates',
   'achievements',
-  'user_groups',
   'compute_config_access',
   'org_contracts',
   'org_resource_quotas',
   'university_idp_configs',
   'announcements',
 ];
+
+// ──────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────
 
 async function getTableCounts(tables: string[]): Promise<Record<string, number>> {
   const counts: Record<string, number> = {};
@@ -130,12 +159,9 @@ async function askConfirmation(): Promise<boolean> {
   });
 }
 
-async function tableExists(tableName: string): Promise<boolean> {
-  const result = await prisma.$queryRawUnsafe<{ exists: boolean }[]>(
-    `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '${tableName}') as exists`,
-  );
-  return result[0].exists;
-}
+// ──────────────────────────────────────────────
+// MAIN
+// ──────────────────────────────────────────────
 
 async function main() {
   const force = process.argv.includes('--force');
@@ -144,19 +170,24 @@ async function main() {
   console.log('DATABASE CLEANUP: SELECTIVE USER CLEANUP');
   console.log('='.repeat(70));
   console.log('');
-  console.log('KEEPING these users:');
-  for (const email of KEEP_EMAILS) {
+  console.log('FULLY KEEPING these users (all data preserved):');
+  for (const email of FULLY_KEEP_EMAILS) {
     console.log(`  - ${email}`);
   }
   console.log('');
-  console.log('DELETING all other users and their data:');
+  console.log('KEEPING USER RECORD + PROFILE ONLY (transactional data cleaned):');
+  for (const uid of KEEP_USER_ONLY_IDS) {
+    console.log(`  - User ID: ${uid}`);
+  }
+  console.log('');
+  console.log('DELETING all other users and ALL transactional data for keep-user-only:');
   console.log('  - Auth tokens, login history, profiles, departments, groups');
-  console.log('  - Sessions, bookings, session events');
+  console.log('  - Compute sessions, bookings, session events');
   console.log('  - Storage volumes, files, OS switch history');
   console.log('  - Billing charges, invoices, payments, wallets, transactions');
   console.log('  - Referrals, support tickets, notifications');
   console.log('  - Academic data: courses, labs, enrollments, grades, submissions');
-  console.log('  - Mentorship data');
+  console.log('  - ALL mentorship data (slots, bookings, sessions, reviews, payments)');
   console.log('  - Community data: discussions, showcases');
   console.log('  - All audit logs');
   console.log('  - All node resource reservations');
@@ -171,28 +202,44 @@ async function main() {
   console.log('  - notification_templates, achievements');
   console.log('');
 
-  // Get users to keep
-  const keepUsers = await prisma.user.findMany({
-    where: { email: { in: KEEP_EMAILS } },
+  // ── Fetch users to keep ──
+
+  const fullyKeepUsers = await prisma.user.findMany({
+    where: { email: { in: FULLY_KEEP_EMAILS } },
     select: { id: true, email: true },
   });
 
-  if (keepUsers.length === 0) {
-    console.log('ERROR: None of the KEEP_EMAILS users exist in the database!');
+  if (fullyKeepUsers.length === 0) {
+    console.log('ERROR: None of the FULLY_KEEP_EMAILS users exist in the database!');
     console.log('Aborting for safety.');
     return;
   }
 
-  console.log(`Found ${keepUsers.length} user(s) to KEEP:`);
-  for (const u of keepUsers) {
-    console.log(`  \u2713 ${u.email}`);
+  console.log(`Found ${fullyKeepUsers.length} user(s) to FULLY KEEP:`);
+  for (const u of fullyKeepUsers) {
+    console.log(`  ${u.email} (${u.id})`);
   }
   console.log('');
 
-  const keepIds = keepUsers.map(u => u.id);
+  const fullyKeepIds = fullyKeepUsers.map(u => u.id);
+  const allKeepIds = [...fullyKeepIds, ...KEEP_USER_ONLY_IDS];
+
+  // Verify the protected mentor user exists
+  if (KEEP_USER_ONLY_IDS.length > 0) {
+    const mentorUser = await prisma.user.findUnique({ where: { id: KEEP_USER_ONLY_IDS[0] }, select: { id: true, email: true } });
+    if (mentorUser) {
+      console.log(`Protected mentor user found: ${mentorUser.email} (${mentorUser.id})`);
+    } else {
+      console.log('WARNING: Protected mentor user not found in database!');
+    }
+    console.log('');
+  }
 
   // Cast UUIDs for raw SQL
-  const castIds = keepIds.map(id => `'${id}'::uuid`).join(',');
+  const castFullyKeepIds = fullyKeepIds.map(id => `'${id}'::uuid`).join(',');
+  const castAllKeepIds = allKeepIds.map(id => `'${id}'::uuid`).join(',');
+
+  // ── Scan database ──
 
   console.log('Scanning database...');
   const countsBefore = await getTableCounts(USER_DATA_TABLES);
@@ -232,90 +279,257 @@ async function main() {
 
   console.log('Executing selective cleanup in transaction...');
 
+  // ── EXECUTE DELETION ──
+  // Order matters: child tables before parents, respecting FK constraints
+
   await prisma.$transaction(async (tx) => {
-    // Delete in dependency order: leaf tables first, then users
-    // Auth & tokens
-    await tx.$executeRawUnsafe(`DELETE FROM "otp_verifications" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_policy_consents" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "refresh_tokens" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "login_history" WHERE "user_id" NOT IN (${castIds})`);
+    // =====================================================================
+    // DOMAIN 10: MENTORSHIP (delete ALL transactional data first)
+    // =====================================================================
 
-    // User lifecycle
-    await tx.$executeRawUnsafe(`DELETE FROM "user_deletion_requests" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "waitlist_entries" WHERE "userId" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_feedback" WHERE "user_id" NOT IN (${castIds})`);
+    // mentor_session_status_history -> mentor_sessions
+    await tx.$executeRawUnsafe(`DELETE FROM "mentor_session_status_history"`);
 
-    // Storage
-    await tx.$executeRawUnsafe(`DELETE FROM "storage_extensions" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "os_switch_history" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_files" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_storage_volumes" WHERE "user_id" NOT IN (${castIds})`);
+    // mentor_session_payments -> mentor_sessions, wallet_transactions
+    await tx.$executeRawUnsafe(`DELETE FROM "mentor_session_payments"`);
 
-    // Sessions - delete child tables first (FK to sessions)
-    await tx.$executeRawUnsafe(`DELETE FROM "wallet_holds" WHERE "session_id" IN (SELECT "id" FROM "sessions" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "billing_charges" WHERE "session_id" IN (SELECT "id" FROM "sessions" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "session_events" WHERE "session_id" IN (SELECT "id" FROM "sessions" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "node_resource_reservations" WHERE "session_id" IN (SELECT "id" FROM "sessions" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "bookings" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "sessions" WHERE "user_id" NOT IN (${castIds})`);
+    // mentor_reviews -> mentor_bookings
+    await tx.$executeRawUnsafe(`DELETE FROM "mentor_reviews"`);
 
-    // Billing
-    await tx.$executeRawUnsafe(`DELETE FROM "invoice_line_items" WHERE "invoice_id" IN (SELECT "id" FROM "invoices" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "invoices" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "billing_charges" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "payment_transactions" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "subscriptions" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "wallet_holds" WHERE "wallet_id" IN (SELECT "id" FROM "wallets" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "wallet_transactions" WHERE "wallet_id" IN (SELECT "id" FROM "wallets" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "wallets" WHERE "user_id" NOT IN (${castIds})`);
+    // mentor_bookings -> mentor_profiles, payment_transactions
+    await tx.$executeRawUnsafe(`DELETE FROM "mentor_bookings"`);
 
-    // Academic
-    await tx.$executeRawUnsafe(`DELETE FROM "lab_grades" WHERE "submission_id" IN (SELECT "id" FROM "lab_submissions" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "lab_submissions" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "lab_assignments" WHERE "lab_id" IN (SELECT "id" FROM "labs" WHERE "created_by_user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "course_enrollments" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "labs" WHERE "created_by_user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "courses" WHERE "instructor_id" NOT IN (${castIds})`);
+    // mentor_sessions -> mentor_profiles
+    await tx.$executeRawUnsafe(`DELETE FROM "mentor_sessions"`);
+
+    // mentor_blocked_dates -> mentor_profiles
+    await tx.$executeRawUnsafe(`DELETE FROM "mentor_blocked_dates"`);
+
+    // mentor_availability_slots -> mentor_profiles
+    await tx.$executeRawUnsafe(`DELETE FROM "mentor_availability_slots"`);
+
+    // mentor_profiles: keep the protected mentor's profile, delete all others
+    await tx.$executeRawUnsafe(`
+      DELETE FROM "mentor_profiles"
+      WHERE "id" NOT IN (${KEEP_MENTOR_PROFILE_IDS.map(id => `'${id}'::uuid`).join(',')})
+    `);
+
+    // =====================================================================
+    // DOMAIN 4: STORAGE AND OS LIFECYCLE
+    // =====================================================================
+
+    // os_switch_history -> user_storage_volumes
+    await tx.$executeRawUnsafe(`DELETE FROM "os_switch_history"`);
+
+    // storage_extensions -> user_storage_volumes, wallet_transactions
+    await tx.$executeRawUnsafe(`DELETE FROM "storage_extensions"`);
+
+    // user_files -> sessions
+    await tx.$executeRawUnsafe(`DELETE FROM "user_files"`);
+
+    // billing_charges may reference storage_volume_id of non-kept users — null it out first
+    await tx.$executeRawUnsafe(`UPDATE "billing_charges" SET "storage_volume_id" = NULL WHERE "storage_volume_id" IN (SELECT "id" FROM "user_storage_volumes" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // user_storage_volumes -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "user_storage_volumes" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // DOMAIN 8: BILLING, WALLET, SUBSCRIPTIONS
+    // =====================================================================
+
+    // wallet_holds -> wallets, bookings, sessions
+    await tx.$executeRawUnsafe(`DELETE FROM "wallet_holds" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // support_tickets may reference billing_charge from non-kept users — null it out
+    await tx.$executeRawUnsafe(`UPDATE "support_tickets" SET "related_billing_id" = NULL WHERE "related_billing_id" IN (SELECT "id" FROM "billing_charges" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // billing_charges -> sessions (must delete before wallet_transactions since wallet_transactions references billing_charges)
+    await tx.$executeRawUnsafe(`DELETE FROM "billing_charges" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // billing_charges may reference wallet_transaction from non-kept users — null it out before deleting wallet_transactions
+    await tx.$executeRawUnsafe(`UPDATE "billing_charges" SET "wallet_transaction_id" = NULL WHERE "wallet_transaction_id" IN (SELECT "id" FROM "wallet_transactions" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // wallet_transactions -> wallets (also referenced by mentor_session_payments which is already deleted)
+    await tx.$executeRawUnsafe(`DELETE FROM "wallet_transactions" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // withdrawal_requests -> wallets
+    await tx.$executeRawUnsafe(`DELETE FROM "withdrawal_requests" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // wallets -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "wallets" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // DOMAIN 7: SESSIONS AND BOOKINGS
+    // =====================================================================
+
+    // session_events -> sessions
+    await tx.$executeRawUnsafe(`DELETE FROM "session_events"`);
+
+    // node_resource_reservations -> sessions
+    await tx.$executeRawUnsafe(`DELETE FROM "node_resource_reservations"`);
+
+    // billing_charges may reference session_id from non-kept users — null it out
+    await tx.$executeRawUnsafe(`UPDATE "billing_charges" SET "session_id" = NULL WHERE "session_id" IN (SELECT "id" FROM "sessions" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // support_tickets may reference session_id from non-kept users — null it out
+    await tx.$executeRawUnsafe(`UPDATE "support_tickets" SET "related_session_id" = NULL WHERE "related_session_id" IN (SELECT "id" FROM "sessions" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // sessions -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "sessions" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // bookings -> users, organizations
+    await tx.$executeRawUnsafe(`DELETE FROM "bookings" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // DOMAIN 8: BILLING (continued — invoices, payment_transactions)
+    // =====================================================================
+
+    // invoice_line_items -> invoices
+    await tx.$executeRawUnsafe(`DELETE FROM "invoice_line_items"`);
+
+    // invoices -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "invoices" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // subscriptions -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "subscriptions" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // subscriptions may reference payment_transaction from non-kept users — null it out before deleting payment_transactions
+    await tx.$executeRawUnsafe(`UPDATE "subscriptions" SET "payment_transaction_id" = NULL WHERE "payment_transaction_id" IN (SELECT "id" FROM "payment_transactions" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // payment_transactions -> users (also referenced by mentor_bookings which is already deleted)
+    await tx.$executeRawUnsafe(`DELETE FROM "payment_transactions" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // DOMAIN 9: ACADEMIC / LMS
+    // =====================================================================
+
+    // lab_grades -> lab_submissions
+    await tx.$executeRawUnsafe(`DELETE FROM "lab_grades"`);
+
+    // lab_submissions -> users (all transactional, delete all for fresh start)
+    await tx.$executeRawUnsafe(`DELETE FROM "lab_submissions"`);
+
+    // lab_assignments -> labs (safe now that submissions are gone)
+    await tx.$executeRawUnsafe(`DELETE FROM "lab_assignments"`);
+
+    // lab_group_assignments -> user_groups, labs
+    await tx.$executeRawUnsafe(`DELETE FROM "lab_group_assignments"`);
+
+    // labs -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "labs" WHERE "created_by_user_id" NOT IN (${castFullyKeepIds})`);
+
+    // course_enrollments -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "course_enrollments" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // courses -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "courses" WHERE "instructor_id" NOT IN (${castFullyKeepIds})`);
+
+    // coursework_content -> organizations
     await tx.$executeRawUnsafe(`DELETE FROM "coursework_content" WHERE "organization_id" IS NOT NULL`);
 
-    // Mentorship
-    await tx.$executeRawUnsafe(`DELETE FROM "mentor_reviews" WHERE "reviewer_user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "mentor_bookings" WHERE "student_user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "mentor_availability_slots" WHERE "mentor_profile_id" IN (SELECT "id" FROM "mentor_profiles" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "mentor_profiles" WHERE "user_id" NOT IN (${castIds})`);
+    // =====================================================================
+    // DOMAIN 11: COMMUNITY AND GAMIFICATION
+    // =====================================================================
 
-    // Community
-    await tx.$executeRawUnsafe(`DELETE FROM "discussion_replies" WHERE "author_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "discussions" WHERE "author_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "project_showcases" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_achievements" WHERE "user_id" NOT IN (${castIds})`);
+    // discussion_replies -> discussions
+    await tx.$executeRawUnsafe(`DELETE FROM "discussion_replies"`);
 
-    // Notifications & audit
-    await tx.$executeRawUnsafe(`DELETE FROM "notifications" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "audit_log" WHERE "actor_id" NOT IN (${castIds})`);
+    // discussions -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "discussions" WHERE "author_id" NOT IN (${castFullyKeepIds})`);
 
-    // Support
-    await tx.$executeRawUnsafe(`DELETE FROM "ticket_messages" WHERE "ticket_id" IN (SELECT "id" FROM "support_tickets" WHERE "user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "support_tickets" WHERE "user_id" NOT IN (${castIds})`);
+    // project_showcases -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "project_showcases" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
 
-    // Referrals
-    await tx.$executeRawUnsafe(`DELETE FROM "referral_events" WHERE "referral_id" IN (SELECT "id" FROM "referrals" WHERE "referrer_user_id" NOT IN (${castIds}))`);
-    await tx.$executeRawUnsafe(`DELETE FROM "referral_conversions" WHERE "referrer_user_id" NOT IN (${castIds}) OR "referred_user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "referrals" WHERE "referrer_user_id" NOT IN (${castIds})`);
+    // user_achievements -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "user_achievements" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
 
-    // Recommendation
-    await tx.$executeRawUnsafe(`DELETE FROM "recommendation_sessions" WHERE "user_id" NOT IN (${castIds})`);
+    // =====================================================================
+    // DOMAIN 12: NOTIFICATIONS
+    // =====================================================================
 
-    // User associations
-    await tx.$executeRawUnsafe(`DELETE FROM "user_group_members" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_departments" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_org_roles" WHERE "user_id" NOT IN (${castIds})`);
-    await tx.$executeRawUnsafe(`DELETE FROM "user_profiles" WHERE "user_id" NOT IN (${castIds})`);
+    await tx.$executeRawUnsafe(`DELETE FROM "notifications" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
 
-    // Finally delete the users themselves (keep the protected ones)
-    await tx.$executeRawUnsafe(`DELETE FROM "users" WHERE "id" NOT IN (${castIds})`);
+    // =====================================================================
+    // DOMAIN 13: AUDIT
+    // =====================================================================
 
-    // Reset node resource counters
+    await tx.$executeRawUnsafe(`DELETE FROM "audit_log" WHERE "actor_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // DOMAIN 13b: USER LIFECYCLE
+    // =====================================================================
+
+    await tx.$executeRawUnsafe(`DELETE FROM "user_deletion_requests" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // DOMAIN 15: SUPPORT AND FEEDBACK
+    // =====================================================================
+
+    // ticket_messages -> support_tickets (only delete messages for non-kept tickets)
+    await tx.$executeRawUnsafe(`DELETE FROM "ticket_messages" WHERE "ticket_id" IN (SELECT "id" FROM "support_tickets" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // support_ticket_attachments -> support_tickets (will cascade on ticket delete, but also need to clean orphaned)
+    await tx.$executeRawUnsafe(`DELETE FROM "support_ticket_attachments" WHERE "ticketId" IN (SELECT "id" FROM "support_tickets" WHERE "user_id" NOT IN (${castFullyKeepIds}))`);
+
+    // support_tickets -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "support_tickets" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // user_feedback -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "user_feedback" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // REFERRAL SYSTEM
+    // =====================================================================
+
+    // referral_events -> referrals
+    await tx.$executeRawUnsafe(`DELETE FROM "referral_events"`);
+
+    // referral_conversions -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "referral_conversions" WHERE "referrer_user_id" NOT IN (${castFullyKeepIds}) AND "referred_user_id" NOT IN (${castFullyKeepIds})`);
+
+    // referrals -> users
+    await tx.$executeRawUnsafe(`DELETE FROM "referrals" WHERE "referrer_user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // RECOMMENDATION
+    // =====================================================================
+
+    await tx.$executeRawUnsafe(`DELETE FROM "recommendation_sessions" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // WAITLIST
+    // =====================================================================
+
+    await tx.$executeRawUnsafe(`DELETE FROM "waitlist_entries" WHERE "userId" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // AUTH & TOKENS
+    // =====================================================================
+
+    await tx.$executeRawUnsafe(`DELETE FROM "otp_verifications" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+    await tx.$executeRawUnsafe(`DELETE FROM "user_policy_consents" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+    await tx.$executeRawUnsafe(`DELETE FROM "refresh_tokens" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+    await tx.$executeRawUnsafe(`DELETE FROM "login_history" WHERE "user_id" NOT IN (${castFullyKeepIds})`);
+
+    // =====================================================================
+    // USER ASSOCIATIONS (keep for all kept users)
+    // =====================================================================
+
+    await tx.$executeRawUnsafe(`DELETE FROM "user_group_members" WHERE "user_id" NOT IN (${castAllKeepIds})`);
+    await tx.$executeRawUnsafe(`DELETE FROM "user_departments" WHERE "user_id" NOT IN (${castAllKeepIds})`);
+    await tx.$executeRawUnsafe(`DELETE FROM "user_org_roles" WHERE "user_id" NOT IN (${castAllKeepIds})`);
+    await tx.$executeRawUnsafe(`DELETE FROM "user_profiles" WHERE "user_id" NOT IN (${castAllKeepIds})`);
+
+    // =====================================================================
+    // FINALLY: DELETE USERS THEMSELVES
+    // =====================================================================
+
+    await tx.$executeRawUnsafe(`DELETE FROM "users" WHERE "id" NOT IN (${castAllKeepIds})`);
+
+    // =====================================================================
+    // RESET NODE RESOURCE COUNTERS
+    // =====================================================================
+
     await tx.$executeRawUnsafe(`
       UPDATE nodes
       SET allocated_vcpu = 0,
@@ -324,6 +538,8 @@ async function main() {
           current_session_count = 0;
     `);
   });
+
+  // ── VERIFICATION ──
 
   console.log('');
   console.log('Cleanup executed. Verifying...');
@@ -349,11 +565,11 @@ async function main() {
 
   console.log('KEPT USERS:');
   const remainingUsers = await prisma.user.findMany({
-    where: { email: { in: KEEP_EMAILS } },
+    where: { id: { in: allKeepIds } },
     select: { id: true, email: true },
   });
   for (const u of remainingUsers) {
-    console.log(`  \u2713 ${u.email}`);
+    console.log(`  ${u.email || u.id} (${u.id})`);
   }
   console.log('');
 

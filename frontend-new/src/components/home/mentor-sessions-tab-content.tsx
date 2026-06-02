@@ -19,6 +19,7 @@ import {
   getStudentProfile,
   getSessionJitsiLink,
   type JitsiLinkResult,
+  type SessionOverlapResult,
   checkMentorSessionOverlap,
 } from "@/lib/api";
 import { SupportModal } from "@/components/support/support-modal";
@@ -3377,7 +3378,7 @@ export function MentorSessionsTabContent() {
   const [requests, setRequests] = useState<RequestEntry[]>([]);
   const [pastEntries, setPastEntries] = useState<PastEntryApi[]>([]);
   const [tick, setTick] = useState(0);
-  const [overlapWarning, setOverlapWarning] = useState<any | null>(null);
+  const [overlapWarning, setOverlapWarning] = useState<SessionOverlapResult | null>(null);
   const [pendingApproveId, setPendingApproveId] = useState<string | null>(null);
 
   // Fetch all data from API

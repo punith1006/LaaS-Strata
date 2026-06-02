@@ -290,7 +290,7 @@ export function MentorHomeTabContent({ user }: MentorHomeTabContentProps) {
       case "mentoring.date_blocked":
         return `Marked ${details?.date || ""} as Day Off${details?.reason ? ` — ${details.reason}` : ""}`;
       case "mentoring.date_unblocked":
-        return `Removed Day Off for ${details?.blockedDate ? details.blockedDate.split('T')[0] : ""}`;
+        return `Removed Day Off for ${details?.blockedDate ? String(details.blockedDate).split('T')[0] : ""}`;
       default:
         return action.replace(/\./g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
     }

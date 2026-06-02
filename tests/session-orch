@@ -38,3 +38,24 @@ SESSION_SECRET=laas-session-secret-dev HOST_IP=100.88.57.107 TURN_HOST=100.88.57
 
 
 curl -X POST http://localhost:3001/api/test/jitsi-link -H "Content-Type: application/json" -d "{\"displayName\":\"Punith\"}"
+
+
+sudo podman run -d \
+  --name keycloak \
+  --replace \
+  --network=host \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HOSTNAME=https://ksrceailab.com/auth \
+  -e KC_HTTP_RELATIVE_PATH=/auth \
+  -e KC_PROXY_HEADERS=xforwarded \
+  -e KC_HTTP_ENABLED=true \
+  -e KC_HOSTNAME_STRICT=false \
+  -e KC_DB=postgres \
+  -e KC_DB_URL=jdbc:postgresql://localhost:5432/keycloak \
+  -e KC_DB_USERNAME=postgres \
+  -e KC_DB_PASSWORD=root \
+  -e KC_HEALTH_ENABLED=true \
+  -e KC_HTTP_PORT=8081 \
+  quay.io/keycloak/keycloak:26.2 \
+  start

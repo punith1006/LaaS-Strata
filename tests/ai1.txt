@@ -1,174 +1,305 @@
 
-C:\Users\Punith\LaaS\backend-new>npm run start:prod
 
-> backend@0.0.1 start:prod
-> node dist/src/main
+C:\Users\Punith\LaaS\frontend-new>npm run build
 
-[Nest] 20968  - 29/05/2026, 6:34:34 am     LOG [NestFactory] Starting Nest application...
-[Nest] 20968  - 29/05/2026, 6:34:34 am     LOG [InstanceLoader] PrismaModule dependencies initialized +120ms
-[Nest] 20968  - 29/05/2026, 6:34:34 am     LOG [InstanceLoader] PassportModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:34 am     LOG [InstanceLoader] MailerModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] JwtModule dependencies initialized +1833ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] JwtModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] DiscoveryModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] AuditModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] NodeModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] MailerCoreModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] AppModule dependencies initialized +1ms
---- RAZORPAY ENV CHECK ---
-ID: rzp_live
-SECRET: HdN
---------------------------
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] JitsiDemoModule dependencies initialized +72ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] ScheduleModule dependencies initialized +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] MailModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] UserModule dependencies initialized +9ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] WithdrawalModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] WaitlistModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] MentorSessionsModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] MentorAvailabilityModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] ReferralModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] BillingModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] StorageModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] PaymentModule dependencies initialized +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] DashboardModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] SupportModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] ComputeModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [InstanceLoader] AuthModule dependencies initialized +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] AppController {/}: +25ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/, GET} route +8ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] StorageController {/api/storage}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes, GET} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/files, GET} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/status, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/files/mkdir, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/files/upload, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/files/download, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/files, DELETE} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes/check-name/:name, GET} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes, DELETE} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes/:id, GET} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes/:id, DELETE} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes/active-sessions-check, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes/host-space-check, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/storage/volumes/:id, PATCH} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] AuthController {/api/auth}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/universities/:slug/departments, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/check-email, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/send-otp, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/resend-otp, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/verify-otp, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/login, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/refresh, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/oauth/callback, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/forgot-password, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/verify-reset-otp, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/reset-password, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/me, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/auth/storage-retry, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] ReferralController {/api/referral}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/referral/my-link, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/referral/stats, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/referral/conversions, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/referral/track-click, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] DashboardController {/api/dashboard}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/home, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/billing, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/health, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/activity, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/kpi, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/revenue-chart, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/compute-activity, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/users/compute-activity, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/active-sessions, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/recent-transactions, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/attention-required, GET} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/fleet-health, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/revenue-growth, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/retention, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/all-transactions, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/users, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/users/:userId/detail, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/users/:userId/sessions, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/clients, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/departments, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/dashboard/analytics/invoice/:transactionId/download, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] PaymentController {/api/payment}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/payment/create-order, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/payment/verify, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/payment/transactions, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/payment/transactions/:id, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/payment/invoice/:transactionId/download, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] BillingController {/api/billing}: +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/billing/spend-limit, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/billing/spend-limit, PATCH} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] ComputeController {/api/compute}: +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/configs, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/resources/usage, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions/:id, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions/:id/terminate, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions/:id/restart, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions/:id/logs, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions/:id/connection, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/sessions/:id/events, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/resources, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/admin/sessions, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/extract-document, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/analyze-workload, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/generate-explanation, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/recommendation-session/latest, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/recommendation-session, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/compute/recommendation-session/:id, PATCH} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] UserController {/api/user}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/user/onboarding, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/user/onboarding-status, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/user/profile, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/user/profile, PUT} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/user/mentor-profile, PUT} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] SupportController {/api/support}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/tickets, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/tickets/list, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/tickets/:ticketId/attachments, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/tickets/:ticketId/attachments/:attachmentId, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/admin/tickets/unresolved, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/admin/tickets/:id/resolve, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/admin/tickets/:id, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/support/admin/tickets/:id/attachments/:attachmentId, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] WaitlistController {/api/waitlist}: +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/waitlist/analyze-workload, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/waitlist, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/waitlist/count, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/waitlist/status, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] MentorSessionsController {/api/mentor-sessions}: +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/calendar, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/requests, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/upcoming, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/live, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/past, GET} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/billing-stats, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/:id/approve, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/:id/reject, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/:id/cancel, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/profile/:mentorProfileId, GET} route +2ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor-sessions/explore, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] MentorAvailabilityController {/api/mentor/availability}: +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor/availability, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor/availability, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor/availability/:id, DELETE} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor/availability/blocked-dates, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor/availability/blocked-dates, POST} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/mentor/availability/blocked-dates/:id, DELETE} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] JitsiDemoController {/api/test/jitsi-link}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/test/jitsi-link, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RoutesResolver] WithdrawalController {/api/withdrawal}: +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/withdrawal/request, POST} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/withdrawal/history, GET} route +0ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [RouterExplorer] Mapped {/api/withdrawal/balance, GET} route +1ms
-[Nest] 20968  - 29/05/2026, 6:34:36 am     LOG [NestApplication] Nest application successfully started +153ms
-Backend running on http://localhost:3001
-[Nest] 20968  - 29/05/2026, 6:35:00 am   DEBUG [ComputeService] Starting runway enforcement check...
-[Nest] 20968  - 29/05/2026, 6:35:00 am   DEBUG [ComputeService] Reconciling 2 active sessions
-[Nest] 20968  - 29/05/2026, 6:35:30 am   DEBUG [ComputeService] Reconciling 2 active sessions
+
+
+> laas-frontend@0.1.0 build
+
+> next build
+
+
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+
+ We detected multiple lockfiles and selected the directory of C:\Users\Punith\package-lock.json as the root directory.
+
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+
+ Detected additional lockfiles:
+
+   * C:\Users\Punith\LaaS\frontend-new\package-lock.json
+
+
+
+   ▲ Next.js 15.5.12
+
+   - Environments: .env.local
+
+
+
+   Creating an optimized production build ...
+
+ ✓ Compiled successfully in 38.2s
+
+
+
+Failed to compile.
+
+
+
+./src/app/(console)/mentor/[id]/page.tsx
+
+82:7  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+
+
+./src/app/(console)/profile/page.tsx
+
+402:10  Warning: 'editingAddress' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+709:9  Warning: 'handleSaveAddress' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+728:9  Warning: 'handleCancelAddress' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/app/(console)/referral/page.tsx
+
+5:53  Warning: 'ChevronDown' is defined but never used.  @typescript-eslint/no-unused-vars
+
+5:66  Warning: 'ChevronUp' is defined but never used.  @typescript-eslint/no-unused-vars
+
+5:99  Warning: 'Info' is defined but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/app/(console)/storage/page.tsx
+
+6:20  Warning: 'ApiStorageVolume' is defined but never used.  @typescript-eslint/no-unused-vars
+
+12:15  Warning: 'ApiFileItem' is defined but never used.  @typescript-eslint/no-unused-vars
+
+68:10  Warning: 'upgrading' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+68:21  Warning: 'setUpgrading' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+1674:3  Warning: 'currentPath' is defined but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/analytics/analytics-dashboard.tsx
+
+343:6  Warning: React Hook useEffect has a missing dependency: 'activeClientId'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+382:6  Warning: React Hook useEffect has a missing dependency: 'activeClientId'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+472:9  Warning: 'todayBarIndex' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+480:9  Warning: 'previousRevenueRate' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+1240:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+1463:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+
+
+./src/components/analytics/fleet-health-gauge.tsx
+
+35:3  Warning: 'healthyNodes' is defined but never used.  @typescript-eslint/no-unused-vars
+
+36:3  Warning: 'totalNodes' is defined but never used.  @typescript-eslint/no-unused-vars
+
+37:3  Warning: 'alertNodes' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+38:3  Warning: 'lastHeartbeatAt' is defined but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/analytics/users-section.tsx
+
+1257:21  Warning: 'isActive' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/auth/forgot-password-form.tsx
+
+3:31  Warning: 'useCallback' is defined but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/auth/oauth-buttons.tsx
+
+42:32  Warning: 'mode' is defined but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/auth/onboarding-form.tsx
+
+7:10  Warning: 'Input' is defined but never used.  @typescript-eslint/no-unused-vars
+
+70:7  Warning: 'ALL_TOOLS' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+183:26  Warning: 'setGraduationYear' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/auth/otp-input.tsx
+
+37:11  Warning: 'arr' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+58:11  Warning: 'digits' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/auth/otp-verification.tsx
+
+5:8  Warning: 'Link' is defined but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/auth/sign-up-form.tsx
+
+22:27  Warning: 'CheckEmailResponse' is defined but never used.  @typescript-eslint/no-unused-vars
+
+56:6  Warning: React Hook useEffect has a missing dependency: 'setInstitution'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+
+
+./src/components/billing/payment-history-tab.tsx
+
+4:39  Warning: 'PaginatedTransactions' is defined but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/compute/compute-recommendation.tsx
+
+4:24  Warning: 'scoreConfigs' is defined but never used.  @typescript-eslint/no-unused-vars
+
+4:74  Warning: 'DURATION_HOURS' is defined but never used.  @typescript-eslint/no-unused-vars
+
+108:10  Warning: 'LightbulbIcon' is defined but never used.  @typescript-eslint/no-unused-vars
+
+153:7  Warning: 'DURATIONS' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+195:3  Warning: 'walletBalance' is defined but never used.  @typescript-eslint/no-unused-vars
+
+209:27  Warning: 'setSessionDuration' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/home/billing-tab-content.tsx
+
+16:3  Warning: 'Line' is defined but never used.  @typescript-eslint/no-unused-vars
+
+50:9  Warning: 'pastDays' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+273:3  Warning: 'isDark' is defined but never used.  @typescript-eslint/no-unused-vars
+
+1075:10  Warning: 'loading' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+1109:9  Warning: 'usage' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+1119:9  Warning: 'spendRate' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/home/home-tab-content.tsx
+
+17:3  Warning: 'icon' is defined but never used.  @typescript-eslint/no-unused-vars
+
+135:10  Warning: 'loading' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/home/mentor-sessions-tab-content.tsx
+
+21:8  Warning: 'JitsiLinkResult' is defined but never used.  @typescript-eslint/no-unused-vars
+
+241:6  Warning: React Hook useEffect has a missing dependency: 'calcRemaining'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+617:6  Warning: React Hook useEffect has a missing dependency: 'requests'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+1110:3  Warning: 'onReschedule' is defined but never used.  @typescript-eslint/no-unused-vars
+
+1259:10  Warning: 'formatElapsed' is defined but never used.  @typescript-eslint/no-unused-vars
+
+1384:47  Warning: '_tick' is defined but never used.  @typescript-eslint/no-unused-vars
+
+1386:25  Warning: 'id' is defined but never used.  @typescript-eslint/no-unused-vars
+
+1476:6  Warning: React Hook useEffect has a missing dependency: 'sessions'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+1958:10  Warning: 'loading' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+2161:6  Warning: React Hook useEffect has a missing dependency: 'sessions'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+3380:56  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+
+
+./src/components/landing/landing-page.tsx
+
+747:64  Warning: 'glow2' is defined but never used.  @typescript-eslint/no-unused-vars
+
+856:61  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+
+881:24  Warning: 'onToggle' is defined but never used.  @typescript-eslint/no-unused-vars
+
+947:9  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+1221:10  Warning: 'FeatureComparison' is defined but never used.  @typescript-eslint/no-unused-vars
+
+1516:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+1849:13  Warning: 'c' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+2348:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+2359:51  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+
+
+./src/components/mentor/book-session-modal.tsx
+
+3:31  Warning: 'useCallback' is defined but never used.  @typescript-eslint/no-unused-vars
+
+83:10  Warning: 'datesLoading' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+128:9  Warning: 'balanceDisplay' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+
+
+./src/components/mentor/mentor-user-sessions-tab.tsx
+
+9:8  Warning: 'JitsiLinkResult' is defined but never used.  @typescript-eslint/no-unused-vars
+
+292:109  Warning: 'paginationRowRef' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+332:6  Warning: React Hook useEffect has missing dependencies: 'firstRowRef' and 'tableContainerRef'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+342:6  Warning: React Hook useEffect has a missing dependency: 'requests'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+495:109  Warning: 'paginationRowRef' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+533:6  Warning: React Hook useEffect has missing dependencies: 'firstRowRef' and 'tableContainerRef'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+543:6  Warning: React Hook useEffect has a missing dependency: 'sessions'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+695:109  Warning: 'paginationRowRef' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+760:25  Warning: 'id' is defined but never used.  @typescript-eslint/no-unused-vars
+
+815:6  Warning: React Hook useEffect has a missing dependency: 'sessions'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+
+./src/components/support/dropdown.tsx
+112:7  Warning: The attribute aria-required is not supported by the role button. This role is implicit on the element button.  jsx-a11y/role-supports-aria-props
+
+./src/components/support/support-modal.tsx
+699:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/waitlist/waitlist-page.tsx
+9:10  Warning: 'PolicyCheckbox' is defined but never used.  @typescript-eslint/no-unused-vars
+99:7  Warning: 'URGENCY_OPTIONS' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+107:7  Warning: 'EXPECTATION_OPTIONS' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+183:6  Warning: React Hook useEffect has a missing dependency: 'authenticatedUser'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+203:10  Warning: 'policyError' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+266:9  Warning: 'toggleExpectation' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+447:9  Warning: 'handlePolicyCheckedChange' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+
+C:\Users\Punith\LaaS\frontend-new>

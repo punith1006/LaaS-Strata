@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import type { User } from "@/types/auth";
 import { submitWaitlist, getMe, type WaitlistFormData, analyzeWaitlistWorkload, checkWaitlistStatus, type WaitlistEntry, getWaitlistCount } from "@/lib/api";
 import { getAccessToken } from "@/lib/token";
-import { PolicyCheckbox } from "@/components/auth/policy-checkbox";
 import { PolicyModal } from "@/components/auth/policy-modal";
 import type { PolicySlug } from "@/config/policies";
 
@@ -96,22 +95,6 @@ const DURATION_OPTIONS = [
   "6+ months",
 ];
 
-const URGENCY_OPTIONS = [
-  "Immediately",
-  "Within 2 weeks",
-  "Within a month",
-  "Within 3 months",
-  "Just exploring for now",
-];
-
-const EXPECTATION_OPTIONS = [
-  "Explore & Learn",
-  "Research & Development",
-  "Production Workloads",
-  "Cost Savings vs Cloud",
-  "Academic Projects",
-  "Revenue & Monetization",
-];
 
 const WORKLOAD_OPTIONS = [
   "Model Training",
@@ -200,7 +183,6 @@ export function WaitlistPage({ user }: WaitlistPageProps) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [policyModalSlug, setPolicyModalSlug] = useState<PolicySlug | null>(null);
-  const [policyError, setPolicyError] = useState<string | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
@@ -261,16 +243,6 @@ export function WaitlistPage({ user }: WaitlistPageProps) {
     return text.trim().split(/\s+/).length;
   };
   const wordCount = getWordCount(formData.workloadDescription || "");
-
-  // Toggle expectation chip
-  const toggleExpectation = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      expectations: prev.expectations.includes(value)
-        ? prev.expectations.filter((e) => e !== value)
-        : [...prev.expectations, value],
-    }));
-  };
 
   // Email format validator
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -441,12 +413,6 @@ export function WaitlistPage({ user }: WaitlistPageProps) {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  // Handle policy checkbox click
-  const handlePolicyCheckedChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, agreedToPolicy: checked }));
-    if (checked) setPolicyError(null);
   };
 
   // Handle "View Your Status" click from success screen
@@ -1804,7 +1770,7 @@ export function WaitlistPage({ user }: WaitlistPageProps) {
                     type="checkbox"
                     id="agreedToPolicy"
                     checked={formData.agreedToPolicy}
-                    onChange={(e) => { setFormData((prev) => ({ ...prev, agreedToPolicy: e.target.checked })); if (e.target.checked) setPolicyError(null); }}
+                    onChange={(e) => { setFormData((prev) => ({ ...prev, agreedToPolicy: e.target.checked })); }}
                     style={{ marginTop: 3, accentColor: ACCENT, width: 16, height: 16, cursor: "pointer" }}
                   />
                   <label htmlFor="agreedToPolicy" style={{ fontFamily: "var(--font-sans)", fontSize: "0.85rem", color: "var(--fgColor-muted)", cursor: "pointer", lineHeight: 1.5 }}>
@@ -1904,7 +1870,6 @@ export function WaitlistPage({ user }: WaitlistPageProps) {
           onOpenChange={(open) => !open && setPolicyModalSlug(null)}
           onConfirm={() => {
             setFormData((prev) => ({ ...prev, agreedToPolicy: true }));
-            setPolicyError(null);
             setPolicyModalSlug(null);
           }}
         />

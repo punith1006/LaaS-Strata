@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Script from "next/script";
 
@@ -39,7 +39,7 @@ declare global {
   }
 }
 
-export default function MeetingPage() {
+function MeetingPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -208,5 +208,13 @@ export default function MeetingPage() {
       {/* Jitsi container */}
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
     </div>
+  );
+}
+
+export default function MeetingPage() {
+  return (
+    <Suspense>
+      <MeetingPageContent />
+    </Suspense>
   );
 }
