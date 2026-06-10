@@ -35,6 +35,7 @@ REQUIRED_QUOTA_GB = 5
 # - Ensure a matching /etc/fstab entry
 NFS_AUTOMOUNT_ENABLED = os.environ.get("ENABLE_NFS_AUTOMOUNT", "false").lower() == "true"
 NFS_EXPORT_CLIENT = os.environ.get("NFS_EXPORT_CLIENT", "127.0.0.1")
+NFS_MOUNT_SOURCE = os.environ.get("NFS_MOUNT_SOURCE", "127.0.0.1")
 NFS_MOUNT_ROOT = os.environ.get("NFS_MOUNT_ROOT", "/mnt/nfs/users")
 EXPORTS_PATH = "/etc/exports"
 FSTAB_PATH = "/etc/fstab"
@@ -406,7 +407,7 @@ def _ensure_mount(storage_uid: str) -> Optional[str]:
         return f"Failed to read current mounts: {mounts_out}"
     if f" {mountpoint} " not in f" {mounts_out} ":
         # Not mounted yet; mount it
-        source = f"{NFS_EXPORT_CLIENT}:/datapool/users/{storage_uid}"
+        source = f"{NFS_MOUNT_SOURCE}:/datapool/users/{storage_uid}"
         ok, out = _run_cmd(["sudo", "mount", "-t", "nfs4", source, mountpoint], timeout=20)
         if not ok:
             return f"Failed to mount {source} on {mountpoint}: {out}"
@@ -416,7 +417,7 @@ def _ensure_mount(storage_uid: str) -> Optional[str]:
 def _ensure_fstab_line(storage_uid: str) -> Optional[str]:
     """Ensure /etc/fstab has an entry for this NFS mount (idempotent)."""
     mountpoint = os.path.join(NFS_MOUNT_ROOT, storage_uid)
-    source = f"{NFS_EXPORT_CLIENT}:/datapool/users/{storage_uid}"
+    source = f"{NFS_MOUNT_SOURCE}:/datapool/users/{storage_uid}"
     fstab_line = f"{source} {mountpoint} nfs4 defaults 0 0"
     grep_pattern = f"{source} {mountpoint} "
     ok, _ = _run_cmd(

@@ -45,6 +45,61 @@ export class JitsiDemoService {
    * @param displayName - Optional display name shown to other participants
    * @param ttlSeconds  - Token lifetime in seconds (default: 300 = 5 minutes)
    */
+  /**
+   * Generate a participant token for an existing room.
+   * Use this to give invitees their own JWT so they don't see login prompts.
+   */
+  generateParticipantToken(
+    roomName: string,
+    displayName?: string,
+    ttlSeconds = 300,
+  ): JitsiLinkResult {
+    const now = Math.floor(Date.now() / 1000);
+    const exp = now + ttlSeconds;
+
+    const payload: jwt.JwtPayload = {
+      aud: 'jitsi',
+      iss: this.appId,
+      sub: 'meet.jitsi',
+      room: roomName,
+      exp,
+      context: {
+        user: {
+          name: displayName || 'Participant',
+          email: '',
+          id: crypto.randomUUID(),
+          moderator: false, // participants are not moderators
+        },
+      },
+    };
+
+    const token = jwt.sign(payload, this.appSecret, {
+      algorithm: 'HS256',
+    });
+
+    const jitsiDirectUrl = `${this.baseUrl}/${roomName}?jwt=${token}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const meetingUrl = `${frontendUrl}/meeting?room=${roomName}&jwt=${token}&baseUrl=${encodeURIComponent(this.baseUrl)}`;
+
+    this.logger.log(
+      `Generated participant token for room "${roomName}" — expires at ${new Date(exp * 1000).toISOString()}`,
+    );
+
+    return {
+      roomName,
+      jwt: token,
+      jitsiDirectUrl,
+      meetingUrl,
+      expiresAt: new Date(exp * 1000).toISOString(),
+      debug: {
+        issuedAt: now,
+        expiresAt: exp,
+        ttlSeconds,
+        issuedAtISO: new Date(now * 1000).toISOString(),
+      },
+    };
+  }
+
   generateMeetingLink(
     displayName?: string,
     ttlSeconds = 300,

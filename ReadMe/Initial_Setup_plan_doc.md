@@ -662,6 +662,17 @@ curl -X POST http://localhost:9999/provision \
   -H "X-Provision-Secret: e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365" \
   -d '{"storageUid": "u_7d5ac90d65d6694b96f65147", "quotaGb": 10}'
 
+# Deprovision test user 1
+curl -X POST http://localhost:9999/deprovision \
+  -H "Content-Type: application/json" \
+  -H "X-Provision-Secret: e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365" \
+  -d '{"storageUid": "u_aabbccddeeff001122334455"}'
+
+# Deprovision test user 2
+curl -X POST http://localhost:9999/deprovision \
+  -H "Content-Type: application/json" \
+  -H "X-Provision-Secret: e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365" \
+  -d '{"storageUid": "u_aabbccddeeff001122334456"}'
 
 
 # If NFS automount was enabled, unmount first
@@ -705,6 +716,17 @@ sudo systemctl restart nfs-kernel-server
 
 # 6. Verify the exports
 sudo exportfs -v
+
+
+# Run on ai1: (mutual sharings in all the nodes!!!)
+# Remove any duplicate lines if they exist, then append:
+echo '/datapool/users 127.0.0.1(rw,sync,no_subtree_check,no_root_squash)' | sudo tee -a /etc/exports
+echo '/datapool/users 10.10.100.132(rw,sync,no_subtree_check,no_root_squash)' | sudo tee -a /etc/exports
+echo '/datapool/users 10.10.100.134(rw,sync,no_subtree_check,no_root_squash)' | sudo tee -a /etc/exports
+
+# Reload exports
+sudo exportfs -ra
+
 
 # 7. Mount locally on ai1 just to prove the NFS service is running
 sudo mkdir -p /mnt/nfs/users
@@ -1697,10 +1719,10 @@ DECLARE
     recharge_amount_paise BIGINT := 2000000; -- ₹20,000 (20 lakh Paise)
 BEGIN
     -- 1. IDENTIFY THE USER
-    SELECT id INTO target_user_id FROM users WHERE email = 'gopinathcse@ksrce.ac.in';
+    SELECT id INTO target_user_id FROM users WHERE email = 'test-user11@ksrce.ac.in';
     
     IF target_user_id IS NULL THEN
-        RAISE EXCEPTION 'User gopinathcse@ksrce.ac.in not found';
+        RAISE EXCEPTION 'User test-user11@ksrce.ac.in not found';
     END IF;
 
     -- 2. "ACTIVATE" STORAGE BILLING
@@ -1739,7 +1761,7 @@ BEGIN
         NOW(), NOW(), recharge_amount_paise, recharge_amount_paise, 'INR', 'paid', NOW(), NOW(), NOW(), NOW()
     );
 
-    RAISE NOTICE 'Success: Rs 20,000 added for gopinathcse@ksrce.ac.in';
+    RAISE NOTICE 'Success: Rs 20,000 added for test-user11@ksrce.ac.in';
 END $$;
 EOF
 

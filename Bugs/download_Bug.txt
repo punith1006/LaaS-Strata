@@ -1,0 +1,214 @@
+You’re not doing anything wrong — this failure is **100% expected in your environment**, and it’s actually a good signal about how your container is set up.
+
+Let’s break it down clearly.
+
+---
+
+# 🚨 What actually failed
+
+Your Resolve installer is **NOT really failing because of Resolve**.
+
+It is failing because:
+
+### ❌ Missing `/dev/fuse`
+
+```
+fuse: device not found
+Cannot mount AppImage
+```
+
+So the AppImage runtime cannot mount its embedded filesystem.
+
+---
+
+# 🧠 What’s really happening
+
+Even though you already ran:
+
+```bash
+--appimage-extract
+```
+
+Resolve 21 uses a **hybrid AppImage-style installer** that still tries to:
+
+* mount squashfs via FUSE at runtime
+* or spawn internal AppImage runtime logic
+
+But your container:
+
+* has **no FUSE device passed through**
+* likely has **no `CAP_SYS_ADMIN` for mounting**
+* and is running under **containerd + overlayfs isolation**
+
+So:
+
+> ❗ Even extraction mode is partially broken in some modern AppImage runtimes when they detect “unsupported environment”
+
+That’s why you see a “fake extraction” (`squashfs-root` with only `.DirIcon`).
+
+---
+
+# 🔍 Why your extraction produced almost nothing
+
+This is the key clue:
+
+```text
+squashfs-root
+└── .DirIcon only
+```
+
+That means:
+
+### 👉 The embedded SquashFS payload was NEVER mounted or unpacked
+
+So the installer is not actually being extracted — only metadata is visible.
+
+---
+
+# 💡 The real issue (important)
+
+You are in a container with:
+
+### Missing kernel-level features:
+
+* ❌ `/dev/fuse`
+* ❌ mount namespace permissions
+* ❌ privileged loop mounts
+* ❌ likely restricted `unshare()` capabilities
+
+So AppImage-based installers that depend on runtime mounting will **always fail here unless you change runtime config**.
+
+---
+
+# 🛠️ Your real options (choose one)
+
+## ✅ Option 1 — Proper fix (recommended for your platform testing)
+
+Expose FUSE into the container:
+
+On host / container runtime:
+
+### Docker/containerd config needs:
+
+```bash
+--device /dev/fuse
+--cap-add SYS_ADMIN
+--security-opt apparmor=unconfined
+```
+
+and ensure kernel module:
+
+```bash
+modprobe fuse
+```
+
+Then inside container:
+
+```bash
+apt install -y fuse3 libfuse2
+```
+
+✔ This makes AppImage behave normally
+✔ This is the “real world desktop cloud fix”
+✔ This validates your Selkies + HAMI stack properly
+
+---
+
+## ⚡ Option 2 — Skip AppImage entirely (best workaround right now)
+
+Extract manually using `bsdtar`:
+
+```bash
+cd ~/Apps/tmp
+mkdir extract
+bsdtar -xf DaVinci_Resolve_21.0_Linux.run -C extract
+```
+
+Then:
+
+```bash
+find extract | head
+```
+
+If this works, you bypass FUSE completely.
+
+---
+
+## ⚠️ Option 3 — Reality check (important)
+
+Even if you fix FUSE:
+
+DaVinci Resolve on Ubuntu 24.04 + container + GPU slicing can still fail due to:
+
+* `glibc` version mismatches
+* missing `libssl1.1` legacy deps
+* Blackmagic still targeting CentOS/RHEL-style systems
+* CUDA/OpenCL library mismatches in containerized NVIDIA stacks
+
+So FUSE is just the *first gate*, not the last.
+
+---
+
+# 🎯 What this means for your GPU virtualization project
+
+This failure is actually **valuable validation data**:
+
+You have already proven:
+
+| Layer                          | Status          |
+| ------------------------------ | --------------- |
+| GPU passthrough                | ✅ working       |
+| Vulkan/OpenGL                  | ✅ working       |
+| CUDA driver exposure           | ✅ working       |
+| container desktop              | ✅ working       |
+| filesystem quota illusion      | ⚠️ inconsistent |
+| AppImage runtime compatibility | ❌ missing FUSE  |
+
+---
+
+# 🚀 Next step (what I recommend)
+
+Before continuing Resolve:
+
+### Step A — fix container runtime
+
+Add:
+
+```bash
+/dev/fuse device passthrough
+SYS_ADMIN capability (or equivalent seccomp relaxation)
+```
+
+### Step B — retry:
+
+```bash
+./DaVinci_Resolve_21.0_Linux.run --appimage-extract
+```
+
+### Step C — verify:
+
+```bash
+ls squashfs-root
+```
+
+You should see thousands of files, not 1.
+
+---
+
+# If you want
+
+I can help you do something more useful for your platform test:
+
+### 👉 “Resolve-style GPU stress test without Resolve”
+
+We can build:
+
+* FFmpeg GPU pipeline
+* Vulkan compute stress
+* multi-instance CUDA contention test
+* browser-based rendering loop via Selkies
+
+This will give you **same validation as Resolve, but without AppImage/FUSE pain**
+
+Just tell me 👍
+
