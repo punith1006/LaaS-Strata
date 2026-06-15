@@ -22,8 +22,14 @@ SESSION_SECRET=laas-session-secret-dev HOST_IP=103.115.236.34 TURN_HOST=103.115.
 # ai1 storage-provision
 PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.130 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 python3 app.py
 
-# ai1 storage-provision 
+# ai1 storage-provision (IP: 10.10.100.130)
 PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.130 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.132(rw,sync,no_subtree_check,no_root_squash) 10.10.100.134(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
+
+# ai2 storage-provision (IP: 10.10.100.132)
+PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.132 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.130(rw,sync,no_subtree_check,no_root_squash) 10.10.100.134(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
+
+# ai3 storage-provision (IP: 10.10.100.134)
+PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.134 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.130(rw,sync,no_subtree_check,no_root_squash) 10.10.100.132(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
 
 # ai1 session-provision
 SESSION_SECRET=laas-session-secret-dev HOST_IP=103.115.236.34 TURN_HOST=103.115.236.34 STORAGE_PROVISION_URL=http://localhost:9999 NVME_STORAGE_IP=10.10.100.130 STORAGE_PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 python3 app.py
@@ -71,3 +77,22 @@ password length: 8~16
 input password:ai2server123
 input password again:ai2server123
 ai2@aiserver2:~$
+
+
+
+#Ai 4 system!!
+PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.136 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.130(rw,sync,no_subtree_check,no_root_squash) 10.10.100.132(rw,sync,no_subtree_check,no_root_squash) 10.10.100.134(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
+
+#Ai 1 system!!
+PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.130 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.132(rw,sync,no_subtree_check,no_root_squash) 10.10.100.134(rw,sync,no_subtree_check,no_root_squash) 10.10.100.136(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
+
+
+curl -X POST http://103.115.236.37:9999/provision \
+  -H "Content-Type: application/json" \
+  -H "X-Provision-Secret: e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365" \
+  -d '{"storageUid": "u_7d5ac90d65d6694b96f65147", "quotaGb": 10}'
+
+  curl -X POST http://103.115.236.37:9999/deprovision \
+  -H "Content-Type: application/json" \
+  -H "X-Provision-Secret: e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365" \
+  -d '{"storageUid": "u_7d5ac90d65d6694b96f65147"}'

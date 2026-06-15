@@ -692,6 +692,10 @@ sudo exportfs -ra
 sudo apt update -qq
 sudo apt install -y zfsutils-linux nfs-kernel-server
 
+Once setup is done we need to enable ufw on all the machines and re-check all the rules!!
+sudo ufw allow from 20.1.1.130 to any port 9998 proto tcp
+sudo ufw allow from 20.1.1.130 to any port 9999 proto tcp
+
 # 2. Carve out the 640GB sparse file on your root drive
 sudo mkdir -p /vg_containers
 sudo truncate -s 640G /vg_containers/nas_pool.img
@@ -1126,6 +1130,21 @@ systemctl is-enabled docker
 systemctl is-enabled cuda-mps
 systemctl is-enabled lxcfs
 systemctl is-enabled coturn
+
+
+<!-- for ai3 we have set tailscale 100.105.156.86 re come back to this later!  -->
+<!-- sudo iptables -I DOCKER-USER 1 -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+sudo iptables -I DOCKER-USER 2 -s "$LAAS_SUBNET" -d "$TURN_IP/32" -p tcp --dport 3478 -j RETURN
+sudo iptables -I DOCKER-USER 3 -s "$LAAS_SUBNET" -d "$TURN_IP/32" -p udp --dport 3478 -j RETURN
+sudo iptables -I DOCKER-USER 4 -s "$LAAS_SUBNET" -d "$TURN_IP/32" -p udp --dport 49152:65535 -j RETURN
+# 2. Append the block/isolation rules for internal subnets
+for dst in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 169.254.0.0/16; do
+  sudo iptables -A DOCKER-USER -s "$LAAS_SUBNET" -d "$dst" -j DROP
+done
+# 3. Save the rules
+sudo mkdir -p /etc/iptables
+sudo iptables-save | sudo tee /etc/iptables/rules.v4 -->
+
 ------------------------------------------------
 
 ### Step 2.13 — Phase 2 Full Validation Checklist
@@ -1380,6 +1399,37 @@ sudo rmdir /sys/kernel/config/nvmet/subsystems/laas-test
 # Destroy the test zvol
 sudo zfs destroy datapool/nvme-test
 
+<!-- ai3 - ai1 -->
+<!-- # 1. Load target kernel modules
+sudo modprobe nvmet nvmet_tcp
+
+# 2. Create and format a test zvol
+sudo zfs create -V 10G datapool/nvme-test-ai1
+# (Wait a few seconds for udev to link it, then format)
+sudo mkfs.ext4 /dev/zvol/datapool/nvme-test-ai1
+
+# 3. Create configfs subsystem config
+sudo mkdir -p /sys/kernel/config/nvmet/subsystems/laas-test-ai1
+echo 1 | sudo tee /sys/kernel/config/nvmet/subsystems/laas-test-ai1/attr_allow_any_host
+
+# 4. Bind the zvol to namespace 1 of this subsystem
+sudo mkdir -p /sys/kernel/config/nvmet/subsystems/laas-test-ai1/namespaces/1
+echo "/dev/zvol/datapool/nvme-test-ai1" | sudo tee /sys/kernel/config/nvmet/subsystems/laas-test-ai1/namespaces/1/device_path
+echo 1 | sudo tee /sys/kernel/config/nvmet/subsystems/laas-test-ai1/namespaces/1/enable
+
+# 5. Create TCP Port 4420 (listening on ai3's 10G IP)
+sudo mkdir -p /sys/kernel/config/nvmet/ports/1
+echo "tcp" | sudo tee /sys/kernel/config/nvmet/ports/1/addr_trtype
+echo "10.10.100.134" | sudo tee /sys/kernel/config/nvmet/ports/1/addr_traddr
+echo "4420" | sudo tee /sys/kernel/config/nvmet/ports/1/addr_trsvcid
+echo "ipv4" | sudo tee /sys/kernel/config/nvmet/ports/1/addr_adrfam
+
+# 6. Link the subsystem to the port
+sudo ln -s /sys/kernel/config/nvmet/subsystems/laas-test-ai1 /sys/kernel/config/nvmet/ports/1/subsystems/laas-test-ai1
+
+# 7. Check if listening
+ss -tlnp | grep 4420 -->
+
 
 
 # Post Multi-Node change and NvME-oF update
@@ -1508,10 +1558,72 @@ sudo zfs destroy -r datapool/users/u_test_migrate
 echo "Pipeline test complete!"
 
 
+<!-- Ai3
+# 1. Clean up old key and config
+rm -f ~/.ssh/id_ed25519 ~/.ssh/id_ed25519.pub ~/.ssh/config
+
+# 2. Generate a fresh SSH key
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "ai3@10.134-zfs-migration"
+
+# 3. Create a clean config file with correct custom ports and users
+cat > ~/.ssh/config <<'EOF'
+Host 10.10.100.130
+    User ai1
+    Port 2223
+    IdentityFile ~/.ssh/id_ed25519
+    Ciphers aes128-gcm@openssh.com
+    Compression no
+    StrictHostKeyChecking no
+
+Host 10.10.100.132
+    User ai2
+    Port 2224
+    IdentityFile ~/.ssh/id_ed25519
+    Ciphers aes128-gcm@openssh.com
+    Compression no
+    StrictHostKeyChecking no
+EOF
+chmod 600 ~/.ssh/config
+
+# 4. Copy the public key to ai1 and ai2
+ssh-copy-id -p 2223 -i ~/.ssh/id_ed25519.pub ai1@10.10.100.130
+ssh-copy-id -p 2224 -i ~/.ssh/id_ed25519.pub ai2@10.10.100.132
+
+# 5. Verify the connections (passwordless now)
+ssh 10.10.100.130 'echo "ai3 -> ai1 connected successfully!"'
+ssh 10.10.100.132 'echo "ai3 -> ai2 connected successfully!"'
+ -->
+
+
+<!-- Legacy Systems!
+ # 1. Clean up old references of ai3 (10.10.100.134) from config and authorized_keys
+sed -i '/Host 10.10.100.134/,+7d' ~/.ssh/config 2>/dev/null
+sed -i '/ai3@10.134-zfs-migration/d' ~/.ssh/authorized_keys 2>/dev/null
+
+# 2. Add clean configuration for ai3
+cat >> ~/.ssh/config <<'EOF'
+Host 10.10.100.134
+    User ai3
+    Port 2225
+    IdentityFile ~/.ssh/id_ed25519
+    Ciphers aes128-gcm@openssh.com
+    Compression no
+    StrictHostKeyChecking no
+EOF
+chmod 600 ~/.ssh/config
+
+# 3. Copy public key from ai1 to ai3 (port 2225)
+ssh-copy-id -p 2225 -i ~/.ssh/id_ed25519.pub ai3@10.10.100.134
+
+# 4. Test the passwordless connection
+ssh 10.10.100.134 'echo "ai1 -> ai3 connected successfully!"'
+  -->
+
+
+<!-- This step is crucial, ever node addition will need to be added onto this!! -->
+
 # For emphemeral Each Node should have!
 sudo zfs create datapool/ephemeral
-
-
 
 # issue with storage provision on reboot
 <!-- zenith@zenith:~/storage-provision$ export PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365
