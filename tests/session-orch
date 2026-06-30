@@ -86,6 +86,10 @@ PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUT
 #Ai 1 system!!
 PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.130 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.132(rw,sync,no_subtree_check,no_root_squash) 10.10.100.134(rw,sync,no_subtree_check,no_root_squash) 10.10.100.136(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
 
+#Ai 5 system!!
+PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.138 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.130(rw,sync,no_subtree_check,no_root_squash) 10.10.100.132(rw,sync,no_subtree_check,no_root_squash) 10.10.100.134(rw,sync,no_subtree_check,no_root_squash) 10.10.100.136(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
+
+
 
 curl -X POST http://103.115.236.37:9999/provision \
   -H "Content-Type: application/json" \
@@ -96,3 +100,37 @@ curl -X POST http://103.115.236.37:9999/provision \
   -H "Content-Type: application/json" \
   -H "X-Provision-Secret: e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365" \
   -d '{"storageUid": "u_7d5ac90d65d6694b96f65147"}'
+
+
+
+
+wait wat do you mean storage server!!
+i mean all the machine are capable of being storage server , 
+here's what you need to understand each system can serve as a storage server begining from ai1, when the user in the app creates a filestore it will start filling up the nodes begining from ai1 sequentially once that is full it will move on to the next and so on .
+and depending on the running instances and the configuration on each node the backend will decided where the compute (docker instance) should be started in , if on the same node as the storage then the connect or mount is local else it will be nvme-of connect to the storage whereever it resides
+
+for eaxmple this is how we start the ai5 machine
+PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 ENABLE_NFS_AUTOMOUNT=true STORAGE_IP=10.10.100.138 FLASK_HOST=0.0.0.0 FLASK_PORT=9999 NFS_EXPORT_CLIENT="10.10.100.130(rw,sync,no_subtree_check,no_root_squash) 10.10.100.132(rw,sync,no_subtree_check,no_root_squash) 10.10.100.134(rw,sync,no_subtree_check,no_root_squash) 10.10.100.136(rw,sync,no_subtree_check,no_root_squash) 127.0.0.1" python3 app.py
+
+
+
+ai5@aiserver5:~/session-orchestration$ SESSION_SECRET=laas-session-secret-dev HOST_IP=103.115.236.38 TURN_HOST=103.115.236.38 STORAGE_PROVISION_URL=http://10.10.100.138:9999 NVME_STORAGE_IP=10.10.100.138 STORAGE_PROVISION_SECRET=e75064ca1702889e4f519d4ad40dfbd5f18dbdb67db7f365 python3 app.py
+Starting LaaS Session Orchestration Service on port 9998...
+Host IP: 103.115.236.38
+NFS Mount Root: /mnt/nfs/users
+Selkies Image: ghcr.io/selkies-project/nvidia-egl-desktop:latest
+2026-06-30 09:20:06,484 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Found orphaned ephemeral zvol: datapool/ephemeral/sess_4c7d9245-0cee-4d8e-a02d-d1bf4267fc01
+2026-06-30 09:20:06,511 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Destroyed orphaned zvol: datapool/ephemeral/sess_4c7d9245-0cee-4d8e-a02d-d1bf4267fc01
+2026-06-30 09:20:06,515 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Found orphaned ephemeral zvol: datapool/ephemeral/sess_587f21da-5462-40d1-80f4-c33db1440b13
+2026-06-30 09:20:06,537 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Destroyed orphaned zvol: datapool/ephemeral/sess_587f21da-5462-40d1-80f4-c33db1440b13
+2026-06-30 09:20:06,540 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Found orphaned ephemeral zvol: datapool/ephemeral/sess_8db49473-bcc9-4607-9dba-53fcbcc056f5
+2026-06-30 09:20:06,560 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Destroyed orphaned zvol: datapool/ephemeral/sess_8db49473-bcc9-4607-9dba-53fcbcc056f5
+2026-06-30 09:20:06,563 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Found orphaned ephemeral zvol: datapool/ephemeral/sess_bda89e19-29fd-482d-beed-c828ed98cae3
+2026-06-30 09:20:06,584 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Destroyed orphaned zvol: datapool/ephemeral/sess_bda89e19-29fd-482d-beed-c828ed98cae3
+2026-06-30 09:20:06,587 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Found orphaned ephemeral zvol: datapool/ephemeral/sess_f16275a7-b825-4096-92d1-aec3c391d8e2
+2026-06-30 09:20:06,607 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Destroyed orphaned zvol: datapool/ephemeral/sess_f16275a7-b825-4096-92d1-aec3c391d8e2
+2026-06-30 09:20:06,610 - laas-session-orchestration - INFO - [ORPHAN-CLEANUP] Cleaned up 5 orphaned ephemeral zvol(s)
+[STARTUP] Cleaned up 5 orphaned ephemeral zvol(s)
+[STARTUP] Ephemeral zvol orphan cleanup thread started (interval: 5 min)
+ * Serving Flask app 'app'
+ * Debug mode: off

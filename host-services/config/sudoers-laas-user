@@ -7,8 +7,14 @@
 # Security layers (defense in depth):
 #   1. This sudoers file (deny specific dangerous commands)
 #   2. Linux capabilities (--cap-drop=ALL + minimal adds)
-#   3. Seccomp syscall filter (blocks mount, unshare, setns, etc.)
+#   3. Seccomp syscall filter (blocks unshare, setns, etc.)
 #   4. AppArmor MAC profile (docker-default)
+#
+# NOTE: mount/umount are ALLOWED (removed from deny list) to support
+# FUSE-based AppImage files and user-initiated mounts. Containers are
+# already isolated via bridge networking, HAMi GPU enforcement, and
+# restricted capabilities. mount inside a container only affects the
+# container's mount namespace.
 
 Defaults env_reset
 Defaults env_delete += "LD_PRELOAD LD_LIBRARY_PATH"
@@ -20,8 +26,6 @@ ubuntu ALL=(ALL) NOPASSWD: ALL, \
     !/sbin/insmod, !/usr/sbin/insmod, \
     !/sbin/rmmod, !/usr/sbin/rmmod, \
     !/sbin/modprobe, !/usr/sbin/modprobe, !/usr/bin/kmod, \
-    !/bin/mount, !/usr/bin/mount, !/sbin/mount, !/usr/sbin/mount, \
-    !/bin/umount, !/usr/bin/umount, !/sbin/umount, !/usr/sbin/umount, \
     !/sbin/mkfs.ext4, !/usr/sbin/mkfs.ext4, !/usr/sbin/mke2fs, !/sbin/mke2fs, \
     !/sbin/mkfs.ext3, !/usr/sbin/mkfs.ext3, \
     !/sbin/mkfs.xfs, !/usr/sbin/mkfs.xfs, \

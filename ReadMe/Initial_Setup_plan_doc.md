@@ -751,7 +751,7 @@ curl -X POST http://localhost:9999/provision \
   -d '{"storageUid": "u_aabbccddeeff001122334455", "quotaGb": 5}' -->
 
 
-
+![Important!!, how to make custom images](image-2.png)
 
 
 ### Step 2.10 — Build the Selkies EGL Desktop Base Image
@@ -1471,13 +1471,45 @@ sudo rmdir /sys/kernel/config/nvmet/subsystems/laas-u_6bfc4b915f59a8dffd509b27
 # 5. Now destroy the zvol
 sudo zfs destroy -f datapool/users/u_6bfc4b915f59a8dffd509b27
 
+# Full Remove(Properly)
+docker ps -a -q --filter "name=laas-" | xargs -r docker rm -f
 
+# 1. Break the configfs symlinks as root
+sudo sh -c 'rm -f /sys/kernel/config/nvmet/ports/*/subsystems/laas-u_*'
 
+# 2. Reset the NVMe targets persistence file
+if [ -f /etc/laas/nvmet-targets.json ]; then
+  echo '{"targets": {}}' | sudo tee /etc/laas/nvmet-targets.json
+fi
 
+# 1. Check if there are any active mounts for user volumes
+mount | grep "datapool/users/u_"
 
+# Remove fstab lines if they exist
+sudo sed -i '/\/dev\/zvol\/datapool\/users\/u_/d' /etc/fstab
+# Recreate empty folders so umount can find the mount points, then unmount
+for dev in $(mount | grep "datapool/users/u_" | awk '{print $1}'); do
+  path=$(grep "$dev " /proc/mounts | awk '{print $2}')
+  sudo mkdir -p "$path"
+  sudo umount -n -i -l -f "$path"
+  sudo rmdir "$path" 2>/dev/null
+done
 
-
-
+for dataset in $(sudo zfs list -H -o name -r datapool/users | grep "datapool/users/u_"); do
+  uid=$(basename "$dataset")
+  echo "Wiping storage for user UID: $uid"
+  
+  # Delete namespaces & subsystems
+  if [ -d "/sys/kernel/config/nvmet/subsystems/laas-$uid/namespaces/1" ]; then
+    echo 0 | sudo tee /sys/kernel/config/nvmet/subsystems/laas-$uid/namespaces/1/enable >/dev/null 2>&1
+    sudo rmdir /sys/kernel/config/nvmet/subsystems/laas-$uid/namespaces/1 2>/dev/null
+  fi
+  sudo rmdir /sys/kernel/config/nvmet/subsystems/laas-$uid 2>/dev/null
+  
+  # Destroy the dataset
+  sudo zfs destroy -rf datapool/users/$uid
+  echo "✅ Finished cleanup for $uid"
+done
 
 # For File Migration during upgrades!! Setup without password using ssh !
 # 10.99
@@ -1740,6 +1772,13 @@ sudo mount -t configfs none /sys/kernel/config 2>/dev/null || true
 # To presist them
 echo "nvmet" | sudo tee -a /etc/modules
 echo "nvmet-tcp" | sudo tee -a /etc/modules
+
+## This is critical check it properly
+# 1. Write the refined udev rule
+echo 'ACTION=="add|change", SUBSYSTEM=="nvme", KERNEL=="nvme*", ATTR{transport}=="tcp", ATTR{ctrl_loss_tmo}="30", ATTR{keep_alive_tmo}="5"' | sudo tee /etc/udev/rules.d/72-nvmf-ctrl_loss_tmo.rules
+# 2. Reload and trigger the rule
+sudo udevadm control --reload-rules
+sudo udevadm trigger --type=devices --action=change
 
 
 # Post Installation!! on the App Server!

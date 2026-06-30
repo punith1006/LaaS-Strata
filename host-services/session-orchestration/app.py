@@ -1143,12 +1143,17 @@ def build_docker_command(
     
     cmd.extend(["--tmpfs", "/dev/shm:rw"])
     
-    # Security: Drop all capabilities, add only what's needed for sudo + desktop
+    # FUSE support — required for AppImage files, Snap packages, and user-initiated mounts.
+    # This makes the container feel like a real desktop (users can download and run .AppImage files).
+    cmd.extend(["--device", "/dev/fuse"])
+    
+    # Security: Drop all capabilities, add only what's needed for sudo + desktop + FUSE
     cmd.append("--cap-drop=ALL")
     sudo_caps = [
         "CHOWN", "DAC_OVERRIDE", "FOWNER", "SETUID", "SETGID",
         "NET_BIND_SERVICE", "KILL", "SYS_CHROOT", "MKNOD",
-        "NET_RAW", "FSETID", "AUDIT_WRITE"
+        "NET_RAW", "FSETID", "AUDIT_WRITE",
+        "SYS_ADMIN"  # Required for FUSE mounts (AppImage, user mounts)
     ]
     for cap in sudo_caps:
         cmd.extend(["--cap-add", cap])
@@ -1254,6 +1259,9 @@ def build_docker_command(
     # Volume mounts - supervisord config
     cmd.extend(["-v", "/etc/laas/supervisord-hami.conf:/etc/supervisord.conf:ro"])
     cmd.extend(["-v", "/etc/laas/bash.bashrc:/etc/bash.bashrc:ro"])
+    
+    # Volume mounts - first-run fixes script (man-db, DBus, policy-rc.d, FUSE/AppImage)
+    cmd.extend(["-v", "/etc/laas/first-run-fixes.sh:/etc/laas/first-run-fixes.sh:ro"])
     
     # Sudoers: override base image's /etc/sudoers to remove blanket ubuntu ALL grant
     # (base image puts ubuntu ALL=(ALL:ALL) NOPASSWD: ALL after @includedir,

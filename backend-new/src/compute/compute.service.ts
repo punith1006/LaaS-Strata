@@ -1959,6 +1959,19 @@ export class ComputeService {
         // 404 means container not found - if session is active, mark as failed
         const errMsg = err instanceof Error ? err.message : String(err);
         if (errMsg.includes('404')) {
+          // Grace period: don't fail starting sessions less than 2 minutes old
+          // NVMe-oF setup + container creation can take 20-30 seconds
+          if (session.status === 'starting') {
+            const createdAt = session.createdAt || session.startedAt || new Date();
+            const ageMs = Date.now() - createdAt.getTime();
+            if (ageMs < 120000) {
+              this.logger.debug(
+                `Skipping 404 for starting session ${session.id} (age: ${Math.floor(ageMs / 1000)}s)`,
+              );
+              continue;
+            }
+          }
+
           this.logger.warn(
             `Container ${session.containerName} not found for active session ${session.id}`,
           );

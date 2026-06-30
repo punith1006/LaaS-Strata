@@ -23,8 +23,6 @@
         "perf_event_open",
         "open_by_handle_at",
         "userfaultfd",
-        "mount",
-        "umount2",
         "unshare",
         "setns",
         "nfsservctl"
