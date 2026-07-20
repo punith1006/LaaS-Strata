@@ -148,7 +148,7 @@ Inside the session-orchestration service (app.py), there is a background cleanup
 When it runs, it executes the function cleanup_orphaned_ephemeral_zvols():
 
 How Ephemeral Storage Works: When a user starts an ephemeral session with dedicated storage (e.g. 10GB), the system creates a temporary ZFS block device (zvol) on the node at: datapool/ephemeral/sess_{session_id}
-The Cleanup Trigger: When the container stops, exits, or is deleted (or when you set the session status to ended in the database, causing the orchestrator to detect that the container is no longer active):
+The Cleanup Trigger: When the container stops, exits, or is deleted (or when you set the sessi on status to ended in the database, causing the orchestrator to detect that the container is no longer active):
 The background loop scans datapool/ephemeral on the host.
 It checks Docker to see if there is any active container matching that session_id.
 Since the container is stopped or removed, it identifies the ZFS dataset datapool/ephemeral/sess_{session_id} as an orphan.
@@ -160,3 +160,157 @@ This is why they no longer show up under zfs list on aiserver3—the system clea
 
 
 ## you cal also same garbage collection setup for the stateful provisions as well (in other machine (nvme - disconnect) to remove state provision connection in other host machine in the cross-node scenario!!)
+
+
+# where is it located!!
+sudo -u postgres psql -d laas -c "
+SELECT 
+  u.email,
+  u.storage_uid,
+  v.status AS volume_status,
+  n.hostname AS storage_node
+FROM users u
+LEFT JOIN user_storage_volumes v ON u.id = v.user_id
+LEFT JOIN nodes n ON v.node_id = n.id
+WHERE u.email = 'test-user11@ksrce.ac.in';
+"
+
+
+# 1. Check if the ZFS dataset exists on aiserver1
+sudo zfs list | grep "u_00139336"
+
+# 2. Check if it is currently mounted
+mount | grep "u_00139336"
+
+
+
+check and mount locally
+# 1. Mount the ZFS volume locally on aiserver1
+sudo mount /dev/zvol/datapool/users/u_ed4039243e178612df4522af /datapool/users/u_ed4039243e178612df4522af
+
+# 2. Fix directory ownership
+sudo chown -R 1000:1000 /datapool/users/u_ed4039243e178612df4522af
+
+
+# Risky!!
+# 1. Unmount the volume
+sudo umount /datapool/users/u_00139336dea4e0beba0088d4
+
+# 2. Run filesystem check and automatically repair errors (fsck)
+sudo e2fsck -fy /dev/zvol/datapool/users/u_00139336dea4e0beba0088d4
+
+# 3. Remount it
+sudo mount /dev/zvol/datapool/users/u_00139336dea4e0beba0088d4 /datapool/users/u_00139336dea4e0beba0088d4
+
+# 4. Re-run the permission fix
+sudo chown -R 1000:1000 /datapool/users/u_00139336dea4e0beba0088d4
+
+
+
+## delete file allocation of a user in the database alone!!
+sudo -u postgres psql -d laas -c "
+DO \$\$
+DECLARE
+  u_id uuid;
+  v_id uuid;
+BEGIN
+  -- 1. Find the user ID from email
+  SELECT id INTO u_id FROM users WHERE email = 'sowndharya2007it24-28@ksrce.ac.in';
+  
+  IF u_id IS NOT NULL THEN
+    -- 2. Find their active storage volume ID
+    SELECT id INTO v_id FROM user_storage_volumes WHERE user_id = u_id AND status = 'active';
+    
+    IF v_id IS NOT NULL THEN
+      -- 3. Delete dependent billing charges
+      DELETE FROM billing_charges WHERE storage_volume_id = v_id;
+      
+      -- 4. Delete dependent storage extensions
+      DELETE FROM storage_extensions WHERE storage_volume_id = v_id;
+      
+      -- 5. Delete dependent OS switch history records
+      DELETE FROM os_switch_history WHERE old_volume_id = v_id OR new_volume_id = v_id;
+      
+      -- 6. Delete the storage volume itself
+      DELETE FROM user_storage_volumes WHERE id = v_id;
+    END IF;
+  END IF;
+END \$\$;
+"
+
+
+
+
+sudo -u postgres psql -d laas -c "
+BEGIN;
+
+-- 1. Mark all active sessions as ended
+UPDATE sessions
+SET 
+  status = 'ended',
+  ended_at = NOW(),
+  terminated_at = NOW(),
+  termination_reason = 'admin_terminated',
+  updated_at = NOW()
+WHERE status IN ('pending', 'starting', 'running', 'reconnecting', 'stopping');
+
+-- 2. Clear all active node resource reservations
+DELETE FROM node_resource_reservations;
+
+-- 3. Reset all allocated compute resources and session counters to 0 on all nodes
+UPDATE nodes 
+SET 
+  allocated_vcpu = 0, 
+  allocated_memory_mb = 0, 
+  allocated_gpu_vram_mb = 0,
+  current_session_count = 0,
+  updated_at = NOW();
+
+-- 4. Release all active wallet holds for these sessions
+UPDATE wallet_holds
+SET 
+  status = 'released',
+  released_at = NOW(),
+  release_reason = 'session_terminated'
+WHERE status = 'active';
+
+COMMIT;
+"
+
+
+
+# getting windows subsystem back!!
+GRUB_TIMEOUT_STYLE=menu
+GRUB_TIMEOUT=10
+GRUB_DISABLE_OS_PROBER=false
+
+sudo update-grub
+
+
+
+## Contengency : if this does not work out!!
+zenith@zenith:~$ # 1. Change style from hidden to menu
+sudo sed -i 's/GRUB_TIMEOUT_STYLE=hidden/GRUB_TIMEOUT_STYLE=menu/g' /etc/default/grub
+
+# 2. Change timeout from 0 to 10 seconds
+sudo sed -i 's/GRUB_TIMEOUT=0/GRUB_TIMEOUT=10/g' /etc/default/grub
+
+# 3. Explicitly enable os-prober at the bottom of the file
+echo 'GRUB_DISABLE_OS_PROBER=false' | sudo tee -a /etc/default/grub
+
+# 4. Apply the changes
+sudo update-grub
+GRUB_DISABLE_OS_PROBER=false
+Sourcing file `/etc/default/grub'
+Sourcing file `/etc/default/grub.d/init-select.cfg'
+Generating grub configuration file ...
+Found linux image: /boot/vmlinuz-5.15.0-181-generic
+Found initrd image: /boot/initrd.img-5.15.0-181-generic
+Found linux image: /boot/vmlinuz-5.15.0-176-generic
+Found initrd image: /boot/initrd.img-5.15.0-176-generic
+Warning: os-prober will be executed to detect other bootable partitions.
+Its output will be used to detect bootable binaries on them and create new boot entries.
+Found Windows Boot Manager on /dev/nvme0n1p1@/EFI/Microsoft/Boot/bootmgfw.efi
+Adding boot menu entry for UEFI Firmware Settings ...
+done
+zenith@zenith:~$

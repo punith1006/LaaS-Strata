@@ -1239,6 +1239,30 @@ Keep a log of:
 This becomes your **runbook** for the production Phase 0.
 
 
+# 1. Apply immediately
+sudo sysctl fs.inotify.max_user_watches=1048576
+sudo sysctl fs.inotify.max_user_instances=1024
+sudo sysctl fs.file-max=2097152
+
+# 2. Make permanent in sysctl.conf
+echo "fs.inotify.max_user_watches=1048576" | sudo tee -a /etc/sysctl.conf
+echo "fs.inotify.max_user_instances=1024" | sudo tee -a /etc/sysctl.conf
+echo "fs.file-max=2097152" | sudo tee -a /etc/sysctl.conf
+
+sudo sysctl -p
+
+<!-- What is causing this:
+Every instance of the IDE (Antigravity IDE / VS Code) uses inotify to watch files, folders, and extensions in the workspace for real-time changes.
+The Linux kernel has a strict host-wide limit on:
+max_user_watches: The maximum number of file watches a user can create.
+max_user_instances: The maximum number of active inotify queues/instances.
+Because you started 6 instances on the same compute node (ai5), the combined file watching requirements of all 6 IDEs exceeded the host kernel's default limits. Once the limit is reached, any new IDE instance fails with:
+inotify_init() failed: Too many open files
+Error: EMFILE: too many open files
+The Solution: Increase limits on the host (ai5)
+To resolve this, we need to increase the inotify limits on the host machine ai5 (not inside the containers, but on the host itself so the kernel allocates more watch descriptors).
+
+Log into ai5 and run the following: -->
 
 # Interconnecting Both these machines
 on 10.99
@@ -1999,7 +2023,7 @@ sudo podman run -d \
   -e KC_DB_USERNAME=postgres \
   -e KC_DB_PASSWORD=root \
   -e KC_HEALTH_ENABLED=true \
-  -e KC_HTTP_PORT=8081 \ # -> (not to conflict with containers!)
+  -e KC_HTTP_PORT=8081 \
   quay.io/keycloak/keycloak:26.2 \
   start
 
