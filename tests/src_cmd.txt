@@ -1,7 +1,0 @@
--v /tmp/bash.bashrc.orig:/etc/bash.bashrc \
-
-upload .next to server
-scp -i "C:\Users\Punith\.ssh\lightsail.pem" -r c:\Users\Punith\LaaS\frontend-new\.next ec2-user@3.109.186.22:/opt/laas/frontend/
-
-jitsi
-password : 73220008326e77404e263675a66d424f7b78d129c660435a4a8cf3e5a6bb0013

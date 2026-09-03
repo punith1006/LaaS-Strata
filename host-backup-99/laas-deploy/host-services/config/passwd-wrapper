@@ -1,3 +1,0 @@
-#!/bin/bash
-# LaaS passwd wrapper - strips LD_PRELOAD to prevent HAMi conflicts
-exec env -u LD_PRELOAD /usr/bin/passwd.real "$@"
