@@ -1,9 +1,7 @@
-<table>
-  <tr>
-    <td><h2>About</h2></td>
-    <td align="right"><h2><a href="https://ksrceailab.com">Visit LaaS ↗</a></h2></td>
-  </tr>
-</table>
+<h2>
+  About
+  <a href="https://ksrceailab.com" style="float:right;">Visit LaaS ↗</a>
+</h2>
 Modern AI and HPC environments require more than raw compute. Teams need accessible GPU resources, ready-to-use Linux environments, persistent workspaces, and the ability to share expensive infrastructure efficiently. Traditional on-premise setups often leave GPUs underutilized, while public cloud environments introduce recurring compute costs, data movement, and reduced infrastructure control.
 
 **LaaS** transforms on-premise GPU infrastructure into an on-demand private cloud for interactive, browser-accessible Linux workspaces. It abstracts the underlying compute, GPU, storage, and system infrastructure into a unified platform where users can provision and access fully featured graphical workstations without managing the underlying machines themselves.
