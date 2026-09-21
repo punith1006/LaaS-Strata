@@ -1,11 +1,7 @@
 <h2>
   About
   <a href="https://ksrceailab.com">
-    <img
-      align="right"
-      src="https://img.shields.io/badge/Visit%20LaaS%20%E2%86%97-4285F4?style=for-the-badge"
-      alt="Visit LaaS"
-    >
+    <img align="right" src="https://img.shields.io/badge/Visit%20LaaS-%E2%86%97-4285F4?style=flat-square" alt="Visit LaaS">
   </a>
 </h2>
 
