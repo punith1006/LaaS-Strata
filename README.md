@@ -16,3 +16,20 @@ The result is a more accessible and efficient model for AI/ML development, scien
 ## Platform Walkthrough
 
 <!-- Demo video will be embedded here -->
+
+## Design & Architecture
+
+LaaS is designed as a layered platform that separates the control plane from the
+compute and data planes, allowing workspace lifecycle, resource allocation,
+storage, networking, and observability to operate independently of the user
+workload itself.
+
+### High-Level Platform Architecture
+
+### GPU Virtualization & Streaming Architecture
+
+At the compute layer, LaaS combines fractional GPU resource allocation with a
+dedicated graphical streaming pipeline. CUDA workloads are isolated and
+resource-constrained through GPU virtualization and MPS, while the desktop
+rendering path uses hardware-accelerated NVENC encoding and WebRTC to deliver
+interactive remote workspaces to users.
