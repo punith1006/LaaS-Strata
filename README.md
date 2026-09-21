@@ -1,9 +1,9 @@
 <table width="100%" border="0">
   <tr>
-    <td width="50%" align="left">
+    <td align="left">
       <h2>About</h2>
     </td>
-    <td width="50%" align="right">
+    <td align="right">
       <a href="https://ksrceailab.com"><strong>Visit LaaS ↗</strong></a>
     </td>
   </tr>
