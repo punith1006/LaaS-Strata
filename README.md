@@ -1,7 +1,13 @@
-<h2>
-  About
-  <a href="https://ksrceailab.com" style="float:right;">Visit LaaS ↗</a>
-</h2>
+<table width="100%" border="0">
+  <tr>
+    <td width="50%" align="left">
+      <h2>About</h2>
+    </td>
+    <td width="50%" align="right">
+      <a href="https://ksrceailab.com"><strong>Visit LaaS ↗</strong></a>
+    </td>
+  </tr>
+</table>
 
 Modern AI and HPC environments require more than raw compute. Teams need accessible GPU resources, ready-to-use Linux environments, persistent workspaces, and the ability to share expensive infrastructure efficiently. Traditional on-premise setups often leave GPUs underutilized, while public cloud environments introduce recurring compute costs, data movement, and reduced infrastructure control.
 
