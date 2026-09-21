@@ -3,7 +3,7 @@
   <a href="https://ksrceailab.com">
     <img
       align="right"
-      src="https://img.shields.io/badge/%20Visit%20LaaS%20↗-4285F4?style=for-the-badge"
+      src="https://img.shields.io/badge/Visit%20LaaS%20%E2%86%97-4285F4?style=for-the-badge"
       alt="Visit LaaS"
     >
   </a>
