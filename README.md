@@ -25,11 +25,13 @@ storage, networking, and observability to operate independently of the user
 workload itself.
 
 ### High-Level Platform Architecture
+<img width="4800" height="3840" alt="LaaS_System_Architecture_Overview-Final" src="https://github.com/user-attachments/assets/50911ace-1e3e-4aa9-a530-7692314c528e" />
 
 ### GPU Virtualization & Streaming Architecture
-
 At the compute layer, LaaS combines fractional GPU resource allocation with a
 dedicated graphical streaming pipeline. CUDA workloads are isolated and
 resource-constrained through GPU virtualization and MPS, while the desktop
 rendering path uses hardware-accelerated NVENC encoding and WebRTC to deliver
 interactive remote workspaces to users.
+<img width="4800" height="3420" alt="LaaS_GPU_Virtualization_Stack -Final" src="https://github.com/user-attachments/assets/877d1d6f-2718-471e-945b-7af849ad2e66" />
+
