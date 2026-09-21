@@ -12,3 +12,7 @@ Modern AI and HPC environments require more than raw compute. Teams need accessi
 At its core, LaaS combines **fractional GPU resource allocation, containerized workspaces, persistent storage, and low-latency remote desktop streaming** to turn shared GPU infrastructure into isolated, reusable computational environments. This allows multiple users and workloads to share physical accelerators while retaining the experience of a dedicated Linux workstation.
 
 The result is a more accessible and efficient model for AI/ML development, scientific computing, simulation, visualization, and institutional computing — bringing the experience of a cloud GPU workstation to infrastructure that remains **under the organization's control and within its own environment**.
+
+## Platform Walkthrough
+
+<!-- Demo video will be embedded here -->
