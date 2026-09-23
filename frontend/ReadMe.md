@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🖥️ LaaS Cloud Console & Workstation Portal (`frontend-new`)
+# LaaS Cloud Console & Workstation Portal (`frontend-new`)
 ### Enterprise Sovereign GPU Cloud Interface • Next.js 15.1 App Router • React 19 • Tailwind CSS v4 • Zustand 5 • WebRTC
 
 [![Next.js](https://img.shields.io/badge/Framework-Next.js%2015.1-000000?logo=next.js&logoColor=white&style=for-the-badge)](https://nextjs.org)
@@ -20,7 +20,7 @@
 
 </div>
 
-## 📑 Table of Contents
+## Table of Contents
 1. [Executive Overview & Design Philosophy](#-executive-overview--design-philosophy)
 2. [Key Architectural Highlights & Innovations](#-key-architectural-highlights--innovations)
 3. [Project Directory Structure](#-project-directory-structure)
@@ -45,7 +45,7 @@
 
 ---
 
-## 🏛 Executive Overview & Design Philosophy
+## Executive Overview & Design Philosophy
 
 **`frontend-new`** is the primary user-facing interface for the LaaS sovereign GPU cloud. Crafted with **Next.js 15.1 (App Router)** and **React 19**, it combines the aesthetic polish and responsiveness of modern developer platforms (Lambda Labs, RunPod, Vercel) with the strict enterprise isolation and auditing required by academic and sovereign institutions.
 
@@ -57,7 +57,7 @@
 
 ---
 
-## ⚡ Key Architectural Highlights & Innovations
+## Key Architectural Highlights & Innovations
 
 1. **Next.js 15 App Router & Route Group Isolation**:
    - Organizes distinct layouts and security contexts into route groups: `(auth)` for unauthenticated login/registration flows, `(console)` for the authenticated student/developer app shell, and `(analytics-console)` for administrative metric telemetry.
@@ -187,7 +187,7 @@ frontend-new/
 
 ---
 
-## 🗺 Route Groups & Page Walkthrough
+## Route Groups & Page Walkthrough
 
 ### 1. Authentication & Identity (`(auth)`)
 * **`signin` (`/signin`)**:
@@ -261,7 +261,7 @@ frontend-new/
 
 ---
 
-## 🧩 Component System & UI Architecture
+## Component System & UI Architecture
 
 ### 1. App Shell & Navigation
 * **`AppShell` (`src/components/app-shell.tsx`)**:
@@ -289,7 +289,7 @@ frontend-new/
 
 ---
 
-## ⚙️ State Management & Client API Layer
+## State Management & Client API Layer
 
 ### 1. Bulletproof Mutex Token Refresh (`apiFetch`)
 Implemented in `src/lib/api.ts`:
@@ -361,7 +361,7 @@ The 76KB typed API client provides over 50 dedicated methods:
 
 ---
 
-## 🔐 Environment Variables & Configuration
+## Environment Variables & Configuration
 
 Create a `.env.local` file in the root of `frontend-new`:
 ```ini
@@ -382,7 +382,7 @@ NEXT_PUBLIC_JITSI_DOMAIN="meet.jit.si"
 
 ---
 
-## 🚀 Local Development & Production Build Runbook
+## Local Development & Production Build Runbook
 
 ### Prerequisites
 * **Node.js**: `v20.x` or `v22.x` (LTS recommended)
