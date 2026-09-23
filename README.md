@@ -124,3 +124,92 @@ LaaS is evolving from an isolated multi-tenant GPU virtualization engine into a 
 ### 4. High-Throughput Interconnect & RDMA Fabric
 * **RDMA over Converged Ethernet (RoCE v2) / NVMe-oF:** 
   * Upgrading node-to-node communications from standard TCP networking to kernel-bypass RDMA fabrics with high-density enterprise switching, eliminating network copy overhead and enabling near-bare-metal remote dataset I/O for distributed model training.
+
+## Contributing & Community
+
+LaaS was conceived, architected, and built from the ground up as a solo initiative—taking the platform from early bare-metal experiments to a live production beta serving students and faculty at **K.S.R. College of Engineering (KSRCE)**.
+
+### The Mission: Sovereign Neo-Clouds for Every University
+As global demand for AI compute accelerates exponentially, relying exclusively on centralized hyperscalers creates unsustainable recurring costs, vendor lock-in, and data sovereignty risks. Our vision is to empower every university, research laboratory, and enterprise with their own **self-hosted, sovereign neo-cloud**—turning bare-metal hardware into an accessible, elastic AI supercomputing cluster.
+
+We are opening up development to engineers, researchers, and systems enthusiasts who want to shape the future of distributed compute, low-level virtualization, and AI infrastructure.
+
+---
+
+### Priority Contribution Areas
+
+Whether your expertise lies in the Linux kernel or modern web interfaces, there are immediate high-impact areas to contribute:
+
+1. **Kernel & GPU Virtualization (Systems & C/C++)**
+   * Optimizing user-space CUDA shims (`libvgpu.so` / HAMi-core) and active thread time-slicing under CUDA MPS.
+   * Developing automated VRAM serialization and memory checkpointing daemons for idle instance hibernation.
+
+2. **Distributed Storage & Data Fabrics (Python / Go / ZFS)**
+   * Implementing automated cross-node dataset rebalancing using ZFS replication streams.
+   * Benchmarking and tuning NVMe-over-Fabrics (NVMe-oF) RDMA target drivers.
+
+3. **Cloud Control Plane & Schedulers (TypeScript / NestJS / Prisma)**
+   * Enhancing the multi-node packing algorithm (bin-packing container instances across heterogeneous GPU fleets).
+   * Building the instructor/cohort assignment lifecycle and auto-submission pipelines.
+
+4. **WebRTC & Client Experience (Next.js 15 / WebRTC / GStreamer)**
+   * Tuning client-side WebRTC decoding latency, dynamic resolution scaling, and mobile browser touch inputs.
+   * Designing real-time cluster telemetry components for the ITOps dashboard.
+
+---
+
+### Local Development Setup
+
+To spin up a local development environment for the control plane and API:
+
+#### 1. Prerequisites
+* **Node.js**: `v20+` & **pnpm** / **npm**
+* **Python**: `3.10+` (for host-service daemons)
+* **Docker Engine** & **Docker Compose**
+* **PostgreSQL** instance & **Redis**
+
+#### 2. Clone & Install
+```bash
+git clone https://github.com/punith1006/LaaS-Strata.git
+cd LaaS-Strata
+```
+#### 3. Control Plane Setup (Backend)
+```bash
+cd backend
+npm install
+cp .env.example .env
+
+# Run database migrations
+npx prisma migrate dev
+npx prisma db seed
+
+# Launch backend in development mode
+npm run start:dev
+```
+#### 4. Control Plane Setup (Backend)
+```bash
+cd ../frontend
+npm install
+cp .env.example .env.local
+
+# Launch Next.js dev server
+npm run dev
+```
+The frontend will be accessible at http://localhost:3000, communicating with the backend API at http://localhost:3001.
+
+###Contribution Guidelines
+####1.Fork the Repository and create your feature branch
+```bash
+git checkout -b feature/amazing-feature
+```
+####2.Commit your changes with clear, conventional commit messages
+```bash
+git commit -m 'feat(scheduler): implement dynamic fleet rebalancing check'
+```
+####3.Push to the branch and submit a Pull Request.
+
+###Connect & Collaborate
+If you are passionate about sovereign AI infrastructure, GPU virtualization, or want to deploy a LaaS cluster at your institution, feel free to connect or reach out directly:
+
+Author & Lead Architect: Punith V S
+Email: punith.vs74064@gmail.com
