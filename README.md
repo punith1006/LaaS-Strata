@@ -71,3 +71,33 @@ LaaS couples low-level systems engineering with an intuitive cloud management pl
 
 * **Automated Credit & Wallet Billing**
   * Micro-metered, second-by-second token-bucket billing integrated with automated quota replenishment, wallet balances, and grace-period lifecycle terminations.
+
+## Project Structure
+
+The repository is structured as a modular monorepo, separating the centralized cloud control plane from distributed host daemons, virtualization drivers, and monitoring stacks:
+
+```text
+.
+├── backend/                  # NestJS 11 Core API Engine
+│   ├── src/                  # Compute scheduling, session orchestration, auth & wallet billing
+│   ├── prisma/               # PostgreSQL schema definitions & migration models
+│   └── scripts/              # Automated user storage & system provisioning scripts
+│
+├── frontend/                 # Next.js 15 Web Console & User Dashboard
+│   ├── src/app/              # Instance launch catalog, active session view & billing UI
+│   └── public/               # Static platform assets & interactive client components
+│
+├── host-services/            # Node-Level Microservices (Python FastAPI)
+│   ├── session-orchestration/# Container lifecycle manager, Docker runtime & MPS binding
+│   └── storage-provision/    # TrueNAS ZFS dataset provisioning & NFS export controller
+│
+├── monitoring_setup_files/   # Cluster Observability & Telemetry Fabric
+│   ├── prometheus/           # Metrics collection configs & scraping rules
+│   ├── dcgm-exporter/        # NVIDIA DCGM GPU hardware telemetry exporter
+│   └── grafana/              # Pre-configured dashboards for VRAM, wattage & tenant load
+│
+├── HLD_Arch_Images/          # Publication-grade system architecture specifications & diagrams
+│
+├── Important_docs/           # Production runbooks, node setup manuals & deployment guides
+│
+└── Project_Context/          # Enterprise datasheets, technical reports & architecture specs
