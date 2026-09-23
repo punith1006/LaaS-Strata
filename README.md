@@ -101,3 +101,27 @@ The repository is structured as a modular monorepo, separating the centralized c
 ├── Important_docs/           # Production runbooks, node setup manuals & deployment guides
 │
 └── Project_Context/          # Enterprise datasheets, technical reports & architecture specs
+```
+
+## Future Scope & Technical Roadmap
+LaaS is evolving from an isolated multi-tenant GPU virtualization engine into a full-scale, sovereign AI cloud operating system. The upcoming technical roadmap focuses on intelligent storage orchestration, enterprise datacenter operations, and automated academic workflows.
+### 1. Intelligent Storage Fabric & Fleet Rebalancing
+* **Zero-Downtime Cross-Node Storage Migration:** 
+  * In scenarios where a user requests a storage expansion (e.g., 20GB $\to$ 32GB) on a storage node with depleted physical capacity, the orchestration plane will dynamically query fleet-wide storage health to identify the best-fit alternative node.
+  * Implements non-blocking, staged data synchronization (leveraging incremental ZFS send/receive streams or block-level sync) with automatic rollback buffers and pre-cutover checkpoints—ensuring zero data loss and no I/O latency spikes for active co-tenants.
+* **Cold Tiering & Automated Data Archival:** 
+  * Policy-driven lifecycle management that automatically migrates inactive tenant datasets to low-cost compressed archival pools after configurable idle thresholds, freeing high-speed NVMe flash for active workloads while enabling instant on-demand hydration upon user login.
+### 2. Comprehensive Datacenter IT Operations (ITOps) Suite
+* **Real-Time Per-Instance Telemetry:** 
+  * Egress granular, second-by-second telemetry per container instance (CUDA core occupancy, VRAM memory bandwidth, vCPU execution queues, and network TX/RX throughput) directly to administrative monitors.
+* **Unified Infrastructure & Fleet Control Plane:** 
+  * Expanding beyond the current business analytics console to a complete bare-metal Datacenter Ops dashboard: real-time node cluster topology, physical drive S.M.A.R.T health, dynamic thermal/power throttling alerts, and live container lifecycle intervention.
+### 3. Native Academic & Institutional Cohort Orchestration
+* **Instructor & Curriculum Sandboxing:** 
+  * Role-based interfaces allowing professors and lab instructors to bundle complete technical assignments into standardized, pre-configured workspace templates (e.g., PyTorch 2.5, preloaded datasets, custom CUDA libraries, and graded assignment code).
+* **Self-Paced Lab Scheduling & Auto-Grading Handoff:** 
+  * Instructors can schedule cohort-wide deadlines where students spin up identical, ephemeral sandbox environments with one click, run their experiments, and commit final checkpoints directly to the instructor's submission queue for automated evaluation.
+### 4. High-Throughput Interconnect & RDMA Fabric
+* **RDMA over Converged Ethernet (RoCE v2) / NVMe-oF:** 
+  * Upgrading node-to-node communications from standard TCP networking to kernel-bypass RDMA fabrics with high-density enterprise switching, eliminating network copy overhead and enabling near-bare-metal remote dataset I/O for distributed model training.
+---
