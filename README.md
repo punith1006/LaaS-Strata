@@ -124,4 +124,3 @@ LaaS is evolving from an isolated multi-tenant GPU virtualization engine into a 
 ### 4. High-Throughput Interconnect & RDMA Fabric
 * **RDMA over Converged Ethernet (RoCE v2) / NVMe-oF:** 
   * Upgrading node-to-node communications from standard TCP networking to kernel-bypass RDMA fabrics with high-density enterprise switching, eliminating network copy overhead and enabling near-bare-metal remote dataset I/O for distributed model training.
----
