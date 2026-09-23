@@ -8,6 +8,7 @@
     <img align="right" height="30" src="https://img.shields.io/badge/Launch%20Platform%20%E2%86%92-1D4ED8?style=for-the-badge&logoColor=white&labelColor=000000" alt="Launch Platform">
   </a>
 </h2>
+
 **85% of GPU capacity sits idle in university and enterprise labs because physical cards are locked to single users.** Meanwhile, public clouds charge exorbitant hourly premiums, wipe environments on shutdown, and penalize research with data egress fees.
 **LaaS** is an autonomous private cloud operating system that turns on-premise GPU clusters into high-density, browser-native AI workstations. By combining **fractional GPU virtualization, hardware-accelerated WebRTC streaming, and distributed ZFS storage**, LaaS allows multiple researchers to share physical silicon concurrently without noisy-neighbor interference.
 * **Fractional Slicing:** Partitions single GPUs (e.g., RTX 5090) into 4–8 isolated environments with dedicated VRAM quotas.
