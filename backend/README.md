@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ LaaS Control Plane & Orchestration Engine (`backend-new`)
+# LaaS Control Plane & Orchestration Engine
 ### Enterprise-Grade Sovereign GPU Cloud Orchestrator • Fastify + NestJS 11 • Prisma 6 • HAMi / CUDA MPS • ZFS / NVMe-oF
 
 [![NestJS](https://img.shields.io/badge/Framework-NestJS%2011-E0234E?logo=nestjs&logoColor=white&style=for-the-badge)](https://nestjs.com)
@@ -20,7 +20,7 @@
 
 </div>
 
-## 📑 Table of Contents
+## Table of Contents
 1. [Executive Architectural Overview](#-executive-architectural-overview)
 2. [Key Engineering Guarantees](#-key-engineering-guarantees)
 3. [System Architecture Diagrams](#-system-architecture-diagrams)
@@ -44,7 +44,7 @@
 
 ---
 
-## 🏛 Executive Architectural Overview
+## Executive Architectural Overview
 
 The **`backend-new`** service is the central nervous system of the LaaS sovereign GPU infrastructure. Built with **NestJS 11** on top of the ultra-high-throughput **Fastify** engine, it coordinates user identity, multi-node GPU compute scheduling, storage provisioning, and institutional multi-tenancy.
 
@@ -95,7 +95,7 @@ Unlike traditional cloud backends that spawn heavyweight virtual machines, `back
 
 ---
 
-## 📊 System Architecture Diagrams
+## System Architecture Diagrams
 
 ### 1. End-to-End System Topology
 
@@ -234,7 +234,7 @@ graph LR
 
 ---
 
-## 📂 Project Directory Structure
+## Project Directory Structure
 
 ```bash
 backend-new/
@@ -352,7 +352,7 @@ backend-new/
 
 ---
 
-## 🔍 In-Depth Module Breakdown & Key Functions
+## In-Depth Module Breakdown & Key Functions
 
 ### 1. Compute Module (`src/compute`)
 The largest and most critical domain in the control plane. Orchestrates containerized workstations on GPU host nodes.
@@ -486,7 +486,7 @@ The database is built on **PostgreSQL 16** and modeled through **Prisma ORM** (`
 
 ---
 
-## 🔌 Comprehensive API Endpoint Matrix
+## Comprehensive API Endpoint Matrix
 
 ### Compute & Orchestration (`/api/compute`)
 | Method | Path | Auth Guard | Description |
@@ -528,7 +528,7 @@ The database is built on **PostgreSQL 16** and modeled through **Prisma ORM** (`
 
 ---
 
-## 🔒 Concurrency, Security & Data Protection
+## Concurrency, Security & Data Protection
 
 ### 1. Concurrency Control & Double-Allocation Prevention
 When multiple users request GPU workstations simultaneously, race conditions could cause GPU VRAM over-allocation. `ComputeService` eliminates this via two-phase serializable transactions:
@@ -554,7 +554,7 @@ Workstation VNC/desktop passwords are generated randomly on the host node, encry
 
 ---
 
-## ⏰ Automated Background Workers & Cron Schedule
+## Automated Background Workers & Cron Schedule
 
 The backend runs automated background jobs via `@nestjs/schedule` to maintain cluster health and enforce financial policies:
 
@@ -578,7 +578,7 @@ The backend runs automated background jobs via `@nestjs/schedule` to maintain cl
 
 ---
 
-## 🚀 Local Development, Seed & Production Runbook
+## Local Development, Seed & Production Runbook
 
 ### Prerequisites
 * **Node.js**: `v20.x` or `v22.x` (LTS recommended)
