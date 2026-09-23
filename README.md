@@ -134,10 +134,7 @@ As global demand for AI compute accelerates exponentially, relying exclusively o
 
 We are opening up development to engineers, researchers, and systems enthusiasts who want to shape the future of distributed compute, low-level virtualization, and AI infrastructure.
 
----
-
 ### Priority Contribution Areas
-
 Whether your expertise lies in the Linux kernel or modern web interfaces, there are immediate high-impact areas to contribute:
 
 1. **Kernel & GPU Virtualization (Systems & C/C++)**
@@ -156,10 +153,7 @@ Whether your expertise lies in the Linux kernel or modern web interfaces, there 
    * Tuning client-side WebRTC decoding latency, dynamic resolution scaling, and mobile browser touch inputs.
    * Designing real-time cluster telemetry components for the ITOps dashboard.
 
----
-
 ### Local Development Setup
-
 To spin up a local development environment for the control plane and API:
 
 #### 1. Prerequisites
