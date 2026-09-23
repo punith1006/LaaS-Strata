@@ -4,13 +4,10 @@
 
 <h2>
   About
-  <a href="https://ksrceailab.com" target="_blank" style="text-decoration:none;">
-    <span align="right" style="float:right; background-color:#2563EB; color:#ffffff; padding:5px 14px; font-size:12px; font-weight:bold; border-radius:6px; border:2px solid #000000; box-shadow:2px 2px 0px #000000; display:inline-block;">
-      Launch Platform &nbsp;→
-    </span>
+  <a href="https://ksrceailab.com" target="_blank">
+    <img align="right" height="30" src="https://img.shields.io/badge/Launch%20Platform%20%E2%86%92-1D4ED8?style=for-the-badge&logoColor=white&labelColor=000000" alt="Launch Platform">
   </a>
 </h2>
-
 
 Modern AI and HPC environments require more than raw compute. Teams need accessible GPU resources, ready-to-use Linux environments, persistent workspaces, and the ability to share expensive infrastructure efficiently. Traditional on-premise setups often leave GPUs underutilized, while public cloud environments introduce recurring compute costs, data movement, and reduced infrastructure control.
 
