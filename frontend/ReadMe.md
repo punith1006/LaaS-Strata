@@ -1,6 +1,6 @@
 <div align="center">
 
-# LaaS Cloud Console & Workstation Portal (`frontend-new`)
+# LaaS Cloud Console & Workstation Portal
 ### Enterprise Sovereign GPU Cloud Interface • Next.js 15.1 App Router • React 19 • Tailwind CSS v4 • Zustand 5 • WebRTC
 
 [![Next.js](https://img.shields.io/badge/Framework-Next.js%2015.1-000000?logo=next.js&logoColor=white&style=for-the-badge)](https://nextjs.org)
