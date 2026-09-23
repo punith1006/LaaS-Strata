@@ -206,4 +206,5 @@ git commit -m 'feat(scheduler): implement dynamic fleet rebalancing check'
 If you are passionate about sovereign AI infrastructure, GPU virtualization, or want to deploy a LaaS cluster at your institution, feel free to connect or reach out directly:
 
 Author & Lead Architect: Punith V S
+
 Email: punith.vs74064@gmail.com
