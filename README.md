@@ -188,9 +188,9 @@ cp .env.example .env.local
 
 # Launch Next.js dev server
 npm run dev
-```
-The frontend will be accessible at http://localhost:3000, communicating with the backend API at http://localhost:3001.
 
+The frontend will be accessible at http://localhost:3000, communicating with the backend API at http://localhost:3001.
+```
 ###Contribution Guidelines
 ####1.Fork the Repository and create your feature branch
 ```bash
