@@ -188,21 +188,21 @@ cp .env.example .env.local
 
 # Launch Next.js dev server
 npm run dev
-
-The frontend will be accessible at http://localhost:3000, communicating with the backend API at http://localhost:3001.
 ```
-###Contribution Guidelines
-####1.Fork the Repository and create your feature branch
+The frontend will be accessible at http://localhost:3000, communicating with the backend API at http://localhost:3001.
+
+### Contribution Guidelines
+#### 1.Fork the Repository and create your feature branch
 ```bash
 git checkout -b feature/amazing-feature
 ```
-####2.Commit your changes with clear, conventional commit messages
+#### 2.Commit your changes with clear, conventional commit messages
 ```bash
 git commit -m 'feat(scheduler): implement dynamic fleet rebalancing check'
 ```
-####3.Push to the branch and submit a Pull Request.
+#### 3.Push to the branch and submit a Pull Request.
 
-###Connect & Collaborate
+### Connect & Collaborate
 If you are passionate about sovereign AI infrastructure, GPU virtualization, or want to deploy a LaaS cluster at your institution, feel free to connect or reach out directly:
 
 Author & Lead Architect: Punith V S
