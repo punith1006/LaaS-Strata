@@ -10,7 +10,9 @@
 </h2>
 
 **85% of GPU capacity sits idle in university and enterprise labs because physical cards are locked to single users.** Meanwhile, public clouds charge exorbitant hourly premiums, wipe environments on shutdown, and penalize research with data egress fees.
+
 **LaaS** is an autonomous private cloud operating system that turns on-premise GPU clusters into high-density, browser-native AI workstations. By combining **fractional GPU virtualization, hardware-accelerated WebRTC streaming, and distributed ZFS storage**, LaaS allows multiple researchers to share physical silicon concurrently without noisy-neighbor interference.
+
 * **Fractional Slicing:** Partitions single GPUs (e.g., RTX 5090) into 4–8 isolated environments with dedicated VRAM quotas.
 * **In-Browser 60 FPS Desktops:** Full Linux graphical workstations (VS Code, Jupyter, KDE) streamed under 25ms latency with zero client setup.
 * **Zero-Lock Storage:** Persistent workspace roaming—scale your compute tier from lightweight inference to heavy training without losing files or dependencies.
