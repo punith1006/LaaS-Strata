@@ -76,7 +76,7 @@ Unlike traditional cloud backends that spawn heavyweight virtual machines, `back
 
 ---
 
-## 🛡 Key Engineering Guarantees
+## Key Engineering Guarantees
 
 1. **Zero Overcommit & Zero-OOM Protection**:
    - Every session launch runs inside an atomic PostgreSQL serializable transaction using `SELECT ... FOR UPDATE` row locks on active node allocations.
