@@ -5,8 +5,7 @@
 <h2>
   About
   <a href="https://ksrceailab.com" target="_blank">
-    <img align="right" height="32" src="https://api.iconify.design/heroicons:arrow-up-right-20-solid.svg" style="display:none;" />
-    <img align="right" height="32" src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=14&duration=1&pause=1000&color=FFFFFF&background=2563EBF0&vCenter=true&width=160&height=32&lines=Visit+Platform+%E2%86%92" alt="Visit Platform" />
+    <img align="right" height="30" src="https://img.shields.io/badge/Launch%20Platform%20%E2%86%92-1D4ED8?style=for-the-badge&logoColor=white&labelColor=000000" alt="Launch Platform">
   </a>
 </h2>
 
