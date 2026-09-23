@@ -36,7 +36,7 @@ dedicated graphical streaming pipeline. CUDA workloads are isolated and
 resource-constrained through GPU virtualization and MPS, while the desktop
 rendering path uses hardware-accelerated NVENC encoding and WebRTC to deliver
 interactive remote workspaces to users.
-<img width="3896" height="2193" alt="image" src="https://github.com/user-attachments/assets/e67900f1-0a47-4f72-a780-b23ac77f53cd" />
+<img width="3896" height="2193" alt="LaaS_GPU_Virtualization_Stack" src="https://github.com/user-attachments/assets/db03fa2f-b86e-4305-9199-1a9736818fb6" />
 
 ## Features & Capabilities
 
